@@ -1,0 +1,137 @@
+export type PaymentMethod = "card" | "pix";
+export type ExpenseKind = "variable" | "fixed_recurring" | "fixed_installment";
+export type EntryKind = "one_time" | "recurring";
+
+/** Quem estamos olhando: só eu, ou nós dois somados. */
+export type Scope = "me" | "us";
+
+export type Profile = {
+  id: string;
+  household_id: string | null;
+  display_name: string;
+  accent: "a" | "b";
+};
+
+export type Card = {
+  id: string;
+  user_id: string;
+  name: string;
+  closing_day: number | null;
+  due_day: number | null;
+  color: string | null;
+  archived: boolean;
+};
+
+export type Category = {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  archived: boolean;
+};
+
+export type Income = {
+  id: string;
+  user_id: string;
+  source: string;
+  amount: number;
+  kind: EntryKind;
+  start_date: string;
+  end_date: string | null;
+  notes: string | null;
+};
+
+export type Expense = {
+  id: string;
+  user_id: string;
+  payment_method: PaymentMethod;
+  kind: ExpenseKind;
+  card_id: string | null;
+  category_id: string | null;
+  description: string;
+  amount: number;
+  start_date: string;
+  end_date: string | null;
+  installments_total: number | null;
+  notes: string | null;
+};
+
+export type Investment = {
+  id: string;
+  user_id: string;
+  name: string;
+  asset_type: string;
+  amount: number;
+  kind: EntryKind;
+  start_date: string;
+  end_date: string | null;
+  notes: string | null;
+};
+
+/** Retorno de public.monthly_summary() */
+export type MonthlySummaryRow = {
+  month: string;
+  user_id: string;
+  income: number;
+  expense: number;
+  investment: number;
+};
+
+/** Retorno de public.category_ranking() */
+export type CategoryRankingRow = {
+  user_id: string;
+  category_name: string;
+  color: string;
+  total: number;
+  entries: number;
+};
+
+export const EXPENSE_KIND_LABEL: Record<ExpenseKind, string> = {
+  variable: "Variável",
+  fixed_recurring: "Fixo mensal",
+  fixed_installment: "Parcelado",
+};
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  card: "Cartão",
+  pix: "Pix",
+};
+
+/** Retorno de public.expense_occurrences() — um gasto por mês em que ele cai. */
+export type ExpenseOccurrence = {
+  expense_id: string;
+  user_id: string;
+  month: string;
+  amount: number;
+  payment_method: PaymentMethod;
+  kind: ExpenseKind;
+  card_id: string | null;
+  category_id: string | null;
+  description: string;
+  installment_number: number | null;
+  installments_total: number | null;
+};
+
+/** Retorno de public.income_occurrences() */
+export type IncomeOccurrence = {
+  income_id: string;
+  user_id: string;
+  month: string;
+  amount: number;
+  source: string;
+};
+
+/** Retorno de public.investment_occurrences() */
+export type InvestmentOccurrence = {
+  investment_id: string;
+  user_id: string;
+  month: string;
+  amount: number;
+  name: string;
+  asset_type: string;
+};
+
+export const ENTRY_KIND_LABEL: Record<EntryKind, string> = {
+  one_time: "Avulsa",
+  recurring: "Todo mês",
+};

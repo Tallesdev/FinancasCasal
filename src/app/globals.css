@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   Identidade visual
+   A ideia central: são duas pessoas. Cada uma tem uma cor própria, e a
+   visão do casal mistura as duas. Dinheiro é sempre mono e alinhado.
+   ===================================================================== */
+
+@theme {
+  --color-ink: #101219;
+  --color-surface: #171A23;
+  --color-surface-2: #1F232F;
+  --color-line: #2A2F3D;
+
+  --color-text: #E8EAF0;
+  --color-text-dim: #9BA3B7;
+  --color-text-faint: #646C81;
+
+  /* Identidade de cada pessoa */
+  --color-person-a: #7FD1AE;
+  --color-person-b: #E9A13B;
+  --color-couple: #C77DFF;
+
+  /* Semântica financeira */
+  --color-in: #7FD1AE;
+  --color-out: #E06C7B;
+  --color-invest: #6C8AE4;
+
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-card: 14px;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    background: var(--color-ink);
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-ink);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    /* respiro para a barra de navegação em PWA no celular */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Todo valor em dinheiro usa mono com algarismos de largura fixa,
+     para as colunas alinharem na vertical em qualquer tabela. */
+  .money {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-couple);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+  }
+
+  /* Marca visual do escopo ativo: individual usa a cor da pessoa,
+     casal usa a mistura das duas. */
+  .scope-a  { --scope: var(--color-person-a); }
+  .scope-b  { --scope: var(--color-person-b); }
+  .scope-us { --scope: var(--color-couple); }
+
+  .scope-tint { color: var(--scope, var(--color-couple)); }
+  .scope-rule { background: var(--scope, var(--color-couple)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

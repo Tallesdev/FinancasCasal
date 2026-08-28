@@ -1,0 +1,11 @@
+node_modules
+.next
+.env.local
+.DS_Store
+next-env.d.ts
+
+# valores reais do seed (e-mails), fora do repositorio
+supabase/seed.local.sql
+
+# artefato do typescript
+*.tsbuildinfo
