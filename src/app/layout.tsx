@@ -16,6 +16,10 @@ export const viewport: Viewport = {
   themeColor: "#101219",
   width: "device-width",
   initialScale: 1,
+  // Instalado na tela de início, ele tem que se comportar como app: um gesto
+  // torto não pode dar zoom e deixar a tela torta até você arrumar na mão.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

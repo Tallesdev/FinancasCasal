@@ -324,7 +324,7 @@ export default function GastosPage() {
       <div className="flex flex-wrap gap-2">
         <select
           aria-label="Forma de pagamento"
-          className={`${inputClass} w-auto py-2 text-sm`}
+          className={`${inputClass} w-auto py-2 sm:text-sm`}
           value={filterMethod}
           onChange={(event) =>
             setFilterMethod(event.target.value as "" | PaymentMethod)
@@ -337,7 +337,7 @@ export default function GastosPage() {
 
         <select
           aria-label="Tipo de gasto"
-          className={`${inputClass} w-auto py-2 text-sm`}
+          className={`${inputClass} w-auto py-2 sm:text-sm`}
           value={filterKind}
           onChange={(event) =>
             setFilterKind(event.target.value as "" | ExpenseKind)
@@ -351,7 +351,7 @@ export default function GastosPage() {
 
         <select
           aria-label="Categoria"
-          className={`${inputClass} w-auto py-2 text-sm`}
+          className={`${inputClass} w-auto py-2 sm:text-sm`}
           value={filterCategory}
           onChange={(event) => setFilterCategory(event.target.value)}
         >
@@ -366,7 +366,7 @@ export default function GastosPage() {
         {myCards.length > 0 && (
           <select
             aria-label="Cartão"
-            className={`${inputClass} w-auto py-2 text-sm`}
+            className={`${inputClass} w-auto py-2 sm:text-sm`}
             value={filterCard}
             onChange={(event) => setFilterCard(event.target.value)}
           >

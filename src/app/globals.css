@@ -41,6 +41,11 @@
   html {
     background: var(--color-ink);
     color-scheme: dark;
+    /* Mata o zoom de toque duplo sem tirar a rolagem. O user-scalable do
+       viewport o iOS às vezes ignora; isto vale sempre. */
+    touch-action: manipulation;
+    /* O iOS aumenta a fonte sozinho ao girar a tela se não travar. */
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -50,6 +55,25 @@
     -webkit-font-smoothing: antialiased;
     /* respiro para a barra de navegação em PWA no celular */
     padding-bottom: env(safe-area-inset-bottom);
+    /* Sem o efeito elástico de puxar a página além do fim. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Tocar num campo com fonte abaixo de 16px faz o iOS dar zoom na página e
+     não voltar. No celular todo campo tem 16px; a partir do sm o texto pode
+     encolher, porque ali não existe esse comportamento. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  @media (min-width: 40rem) {
+    input,
+    select,
+    textarea {
+      font-size: inherit;
+    }
   }
 
   h1, h2, h3 {
