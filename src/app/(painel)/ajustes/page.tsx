@@ -5,6 +5,12 @@ import Link from "next/link";
 
 const LINKS = [
   {
+    href: "/contas",
+    title: "Contas",
+    description:
+      "De onde o dinheiro sai. É o que liga um Pix à fatura do cartão.",
+  },
+  {
     href: "/cartoes",
     title: "Cartões",
     description: "Seus cartões, com fechamento e vencimento. Só você vê.",

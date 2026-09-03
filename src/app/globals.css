@@ -41,8 +41,10 @@
   html {
     background: var(--color-ink);
     color-scheme: dark;
-    /* Mata o zoom de toque duplo sem tirar a rolagem. O user-scalable do
-       viewport o iOS às vezes ignora; isto vale sempre. */
+    /* Instalado na tela de início ele tem que se comportar como app: um
+       gesto torto não pode dar zoom e deixar a tela deslocada. Isto mata
+       o zoom de toque duplo sem tirar a rolagem — o user-scalable do
+       viewport o iOS às vezes ignora, esta regra vale sempre. */
     touch-action: manipulation;
     /* O iOS aumenta a fonte sozinho ao girar a tela se não travar. */
     -webkit-text-size-adjust: 100%;
@@ -57,23 +59,6 @@
     padding-bottom: env(safe-area-inset-bottom);
     /* Sem o efeito elástico de puxar a página além do fim. */
     overscroll-behavior-y: none;
-  }
-
-  /* Tocar num campo com fonte abaixo de 16px faz o iOS dar zoom na página e
-     não voltar. No celular todo campo tem 16px; a partir do sm o texto pode
-     encolher, porque ali não existe esse comportamento. */
-  input,
-  select,
-  textarea {
-    font-size: 16px;
-  }
-
-  @media (min-width: 40rem) {
-    input,
-    select,
-    textarea {
-      font-size: inherit;
-    }
   }
 
   h1, h2, h3 {
@@ -93,9 +78,25 @@
     outline: 2px solid var(--color-couple);
     outline-offset: 2px;
   }
+
+  /* iOS Safari dá zoom na página inteira quando o campo focado tem fonte
+     menor que 16px. Do lado de quem usa, parece que a tela "deu um pulo"
+     e cobriu o que tinha em cima — é esse o bug de layout que ele
+     resolveu, não CSS quebrado. Todo campo do app trava em 16px. */
+  input, select, textarea {
+    font-size: 16px;
+  }
 }
 
 @layer utilities {
+  /* Alvo de toque mínimo recomendado pela Apple (44×44px). Use em
+     qualquer botão tocado direto — especialmente grupos de opção
+     (toggle, segmented control), onde é fácil errar o dedo em tela
+     pequena (iPhone 13, iPhone SE, Android compacto). */
+  .tap-target {
+    min-height: 44px;
+  }
+
   .card {
     background: var(--color-surface);
     border: 1px solid var(--color-line);

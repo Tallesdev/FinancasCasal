@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
+import { SegmentedField, SelectField } from "@/components/form/Field";
 import {
   Button,
   DeleteButton,
@@ -29,6 +30,7 @@ import {
 import {
   EXPENSE_KIND_LABEL,
   PAYMENT_METHOD_LABEL,
+  type BankAccount,
   type Card,
   type Category,
   type Expense,
@@ -49,6 +51,7 @@ type Draft = {
   end_date: string;
   installments_total: string;
   notes: string;
+  bank_account_id: string;
 };
 
 function emptyDraft(month: string): Draft {
@@ -68,6 +71,7 @@ function emptyDraft(month: string): Draft {
     end_date: "",
     installments_total: "",
     notes: "",
+    bank_account_id: "",
   };
 }
 
@@ -82,6 +86,7 @@ export default function GastosPage() {
   const [expenses, setExpenses] = useState<Record<string, Expense>>({});
   const [categories, setCategories] = useState<Category[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -97,8 +102,13 @@ export default function GastosPage() {
   const load = useCallback(async () => {
     setLoading(true);
 
-    const [occurrencesResult, expensesResult, categoriesResult, cardsResult] =
-      await Promise.all([
+    const [
+      occurrencesResult,
+      expensesResult,
+      categoriesResult,
+      cardsResult,
+      accountsResult,
+    ] = await Promise.all([
         // A lista do mês vem da projeção, não da tabela crua: assim os fixos
         // aparecem no mês certo e o parcelado sabe que parcela é.
         supabase.rpc("expense_occurrences", { p_from: month, p_to: month }),
@@ -106,6 +116,13 @@ export default function GastosPage() {
         supabase.from("categories").select("*"),
         // Cartão é privado, então só os meus voltam de qualquer jeito.
         supabase.from("cards").select("*").eq("user_id", me.id),
+        // Conta bancária também é privada.
+        supabase
+          .from("bank_accounts")
+          .select("*")
+          .eq("user_id", me.id)
+          .eq("archived", false)
+          .order("name"),
       ]);
 
     if (occurrencesResult.error) {
@@ -123,6 +140,7 @@ export default function GastosPage() {
 
     setCategories((categoriesResult.data ?? []) as Category[]);
     setCards((cardsResult.data ?? []) as Card[]);
+    setAccounts((accountsResult.data ?? []) as BankAccount[]);
     setLoading(false);
   }, [supabase, month, me.id]);
 
@@ -229,6 +247,7 @@ export default function GastosPage() {
       end_date: expense.end_date?.slice(0, 10) ?? "",
       installments_total: expense.installments_total?.toString() ?? "",
       notes: expense.notes ?? "",
+      bank_account_id: expense.bank_account_id ?? "",
     });
     setFormError(null);
   }
@@ -272,6 +291,10 @@ export default function GastosPage() {
       installments_total:
         draft.kind === "fixed_installment" ? installments : null,
       notes: draft.notes.trim() || null,
+      // Só faz sentido no Pix: é o que liga esse gasto ao ciclo do cartão
+      // que sai da mesma conta. No cartão, a conta vem do próprio cartão.
+      bank_account_id:
+        draft.payment_method === "pix" ? draft.bank_account_id || null : null,
     };
 
     setSaving(true);
@@ -497,6 +520,7 @@ export default function GastosPage() {
             setDraft={setDraft}
             categories={myCategories}
             cards={myCards}
+            accounts={accounts}
             error={formError}
             saving={saving}
             onSave={save}
@@ -513,6 +537,7 @@ function ExpenseForm({
   setDraft,
   categories,
   cards,
+  accounts,
   error,
   saving,
   onSave,
@@ -522,6 +547,7 @@ function ExpenseForm({
   setDraft: (draft: Draft) => void;
   categories: Category[];
   cards: Card[];
+  accounts: BankAccount[];
   error: string | null;
   saving: boolean;
   onSave: () => void;
@@ -587,31 +613,22 @@ function ExpenseForm({
         />
       </Field>
 
-      <Field label="Forma de pagamento">
-        <div className="grid grid-cols-2 gap-2">
-          {(["pix", "card"] as PaymentMethod[]).map((method) => (
-            <button
-              key={method}
-              type="button"
-              aria-pressed={draft.payment_method === method}
-              onClick={() =>
-                set({
-                  payment_method: method,
-                  card_id: method === "card" ? draft.card_id : "",
-                })
-              }
-              className={[
-                "rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
-                draft.payment_method === method
-                  ? "border-[var(--scope)] bg-[var(--scope)]/10 text-[var(--color-text)]"
-                  : "border-[var(--color-line)] text-[var(--color-text-dim)]",
-              ].join(" ")}
-            >
-              {PAYMENT_METHOD_LABEL[method]}
-            </button>
-          ))}
-        </div>
-      </Field>
+      <SegmentedField
+        label="Forma de pagamento"
+        value={draft.payment_method}
+        onChange={(method) =>
+          set({
+            payment_method: method,
+            card_id: method === "card" ? draft.card_id : "",
+            // A conta só acompanha o Pix; no cartão ela vem do cartão.
+            bank_account_id: method === "pix" ? draft.bank_account_id : "",
+          })
+        }
+        options={(["pix", "card"] as PaymentMethod[]).map((method) => ({
+          value: method,
+          label: PAYMENT_METHOD_LABEL[method],
+        }))}
+      />
 
       {draft.payment_method === "card" && (
         <Field
@@ -633,35 +650,43 @@ function ExpenseForm({
         </Field>
       )}
 
-      <Field label="Tipo">
-        <div className="grid grid-cols-3 gap-2">
-          {(
-            ["variable", "fixed_recurring", "fixed_installment"] as ExpenseKind[]
-          ).map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              aria-pressed={draft.kind === kind}
-              onClick={() =>
-                set({
-                  kind,
-                  end_date: kind === "fixed_recurring" ? draft.end_date : "",
-                  installments_total:
-                    kind === "fixed_installment" ? draft.installments_total : "",
-                })
-              }
-              className={[
-                "rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors",
-                draft.kind === kind
-                  ? "border-[var(--scope)] bg-[var(--scope)]/10 text-[var(--color-text)]"
-                  : "border-[var(--color-line)] text-[var(--color-text-dim)]",
-              ].join(" ")}
-            >
-              {EXPENSE_KIND_LABEL[kind]}
-            </button>
-          ))}
+      {draft.payment_method === "pix" && (
+        <div className="flex flex-col gap-1.5">
+          <SelectField
+            label="Saiu de qual conta"
+            value={draft.bank_account_id}
+            onChange={(event) => set({ bank_account_id: event.target.value })}
+          >
+            <option value="">Não informar</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </SelectField>
+          <span className="text-xs text-[var(--color-text-faint)]">
+            {accounts.length === 0
+              ? "Cadastre uma conta em Ajustes para poder marcar isso."
+              : "Opcional. Sem marcar, este Pix não entra em nenhum relatório por ciclo — só no mensal."}
+          </span>
         </div>
-      </Field>
+      )}
+
+      <SegmentedField
+        label="Tipo"
+        value={draft.kind}
+        onChange={(kind) =>
+          set({
+            kind,
+            end_date: kind === "fixed_recurring" ? draft.end_date : "",
+            installments_total:
+              kind === "fixed_installment" ? draft.installments_total : "",
+          })
+        }
+        options={(
+          ["variable", "fixed_recurring", "fixed_installment"] as ExpenseKind[]
+        ).map((kind) => ({ value: kind, label: EXPENSE_KIND_LABEL[kind] }))}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={dateLabel}>

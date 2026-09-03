@@ -10,8 +10,13 @@ import { monthLabel } from "@/lib/format";
    e como caixa centralizada no desktop.
    ===================================================================== */
 
+/**
+ * Campo usado pelas telas que já existiam. Mesmas duas garantias dos
+ * componentes de `form/Field.tsx`: 16px de fonte (senão o iOS dá zoom ao
+ * focar) e 44px de altura de toque.
+ */
 export const inputClass =
-  "w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)] px-3.5 py-2.5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-faint)] focus:border-[var(--scope)] disabled:opacity-50";
+  "w-full min-h-11 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)] px-3.5 py-2.5 text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-faint)] focus:border-[var(--scope)] disabled:opacity-50";
 
 export function Field({
   label,

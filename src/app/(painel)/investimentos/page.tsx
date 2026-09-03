@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
+import { SegmentedField } from "@/components/form/Field";
 import {
   Button,
   DeleteButton,
@@ -293,32 +294,21 @@ export default function InvestimentosPage() {
               />
             </Field>
 
-            <Field label="Frequência">
-              <div className="grid grid-cols-2 gap-2">
-                {(["recurring", "one_time"] as EntryKind[]).map((kind) => (
-                  <button
-                    key={kind}
-                    type="button"
-                    aria-pressed={draft.kind === kind}
-                    onClick={() =>
-                      setDraft({
-                        ...draft,
-                        kind,
-                        end_date: kind === "recurring" ? draft.end_date : "",
-                      })
-                    }
-                    className={[
-                      "rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
-                      draft.kind === kind
-                        ? "border-[var(--scope)] bg-[var(--scope)]/10 text-[var(--color-text)]"
-                        : "border-[var(--color-line)] text-[var(--color-text-dim)]",
-                    ].join(" ")}
-                  >
-                    {kind === "recurring" ? "Todo mês" : "Aporte único"}
-                  </button>
-                ))}
-              </div>
-            </Field>
+            <SegmentedField
+              label="Frequência"
+              value={draft.kind}
+              onChange={(kind) =>
+                setDraft({
+                  ...draft,
+                  kind,
+                  end_date: kind === "recurring" ? draft.end_date : "",
+                })
+              }
+              options={[
+                { value: "recurring" as EntryKind, label: "Todo mês" },
+                { value: "one_time" as EntryKind, label: "Aporte único" },
+              ]}
+            />
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={draft.kind === "one_time" ? "Data" : "Começa em"}>

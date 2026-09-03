@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
 import { MonthlyBars, RankBar } from "@/components/charts";
@@ -141,6 +142,21 @@ export default function RelatoriosPage() {
           </div>
         }
       />
+
+      <nav className="flex gap-2" aria-label="Tipo de relatório">
+        <span
+          aria-current="page"
+          className="rounded-full bg-[var(--scope)] px-3.5 py-1.5 text-sm font-medium text-[var(--color-ink)]"
+        >
+          Mês a mês
+        </span>
+        <Link
+          href="/relatorios/ciclo"
+          className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-sm text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
+        >
+          Por ciclo
+        </Link>
+      </nav>
 
       {error && <ErrorNote>{error}</ErrorNote>}
 

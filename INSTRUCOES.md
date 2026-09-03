@@ -3,9 +3,15 @@
 Documento de continuidade. Serve tanto pra você seguir o passo a passo quanto
 pra dar contexto ao Claude no VSCode/Cowork sobre o que já existe e o que falta.
 
+> **Leia o `PRD.md` primeiro.** Ele diz *o que* o app é e *por que* cada decisão
+> foi tomada — personas, requisitos, regras de negócio, estados de tela, o que
+> ficou de fora e por quê. Este arquivo aqui é o *como*: arquitetura, convenções
+> de código e a ordem de implementação. Sem o PRD, dá pra construir a coisa
+> certa do jeito errado, ou a coisa errada do jeito certo.
+
 ---
 
-## Parte 1 — Setup (fazer antes de mexer em código)
+## Parte 1 — Setup
 
 ### 1.1 Supabase
 
@@ -17,14 +23,14 @@ pra dar contexto ao Claude no VSCode/Cowork sobre o que já existe e o que falta
    - o e-mail dela + senha, também com Auto Confirm marcado
 4. **Authentication → Sign In / Providers → Email** → desligue **Enable sign ups**.
    Sem isso qualquer um que achar a URL consegue criar conta.
-5. Abra `supabase/seed.sql`, troque as 4 variáveis do topo:
-   ```sql
-   email_a text := 'seu@email.com';
-   email_b text := 'email@dela.com';
-   nome_a  text := 'Talles';
-   nome_b  text := 'Nome dela';
-   ```
-   Cole no **SQL Editor** → Run. Deve aparecer `NOTICE: Casa criada: <uuid>`.
+5. Abra `supabase/seed.sql`, troque as 4 variáveis do topo pelos e-mails e nomes
+   de vocês, cole no **SQL Editor** → Run. Deve aparecer
+   `NOTICE: Casa criada: <uuid>`.
+
+> **Num banco que já tem dados, nunca rode o `seed.sql` de novo** — ele cria uma
+> casa nova a cada execução. Mudanças de estrutura entram por
+> `supabase/migrations/`, que são aditivas e podem rodar mais de uma vez sem
+> estragar nada.
 
 ### 1.2 Projeto local
 
@@ -37,8 +43,12 @@ Abra `.env.local` e preencha com **Project Settings → API**:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 ```
+
+A chave é a **publishable** (a antiga `anon` também funciona — é a mesma coisa
+com nome novo). Nunca a `service_role`: ela ignora RLS e não pode ir pro
+navegador.
 
 ```powershell
 npm run dev
@@ -50,7 +60,7 @@ Abra `http://localhost:3000`. O esperado:
 
 - redireciona pra `/entrar`
 - login com o seu e-mail funciona
-- o toggle no topo mostra **"Talles"** e **"Talles + Nome dela"**
+- o toggle no topo mostra **"Talles"** e **"Talles + Duda"**
 - alternar entre os dois muda a cor de destaque da interface
 
 Se aparecer *"Falta vincular seu perfil"*, o `seed.sql` não rodou ou os e-mails
@@ -95,6 +105,9 @@ A RLS já impede vazar dados de fora da casa. O `userIds` é o que separa
 **Regra:** nenhuma tela de leitura pode ignorar `userIds`. Já os formulários de
 criação **nunca** mandam `user_id` — o `default auth.uid()` do banco resolve.
 
+O relatório por ciclo é a única exceção, e por construção: fatura é de um cartão
+específico, cartão é privado, então ali não existe visão de casal.
+
 ### Modelo de recorrência (a parte que mais confunde)
 
 Um gasto fixo é gravado **uma linha só**, nunca uma por mês.
@@ -118,9 +131,6 @@ const { data } = await supabase.rpc("monthly_summary", {
 });
 ```
 
-Funções disponíveis (todas respeitam RLS, todas retornam `user_id` pra você
-filtrar por escopo no cliente):
-
 | Função                    | Retorna                                             |
 | ------------------------- | --------------------------------------------------- |
 | `expense_occurrences`     | cada gasto expandido por mês, com nº da parcela      |
@@ -129,24 +139,109 @@ filtrar por escopo no cliente):
 | `monthly_summary`         | entrada / saída / investimento por mês e por pessoa  |
 | `category_ranking`        | total por nome de categoria, já ordenado             |
 
+Todas respeitam RLS e devolvem `user_id`, pra você filtrar por escopo no
+cliente.
+
 `category_ranking` agrupa pelo **nome** da categoria e devolve o `user_id`, para
 o cliente filtrar por escopo antes de somar. Como cada um tem a própria lista,
 categorias com nome igual nas duas contas somam na visão do casal — a soma
 acontece depois do filtro, em `/relatorios`.
 
+### Ciclo de fatura (mês calendário ≠ fatura do cartão)
+
+O relatório mensal (`monthly_summary`) responde "quanto ganhei/gastei no mês" e
+**não muda**. Mas gasto de cartão só vira fatura no fechamento, que raramente
+bate com o dia 1º — então existe um segundo relatório, por ciclo, que responde
+"quanto vou pagar de fato".
+
+- **`bank_accounts`** — conta bancária (ex: "Nubank"), privada como cartão.
+  Cartão tem `bank_account_id` opcional. Gasto no Pix também tem
+  `bank_account_id` opcional — é assim que o Pix entra no ciclo de um cartão.
+  **Não existe suposição automática de conta única.** Se o Pix não estiver
+  marcado, ele não aparece em nenhum ciclo, só no relatório mensal.
+- **`card_cycle_bounds(card_id, data_referencia)`** — dado um cartão e uma
+  data, devolve a janela do ciclo que contém essa data e a provável data de
+  vencimento. Fechamento no dia 13 → uma data em 20/08 cai no ciclo
+  14/08–13/09. O próprio dia do fechamento pertence ao ciclo que **termina**
+  nele.
+- **`cycle_expense_detail(card_id, data_referencia)`** — os lançamentos dentro
+  dessa janela: gastos do próprio cartão + Pix marcado com a mesma conta.
+  Diferente de `expense_occurrences`, aqui a data importa **por dia**, porque a
+  janela atravessa dois meses do calendário.
+- **`cycle_summary`** e **`cycle_category_ranking`** — total (geral e por
+  forma de pagamento) e ranking de categoria dentro do ciclo. Espelham
+  `monthly_summary` e `category_ranking`, só que na janela do ciclo.
+
+```ts
+const { data: bounds } = await supabase.rpc("card_cycle_bounds", {
+  p_card_id: cardId,
+  p_reference_date: "2026-08-20",
+});
+// → { cycle_start: "2026-08-14", cycle_end: "2026-09-13", due_date: "2026-09-21" }
+```
+
+Pra navegar entre ciclos na tela (anterior/próximo), chame de novo com uma
+`p_reference_date` fora da janela atual — um dia antes do `cycle_start` volta
+um ciclo, um dia depois do `cycle_end` avança um. É exatamente o que
+`/relatorios/ciclo` faz.
+
+Cartão sem `closing_day` devolve **zero linhas** de propósito, e a tela explica
+isso apontando pra `/cartoes` em vez de dar erro genérico.
+
+**Ainda não conferido contra fatura real.** A matemática do ciclo é a peça mais
+nova e a mais fácil de estar sutilmente errada — fechamento/vencimento em dia
+> 28 é aproximado pro último dia do mês em fevereiro, por exemplo. Vale testar
+no SQL Editor com o cartão e as datas reais antes de confiar nos números.
+
+### Responsividade — iPhone 13 e telas pequenas
+
+**Todo formulário novo usa os componentes de `src/components/form/Field.tsx`**
+(`TextField`, `DateField`, `NumberField`, `SelectField`, `SegmentedField`) em
+vez de `<input>` cru. Eles já resolvem dois problemas que, sem isso, se
+repetem em cada tela nova:
+
+1. **iOS Safari dá zoom na página inteira** quando o campo focado tem fonte
+   menor que 16px. Do lado de quem usa parece que "a tela deu um pulo e
+   cobriu o que tinha em cima" — não é bug de posicionamento, é o zoom nativo
+   do Safari. `globals.css` trava `font-size: 16px` em todo
+   `input`/`select`/`textarea` globalmente, e os componentes de `Field.tsx`
+   reforçam isso inline, pra não depender de nenhuma classe do Tailwind
+   conseguir sobrescrever sem querer.
+2. **Alvo de toque mínimo de 44px** (recomendação da Apple). Todo campo e
+   toda opção de `SegmentedField` já nascem com essa altura. As telas mais
+   antigas usam a constante `inputClass` de `src/components/ui.tsx`, que
+   carrega as mesmas duas garantias.
+
+Use `SegmentedField` pra qualquer escolha de poucas opções (avulso/
+recorrente, fixo/variável/parcelado, cartão/pix) em vez de `<select>` — em
+tela pequena, tocar direto na opção é mais confiável que abrir um dropdown
+nativo.
+
+Instalado como PWA, o app também trava o zoom por gesto: `maximumScale: 1` e
+`userScalable: false` no viewport de `src/app/layout.tsx`, mais
+`touch-action: manipulation` no `globals.css` (o iOS às vezes ignora o
+`user-scalable`, essa regra vale sempre).
+
+**Testar em:** simulador ou DevTools do navegador com largura 375px (iPhone
+SE), 390px (iPhone 13, o da Duda) e 360px (Android comum). O simulador do
+Safari no macOS reproduz o zoom automático; o DevTools do Chrome não —
+então se for testar especificamente esse bug, precisa ser num iPhone de
+verdade ou no Simulador do Xcode.
+
 ### Privacidade dentro da casa
 
-| Tabela        | Leitura      | Escrita |
-| ------------- | ------------ | ------- |
-| `cards`       | só o dono    | o dono  |
-| `categories`  | a casa toda  | o dono  |
-| `incomes`     | a casa toda  | o dono  |
-| `expenses`    | a casa toda  | o dono  |
-| `investments` | a casa toda  | o dono  |
+| Tabela          | Leitura      | Escrita |
+| --------------- | ------------ | ------- |
+| `cards`         | só o dono    | o dono  |
+| `bank_accounts` | só o dono    | o dono  |
+| `categories`    | a casa toda  | o dono  |
+| `incomes`       | a casa toda  | o dono  |
+| `expenses`      | a casa toda  | o dono  |
+| `investments`   | a casa toda  | o dono  |
 
 Categorias são legíveis pela casa porque o ranking do casal precisa do nome
-delas. Mas **nos formulários, só mostre as categorias e cartões do usuário
-logado** (`.eq("user_id", me.id)`), nunca `userIds`.
+delas. Mas **nos formulários, só mostre as categorias, cartões e contas do
+usuário logado** (`.eq("user_id", me.id)`), nunca `userIds`.
 
 ### Design
 
@@ -178,59 +273,67 @@ Regras que não se quebram:
 
 ## Parte 3 — O que já está pronto
 
-- Schema completo com RLS e as 5 funções de relatório
+**Fundação e cadastros**
+
+- Schema completo com RLS e as funções de relatório
 - Seed que cria a casa e vincula os dois perfis
 - Auth por cookie (`@supabase/ssr`) + middleware que protege todas as rotas
 - `ScopeProvider`, `ScopeToggle`, `ScopeHeading`
 - Shell do app: nav responsiva, header com toggle, botão de sair
-- PWA: manifest, service worker, ícones
+- PWA: manifest, service worker, ícones, zoom por gesto travado
 - Helpers de formatação pt-BR e tipos do domínio
-- Kit de interface compartilhado (`src/components/ui.tsx`): campos, botões,
-  folha de formulário, seletor de cor, navegação de mês, confirmação de exclusão
+- Kit de interface (`src/components/ui.tsx`) e campos de formulário
+  (`src/components/form/Field.tsx`)
 - Gráficos (`src/components/charts.tsx`): barras mensais com legenda e tooltip
-- **Todas as telas das Fases 2, 3 e 4** — cartões, categorias, gastos, renda,
-  investimentos, dashboard e relatórios
+
+**Telas** — todas no ar:
+
+| Rota                 | O que faz |
+| -------------------- | --------- |
+| `/`                  | Dashboard do mês: entrou/saiu/investiu/sobrou, barras de 6 meses, top 5 categorias, fixos do mês |
+| `/gastos`            | Lista do mês via `expense_occurrences`, filtros, formulário com campos condicionais e prévia do parcelamento |
+| `/renda`             | CRUD, mais o total que entra por mês hoje |
+| `/investimentos`     | CRUD, mais o aporte mensal em vigor |
+| `/relatorios`        | Ano inteiro: gráfico dos 12 meses, médias, ranking por categoria, tabela mensal |
+| `/relatorios/ciclo`  | Fatura por ciclo: janela, vencimento, total por forma de pagamento, ranking e lançamentos |
+| `/contas`            | CRUD de contas bancárias |
+| `/cartoes`           | CRUD de cartões, com a conta que paga a fatura |
+| `/categorias`        | CRUD de categorias |
+| `/ajustes`           | Índice de contas/cartões/categorias, para o celular |
+
+Fases 1 a 5 do PRD entregues. Falta a Fase 6: usar por um mês inteiro sem
+planilha paralela.
 
 ---
 
-## Parte 4 — Telas entregues
+## Parte 4 — O que falta
 
-### Fase 2 — Cadastros base
+### Conferir a matemática do ciclo
 
-- [x] `/cartoes` — CRUD. Nome, dia de fechamento, dia de vencimento, cor.
-      Cartão com gasto ligado só arquiva; sem gasto, exclui. Arquivados ficam
-      numa seção à parte, com "Reativar".
-- [x] `/categorias` — CRUD com a mesma regra de arquivar. A cor sai de uma
-      paleta de 10 opções (`src/lib/palette.ts`) e a tela sugere uma cor ainda
-      não usada. Nome repetido devolve recado em português, não erro do banco.
+Antes de confiar nos números de `/relatorios/ciclo`, rodar no SQL Editor com o
+cartão e as datas reais e comparar com a fatura do Nubank:
 
-### Fase 3 — Lançamentos
+```sql
+select * from public.card_cycle_bounds('<uuid-do-cartao>', current_date);
+select * from public.cycle_expense_detail('<uuid-do-cartao>', current_date);
+```
 
-- [x] `/gastos` — lista vinda de `expense_occurrences` do mês selecionado, com
-      filtros de mês, forma de pagamento, tipo, categoria e cartão. Formulário
-      com campos condicionais: `card` exige cartão, `fixed_installment` exige
-      número de parcelas e mostra a prévia ("10x de R$ 120,00 — R$ 1.200,00 no
-      total, termina em Maio 2027"). Editar e excluir só aparecem no que é seu.
-- [x] `/renda` — CRUD com fonte, valor, tipo, início e fim opcional, mais o
-      total que entra por mês hoje.
-- [x] `/investimentos` — CRUD com nome, tipo de ativo, valor, aporte único ou
-      mensal, início e fim opcional, mais o aporte mensal em vigor.
+É a pergunta em aberto nº 4 do PRD.
 
-### Fase 4 — Visualização
+### Do PRD, ainda não implementado
 
-- [x] `/` dashboard — mês corrente (ou o mês escolhido na navegação), sempre no
-      escopo ativo: entrou / saiu / investiu / sobrou, barras dos últimos 6
-      meses, top 5 categorias com % do gasto e a lista dos fixos do mês.
-- [x] `/relatorios` — seletor de ano, gráfico dos 12 meses com entrada, saída e
-      investimento na mesma escala, médias por mês com movimento, ranking
-      completo por categoria com % do total, e a tabela do ano mês a mês.
-      Na visão do casal os totais vêm somados, sem quebra por pessoa.
+- **RF24** — criar categoria de dentro do formulário de gasto, sem perder o
+  que já foi preenchido.
+- **RF29** — duplicar um gasto recente como atalho de lançamento.
+- **RF30** — funcionar offline para leitura do mês já carregado.
+- **Estado de carregamento** — hoje é uma frase ("Carregando…") onde o PRD pede
+  esqueleto no lugar do número.
 
-### Extra que a navegação pediu
+### Alvo de toque nas ações da lista
 
-- [x] `/ajustes` — no celular a barra de baixo é só para o dia a dia, então
-      Cartões e Categorias ganharam esta página de entrada, ligada no header.
-      No desktop eles continuam na coluna lateral.
+Os botões "Editar" e "Excluir" dentro das listas ainda são menores que 44px.
+Aumentar a altura deles estoura o layout da linha; o caminho é expandir a área
+de toque sem mudar o tamanho visual.
 
 ### Depois (só se fizer falta)
 
@@ -248,13 +351,26 @@ CSV, modo claro.
 - **`cookies()` é async** no Next 15 — por isso `createClient()` do server é
   `async` e precisa de `await`.
 - **Service worker só registra em produção**, pra não atrapalhar o hot reload.
-- Não commite `.env.local` (já está no `.gitignore`).
+- Não commite `.env.local` (já está no `.gitignore`). Os e-mails reais do seed
+  ficam em `supabase/seed.local.sql`, também ignorado — o repositório é público.
+- **Deploy**: Vercel, ligado no `main` do GitHub. As duas variáveis do
+  `.env.local` precisam estar em Environment Variables, nos três ambientes.
+  Migração de banco roda **antes** do push, nunca depois.
 
 ---
 
 ## Prompt sugerido pro Cowork
 
 > Este é um PWA de finanças para um casal, Next.js 15 + Supabase.
-> Leia `INSTRUCOES.md` inteiro antes de escrever qualquer código — ele explica
-> o modelo de escopo (individual vs casal), como gastos recorrentes e parcelados
-> são gravados, e as regras de design. Depois disso, comece pela Fase 2.
+>
+> Antes de escrever qualquer código, leia dois arquivos, nesta ordem:
+> `PRD.md` (o que o produto é, para quem, com quais regras de negócio e estados
+> de tela) e `INSTRUCOES.md` (como o código está montado, convenções e o que
+> falta fazer).
+>
+> Antes de codar cada tela, me diga em duas ou três frases o que você entendeu
+> que ela precisa resolver, para eu confirmar.
+
+Esse último parágrafo importa. O erro mais comum não é código errado — é o
+agente construir uma tela tecnicamente correta que resolve o problema errado.
+Pedir o resumo antes de cada tela custa 10 segundos e evita refazer.

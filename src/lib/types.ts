@@ -20,6 +20,8 @@ export type Card = {
   due_day: number | null;
   color: string | null;
   archived: boolean;
+  /** Conta que paga a fatura deste cartão. Opcional. */
+  bank_account_id: string | null;
 };
 
 export type Category = {
@@ -54,6 +56,9 @@ export type Expense = {
   end_date: string | null;
   installments_total: number | null;
   notes: string | null;
+  /** Só no Pix: de qual conta o dinheiro saiu. É o que faz o Pix entrar
+      no ciclo de fatura do cartão daquela conta. */
+  bank_account_id: string | null;
 };
 
 export type Investment = {
@@ -134,4 +139,50 @@ export type InvestmentOccurrence = {
 export const ENTRY_KIND_LABEL: Record<EntryKind, string> = {
   one_time: "Avulsa",
   recurring: "Todo mês",
+};
+
+/** Conta bancária. Privada, mesma regra do cartão. */
+export type BankAccount = {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  archived: boolean;
+};
+
+/** Retorno de public.card_cycle_bounds() */
+export type CycleBounds = {
+  cycle_start: string;
+  cycle_end: string;
+  due_date: string | null;
+};
+
+/** Retorno de public.cycle_expense_detail() */
+export type CycleExpenseRow = {
+  expense_id: string;
+  occurred_on: string;
+  description: string;
+  amount: number;
+  payment_method: PaymentMethod;
+  kind: ExpenseKind;
+  category_id: string | null;
+  installment_number: number | null;
+  installments_total: number | null;
+};
+
+/** Retorno de public.cycle_summary() */
+export type CycleSummaryRow = {
+  total: number;
+  total_card: number;
+  total_pix: number;
+  entries: number;
+};
+
+/** Retorno de public.cycle_category_ranking() — sem user_id: o ciclo já é
+    de uma pessoa só, então não existe visão de casal aqui. */
+export type CycleCategoryRow = {
+  category_name: string;
+  color: string;
+  total: number;
+  entries: number;
 };

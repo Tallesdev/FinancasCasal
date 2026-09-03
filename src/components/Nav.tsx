@@ -12,6 +12,7 @@ const LINKS = [
 ];
 
 const SETTINGS = [
+  { href: "/contas", label: "Contas" },
   { href: "/cartoes", label: "Cartões" },
   { href: "/categorias", label: "Categorias" },
 ];

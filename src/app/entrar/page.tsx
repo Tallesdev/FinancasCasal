@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { TextField } from "@/components/form/Field";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,34 +52,24 @@ export default function LoginPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-[var(--color-text-dim)]">
-              E-mail
-            </span>
-            <input
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && handleSubmit()}
-              className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] px-3.5 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-couple)]"
-            />
-          </label>
+          <TextField
+            label="E-mail"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && handleSubmit()}
+          />
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-[var(--color-text-dim)]">
-              Senha
-            </span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && handleSubmit()}
-              className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] px-3.5 py-2.5 text-[var(--color-text)] outline-none focus:border-[var(--color-couple)]"
-            />
-          </label>
+          <TextField
+            label="Senha"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && handleSubmit()}
+          />
 
           {error && (
             <p
@@ -93,7 +84,7 @@ export default function LoginPage() {
             type="button"
             onClick={handleSubmit}
             disabled={loading || !email || !password}
-            className="mt-2 rounded-lg bg-[var(--color-couple)] px-4 py-2.5 font-semibold text-[var(--color-ink)] transition-opacity disabled:opacity-40"
+            className="mt-2 min-h-11 rounded-lg bg-[var(--color-couple)] px-4 font-semibold text-[var(--color-ink)] transition-opacity disabled:opacity-40"
           >
             {loading ? "Entrando…" : "Entrar"}
           </button>

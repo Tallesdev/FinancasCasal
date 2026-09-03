@@ -17,8 +17,9 @@ import {
   Tag,
   inputClass,
 } from "@/components/ui";
+import { SelectField } from "@/components/form/Field";
 import { DEFAULT_COLOR } from "@/lib/palette";
-import type { Card } from "@/lib/types";
+import type { BankAccount, Card } from "@/lib/types";
 
 type Draft = {
   id: string | null;
@@ -26,6 +27,7 @@ type Draft = {
   closing_day: string;
   due_day: string;
   color: string;
+  bank_account_id: string;
 };
 
 const EMPTY: Draft = {
@@ -34,6 +36,7 @@ const EMPTY: Draft = {
   closing_day: "",
   due_day: "",
   color: DEFAULT_COLOR,
+  bank_account_id: "",
 };
 
 export default function CartoesPage() {
@@ -41,6 +44,7 @@ export default function CartoesPage() {
   const { me } = useScope();
 
   const [cards, setCards] = useState<Card[]>([]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
   // Quantos gastos apontam para cada cartão — define se dá para excluir.
   const [usage, setUsage] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -52,7 +56,7 @@ export default function CartoesPage() {
     setLoading(true);
 
     // Cartão é privado: a RLS já devolve só os meus, mas o filtro deixa claro.
-    const [cardsResult, expensesResult] = await Promise.all([
+    const [cardsResult, expensesResult, accountsResult] = await Promise.all([
       supabase
         .from("cards")
         .select("*")
@@ -60,7 +64,15 @@ export default function CartoesPage() {
         .order("archived")
         .order("name"),
       supabase.from("expenses").select("card_id").eq("user_id", me.id),
+      supabase
+        .from("bank_accounts")
+        .select("*")
+        .eq("user_id", me.id)
+        .eq("archived", false)
+        .order("name"),
     ]);
+
+    setAccounts((accountsResult.data ?? []) as BankAccount[]);
 
     if (cardsResult.error) {
       setError("Não deu para carregar seus cartões.");
@@ -106,6 +118,7 @@ export default function CartoesPage() {
       closing_day: day(draft.closing_day),
       due_day: day(draft.due_day),
       color: draft.color,
+      bank_account_id: draft.bank_account_id || null,
     };
 
     const { error: writeError } = draft.id
@@ -169,6 +182,9 @@ export default function CartoesPage() {
                 key={card.id}
                 card={card}
                 uses={usage[card.id] ?? 0}
+                accountName={
+                  accounts.find((a) => a.id === card.bank_account_id)?.name
+                }
                 onEdit={() =>
                   setDraft({
                     id: card.id,
@@ -176,6 +192,7 @@ export default function CartoesPage() {
                     closing_day: card.closing_day?.toString() ?? "",
                     due_day: card.due_day?.toString() ?? "",
                     color: card.color ?? DEFAULT_COLOR,
+                    bank_account_id: card.bank_account_id ?? "",
                   })
                 }
                 onArchive={() => setArchived(card, true)}
@@ -264,6 +281,25 @@ export default function CartoesPage() {
               </Field>
             </div>
 
+            <SelectField
+              label="Conta que paga a fatura"
+              value={draft.bank_account_id}
+              onChange={(event) =>
+                setDraft({ ...draft, bank_account_id: event.target.value })
+              }
+            >
+              <option value="">Nenhuma</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </SelectField>
+            <p className="-mt-2 text-xs text-[var(--color-text-faint)]">
+              Sem conta, o relatório por ciclo deste cartão não consegue juntar
+              os Pix que saíram da mesma conta.
+            </p>
+
             <Field label="Cor">
               <ColorPicker
                 value={draft.color}
@@ -297,12 +333,14 @@ export default function CartoesPage() {
 function CardRow({
   card,
   uses,
+  accountName,
   onEdit,
   onArchive,
   onDelete,
 }: {
   card: Card;
   uses: number;
+  accountName?: string;
   onEdit: () => void;
   onArchive: () => void;
   onDelete: () => void;
@@ -317,6 +355,7 @@ function CardRow({
             {card.closing_day && <span>fecha dia {card.closing_day}</span>}
             {card.closing_day && card.due_day && <span>·</span>}
             {card.due_day && <span>vence dia {card.due_day}</span>}
+            {accountName && <Tag>{accountName}</Tag>}
             {uses > 0 && (
               <Tag>
                 {uses} {uses === 1 ? "gasto" : "gastos"}

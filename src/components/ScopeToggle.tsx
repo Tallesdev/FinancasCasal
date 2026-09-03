@@ -30,7 +30,7 @@ export function ScopeToggle() {
             aria-pressed={active}
             onClick={() => setScope(option.value)}
             className={[
-              "rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+              "flex min-h-11 items-center rounded-full px-3.5 text-sm font-medium transition-colors",
               active
                 ? "bg-[var(--scope)] text-[var(--color-ink)]"
                 : "text-[var(--color-text-dim)] hover:text-[var(--color-text)]",

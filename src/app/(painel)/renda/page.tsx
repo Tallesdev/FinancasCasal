@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
+import { SegmentedField } from "@/components/form/Field";
 import {
   Button,
   DeleteButton,
@@ -281,32 +282,21 @@ export default function RendaPage() {
               />
             </Field>
 
-            <Field label="Tipo">
-              <div className="grid grid-cols-2 gap-2">
-                {(["recurring", "one_time"] as EntryKind[]).map((kind) => (
-                  <button
-                    key={kind}
-                    type="button"
-                    aria-pressed={draft.kind === kind}
-                    onClick={() =>
-                      setDraft({
-                        ...draft,
-                        kind,
-                        end_date: kind === "recurring" ? draft.end_date : "",
-                      })
-                    }
-                    className={[
-                      "rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
-                      draft.kind === kind
-                        ? "border-[var(--scope)] bg-[var(--scope)]/10 text-[var(--color-text)]"
-                        : "border-[var(--color-line)] text-[var(--color-text-dim)]",
-                    ].join(" ")}
-                  >
-                    {ENTRY_KIND_LABEL[kind]}
-                  </button>
-                ))}
-              </div>
-            </Field>
+            <SegmentedField
+              label="Tipo"
+              value={draft.kind}
+              onChange={(kind) =>
+                setDraft({
+                  ...draft,
+                  kind,
+                  end_date: kind === "recurring" ? draft.end_date : "",
+                })
+              }
+              options={(["recurring", "one_time"] as EntryKind[]).map((kind) => ({
+                value: kind,
+                label: ENTRY_KIND_LABEL[kind],
+              }))}
+            />
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Field
