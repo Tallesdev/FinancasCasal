@@ -22,9 +22,9 @@ export default async function PainelLayout({
   if (!user) redirect("/entrar");
 
   // A RLS já limita esta consulta à casa de quem está logado.
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, household_id, display_name, accent");
+  // `select("*")` de propósito: se uma migração ainda não rodou, a coluna
+  // nova só vem indefinida em vez de derrubar o app inteiro.
+  const { data: profiles } = await supabase.from("profiles").select("*");
 
   const me = (profiles ?? []).find((p) => p.id === user.id) as Profile | undefined;
 

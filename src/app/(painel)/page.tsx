@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
 import { ScopeHeading } from "@/components/ScopeHeading";
+import { FaturaAviso } from "@/components/FaturaAviso";
 import { MonthlyBars, RankBar } from "@/components/charts";
 import {
   Button,
@@ -144,6 +145,8 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <ScopeHeading />
+
+      <FaturaAviso />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <MonthNav month={month} onChange={setMonth} />

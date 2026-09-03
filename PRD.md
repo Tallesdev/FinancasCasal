@@ -1,9 +1,9 @@
 # PRD: Finanças do casal
 
-**Versão:** v1.0
+**Versão:** v1.1
 **Status:** Aprovado
 **Autor:** Talles
-**Última atualização:** 27/08/2026
+**Última atualização:** 03/09/2026
 **Escopo desta versão:** MVP utilizável pelos dois no dia a dia
 
 ---
@@ -199,16 +199,22 @@ integração bancária. Lançamento é manual e assumido como tal.
 mês calendário e fatura, descrito na particularidade da persona Talles. É um
 relatório adicional; o mensal continua existindo do jeito que está.
 
-- **RF25** — Cadastrar contas bancárias (ex: "Nubank"). Cada cartão pode ser
-  vinculado a uma conta. Cada gasto no Pix também pode ser vinculado — é assim
-  que o Pix entra no relatório de ciclo do cartão daquela conta.
+- **RF25** — Cadastrar contas bancárias (ex: "Nubank"). Cada cartão pertence a
+  uma conta, e cada gasto pode ser marcado com a conta de onde o dinheiro saiu.
+  Serve para separar a origem do gasto na lista, para quem usa mais de uma
+  conta. `[REVISADO em 03/09/2026 — ver histórico]`
 - **RF26** — Relatório por ciclo: escolhe um cartão, o app calcula a janela do
-  ciclo a partir do dia de fechamento dele (ex: 14/08 a 13/09) e mostra tudo
-  que caiu ali — gastos do próprio cartão mais Pix vinculado à mesma conta.
-- **RF27** — O relatório de ciclo tem o mesmo nível de detalhe do mensal:
-  total, total por forma de pagamento, e ranking de categoria dentro da janela.
+  ciclo a partir do dia de fechamento dele (ex: 14/08 a 13/09) e mostra as
+  compras **daquele cartão** que caíram na janela.
+- **RF27** — O relatório de ciclo mostra a fatura fechada, a renda que entrou
+  na mesma janela, a sobra depois da fatura, e o ranking de categoria da
+  janela.
 - **RF28** — Contas bancárias são privadas (só o dono vê e edita), mesma regra
   dos cartões.
+- **RF31** — A pessoa escolhe um cartão para **definir o próprio mês**. Quem
+  faz isso passa a ver, na primeira tela, quanto a fatura já acumulou, quando
+  ela fecha e quando é paga. Quem não escolhe nenhum continua no mês do
+  calendário, sem diferença nenhuma.
 
 ### P2 — Depois
 
@@ -233,13 +239,23 @@ relatório adicional; o mensal continua existindo do jeito que está.
    objetivo.
 6. **Cartão é privado até na leitura.** Na visão do casal o gasto da outra
    pessoa aparece como "Cartão", sem nomear qual.
-7. **Pix só entra no ciclo de um cartão se estiver marcado com a mesma conta
-   bancária.** Não existe suposição automática de "toda Pix é a mesma conta".
-   Foi decisão explícita — mais trabalho ao lançar, mas não quebra quando uma
-   segunda conta aparecer.
+7. **O relatório de ciclo só tem gasto de cartão.** Pix e transferência saem
+   da conta no dia em que acontecem — não esperam fechamento nenhum, então não
+   pertencem a uma fatura. Eles ficam no relatório mensal. A conta bancária
+   marcada num gasto serve para separar origem na lista, não para puxá-lo para
+   dentro de um ciclo.
 8. **O ciclo é sempre de um cartão específico**, não de uma conta em abstrato.
    Se uma conta tiver dois cartões com fechamentos diferentes, são dois
    ciclos diferentes — não existe "ciclo da conta" combinando os dois.
+9. **A fatura é dívida no momento em que fecha, não quando é paga.** Fechou dia
+   13, aquele dinheiro já está comprometido, mesmo que só saia da conta dia 21.
+   O vencimento é informação de tela e não entra em cálculo nenhum. A
+   consequência é que "sobra depois da fatura" é competência, não saldo em
+   conta — os gastos fora do cartão não estão descontados dela.
+10. **Renda semanal é lançamento avulso, não previsão.** Quem recebe por
+   semana lança o que recebeu, no fim de semana em que recebeu. Não existe
+   projeção de renda futura no app — um fim de semana sem trabalho é
+   simplesmente um lançamento que não aconteceu.
 
 ### Estados que precisam existir
 
@@ -357,7 +373,7 @@ anterior.
 | Fixo de valor variável (luz, água) merece tratamento próprio? | Depois de 2 meses de uso |
 | A média deve considerar 6 ou 12 meses? | Quando houver histórico pra comparar |
 | Vale unificar a lista de categorias entre os dois? | Se o ranking do casal fragmentar na prática |
-| A matemática do ciclo (`card_cycle_bounds`) bate com a fatura real do Nubank? | Antes de construir a tela — testar no SQL Editor com datas reais |
+| A matemática do ciclo bate com a fatura real do Nubank? | **Parcial:** conferida contra a regra descrita (fecha 13, compra do 14 em diante vai pra fatura seguinte, paga 21) e contra mês curto (fecha 31 → 28/02). Falta comparar com uma fatura de verdade. |
 | Fechamento/vencimento em dia > 28 é aproximado (cai pro último dia do mês em fevereiro). Isso incomoda na prática? | Depois de observar um ciclo em mês curto |
 
 **Resolvida em 27/08/2026:** gasto no cartão cai no mês da compra pro
@@ -373,3 +389,4 @@ calendário.
 | Versão | Data | O que mudou |
 | --- | --- | --- |
 | v1.0 | 27/08/2026 | Versão inicial, escrita depois da Fase 1 |
+| v1.1 | 03/09/2026 | Ciclo de fatura passa a ser só gasto de cartão (regra 7 reescrita); fatura vira dívida no fechamento (regra 9); renda semanal é lançamento avulso (regra 10); RF31, o cartão que define o mês. Contas bancárias sobrevivem com outro propósito: separar origem do gasto, já que a Duda usa duas. |

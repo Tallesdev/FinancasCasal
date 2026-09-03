@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
 import { RankBar } from "@/components/charts";
@@ -17,13 +18,13 @@ import {
 import { formatDate, money, percent, toISODate } from "@/lib/format";
 import {
   EXPENSE_KIND_LABEL,
-  PAYMENT_METHOD_LABEL,
   type Card,
   type Category,
   type CycleBounds,
   type CycleCategoryRow,
   type CycleExpenseRow,
   type CycleSummaryRow,
+  type IncomeInWindowRow,
 } from "@/lib/types";
 
 /** Um dia antes ou depois da janela cai no ciclo vizinho. */
@@ -34,16 +35,21 @@ function shiftDay(iso: string, days: number) {
 
 export default function CicloPage() {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   const { me } = useScope();
 
   const [cards, setCards] = useState<Card[]>([]);
   const [cardId, setCardId] = useState("");
+  const [anchorId, setAnchorId] = useState<string | null>(
+    me.anchor_card_id ?? null
+  );
   const [reference, setReference] = useState(() => toISODate(new Date()));
 
   const [bounds, setBounds] = useState<CycleBounds | null>(null);
   const [summary, setSummary] = useState<CycleSummaryRow | null>(null);
   const [ranking, setRanking] = useState<CycleCategoryRow[]>([]);
   const [rows, setRows] = useState<CycleExpenseRow[]>([]);
+  const [income, setIncome] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
 
   const [loadingCards, setLoadingCards] = useState(true);
@@ -68,15 +74,17 @@ export default function CicloPage() {
       } else {
         const list = (cardsResult.data ?? []) as Card[];
         setCards(list);
-        // Começa pelo primeiro cartão que tem fechamento cadastrado.
-        setCardId(
-          (list.find((card) => card.closing_day) ?? list[0])?.id ?? ""
-        );
+        // Abre no cartão que define o mês; senão, no primeiro com fechamento.
+        const preferido =
+          list.find((card) => card.id === me.anchor_card_id) ??
+          list.find((card) => card.closing_day) ??
+          list[0];
+        setCardId(preferido?.id ?? "");
       }
       setCategories((categoriesResult.data ?? []) as Category[]);
       setLoadingCards(false);
     })();
-  }, [supabase, me.id]);
+  }, [supabase, me.id, me.anchor_card_id]);
 
   const selected = cards.find((card) => card.id === cardId) ?? null;
 
@@ -102,13 +110,32 @@ export default function CicloPage() {
       return;
     }
 
-    setError(null);
-    setBounds(((boundsResult.data ?? []) as CycleBounds[])[0] ?? null);
+    const janela = ((boundsResult.data ?? []) as CycleBounds[])[0] ?? null;
+    setBounds(janela);
     setSummary(((summaryResult.data ?? []) as CycleSummaryRow[])[0] ?? null);
     setRanking((rankingResult.data ?? []) as CycleCategoryRow[]);
     setRows((detailResult.data ?? []) as CycleExpenseRow[]);
+
+    // A renda da janela precisa de projeção por dia: a janela vai do 14 ao
+    // 13, então o resumo mensal não serve.
+    if (janela) {
+      const { data } = await supabase.rpc("income_in_window", {
+        p_from: janela.cycle_start,
+        p_to: janela.cycle_end,
+      });
+      const linhas = (data ?? []) as IncomeInWindowRow[];
+      setIncome(
+        linhas
+          .filter((linha) => linha.user_id === me.id)
+          .reduce((soma, linha) => soma + Number(linha.amount), 0)
+      );
+    } else {
+      setIncome(0);
+    }
+
+    setError(null);
     setLoading(false);
-  }, [supabase, cardId, reference]);
+  }, [supabase, cardId, reference, me.id]);
 
   useEffect(() => {
     load();
@@ -120,13 +147,24 @@ export default function CicloPage() {
     return map;
   }, [categories]);
 
-  const total = Number(summary?.total ?? 0);
+  async function setAnchor(id: string | null) {
+    setAnchorId(id);
+    await supabase
+      .from("profiles")
+      .update({ anchor_card_id: id })
+      .eq("id", me.id);
+    // O layout lê o perfil no servidor; sem isso o dashboard fica atrasado.
+    router.refresh();
+  }
+
+  const fatura = Number(summary?.total ?? 0);
+  const sobra = income - fatura;
 
   return (
     <div className="flex flex-col gap-6">
       <PageTitle
-        title="Fatura por ciclo"
-        description="O que você vai pagar de fato, seguindo o fechamento do cartão."
+        title="Pelo cartão"
+        description="Quando o seu mês é definido pelo fechamento da fatura, não pelo calendário."
       />
 
       <nav className="flex gap-2" aria-label="Tipo de relatório">
@@ -140,7 +178,7 @@ export default function CicloPage() {
           aria-current="page"
           className="rounded-full bg-[var(--scope)] px-3.5 py-1.5 text-sm font-medium text-[var(--color-ink)]"
         >
-          Por ciclo
+          Pelo cartão
         </span>
       </nav>
 
@@ -160,27 +198,73 @@ export default function CicloPage() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            {cards.map((card) => (
-              <button
-                key={card.id}
-                type="button"
-                aria-pressed={card.id === cardId}
-                onClick={() => {
-                  setCardId(card.id);
-                  setReference(toISODate(new Date()));
-                }}
-                className={[
-                  "flex min-h-11 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors",
-                  card.id === cardId
-                    ? "border-[var(--scope)] bg-[var(--scope)]/10 text-[var(--color-text)]"
-                    : "border-[var(--color-line)] text-[var(--color-text-dim)]",
-                ].join(" ")}
-              >
-                <Dot color={card.color} />
-                {card.name}
-              </button>
-            ))}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {cards.map((card) => {
+                const ativo = card.id === cardId;
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    aria-pressed={ativo}
+                    onClick={() => {
+                      setCardId(card.id);
+                      setReference(toISODate(new Date()));
+                    }}
+                    className={[
+                      "flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
+                      ativo
+                        ? "border-[var(--scope)] bg-[var(--scope)]/10 text-[var(--color-text)]"
+                        : "border-[var(--color-line)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]",
+                    ].join(" ")}
+                  >
+                    <Dot color={card.color} />
+                    {card.name}
+                    {card.closing_day && (
+                      <span className="text-[var(--color-text-faint)]">
+                        fecha {card.closing_day}
+                      </span>
+                    )}
+                    {card.id === anchorId && (
+                      <span
+                        aria-label="define o seu mês"
+                        title="Define o seu mês"
+                        className="scope-tint"
+                      >
+                        ★
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* O cartão âncora é o que o dashboard usa pra avisar do
+                fechamento. Quem recebe salário fixo não precisa de nenhum. */}
+            {selected?.closing_day &&
+              (selected.id === anchorId ? (
+                <p className="text-xs text-[var(--color-text-faint)]">
+                  ★ Este cartão define o seu mês.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setAnchor(null)}
+                    className="underline hover:text-[var(--color-text)]"
+                  >
+                    Voltar para o mês do calendário
+                  </button>
+                </p>
+              ) : (
+                <p className="text-xs text-[var(--color-text-faint)]">
+                  <button
+                    type="button"
+                    onClick={() => setAnchor(selected.id)}
+                    className="underline hover:text-[var(--color-text)]"
+                  >
+                    Usar este cartão para definir o meu mês
+                  </button>{" "}
+                  — o resumo do fechamento passa a aparecer no início.
+                </p>
+              ))}
           </div>
 
           {/* Sem dia de fechamento não existe janela pra calcular. */}
@@ -215,7 +299,7 @@ export default function CicloPage() {
                   </p>
                   <p className="mt-0.5 text-xs text-[var(--color-text-faint)]">
                     {bounds.due_date
-                      ? `Vence em ${formatDate(bounds.due_date)}`
+                      ? `Você paga em ${formatDate(bounds.due_date)}`
                       : "Sem dia de vencimento cadastrado"}
                   </p>
                 </div>
@@ -228,22 +312,40 @@ export default function CicloPage() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <Total label="Total da fatura" value={total} strong />
-                <Total
-                  label="No cartão"
-                  value={Number(summary?.total_card ?? 0)}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Numero
+                  label="Fatura fechada"
+                  value={fatura}
+                  tone="var(--color-out)"
+                  destaque
                 />
-                <Total
-                  label="Pix da conta"
-                  value={Number(summary?.total_pix ?? 0)}
+                <Numero
+                  label="Sua renda na janela"
+                  value={income}
+                  tone="var(--color-in)"
+                />
+                <Numero
+                  label="Sobra depois da fatura"
+                  value={sobra}
+                  tone={sobra < 0 ? "var(--color-out)" : "var(--color-text)"}
+                  hint="antes dos gastos fora do cartão"
                 />
               </div>
+
+              <p className="text-xs text-[var(--color-text-faint)]">
+                A fatura já está comprometida no momento em que fecha, mesmo que
+                só saia da conta no vencimento. Pix e transferência não entram
+                aqui — eles saíram no dia em que aconteceram, e estão no{" "}
+                <Link href="/relatorios" className="underline">
+                  mês a mês
+                </Link>
+                .
+              </p>
 
               {rows.length === 0 ? (
                 <EmptyState
                   title="Nada nesta fatura"
-                  description="Nenhum lançamento caiu nesta janela. Use as setas para ver outro ciclo."
+                  description="Nenhuma compra no cartão caiu nesta janela. Use as setas para ver outro ciclo."
                 />
               ) : (
                 <>
@@ -269,7 +371,7 @@ export default function CicloPage() {
                                 {money(row.total)}
                               </span>
                               <span className="text-xs text-[var(--color-text-faint)]">
-                                {percent(Number(row.total), total)}
+                                {percent(Number(row.total), fatura)}
                               </span>
                             </span>
                           </div>
@@ -285,7 +387,7 @@ export default function CicloPage() {
 
                   <section className="flex flex-col gap-2">
                     <h2 className="text-sm font-semibold">
-                      Lançamentos do ciclo
+                      Compras desta fatura
                     </h2>
                     <ul className="flex flex-col gap-2">
                       {rows.map((row) => {
@@ -306,9 +408,6 @@ export default function CicloPage() {
                                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
                                   <span>{formatDate(row.occurred_on)}</span>
                                   {category && <span>{category.name}</span>}
-                                  <Tag>
-                                    {PAYMENT_METHOD_LABEL[row.payment_method]}
-                                  </Tag>
                                   {row.kind !== "variable" && (
                                     <Tag>
                                       {row.kind === "fixed_installment"
@@ -329,16 +428,6 @@ export default function CicloPage() {
                   </section>
                 </>
               )}
-
-              {selected && !selected.bank_account_id && (
-                <p className="text-center text-xs text-[var(--color-text-faint)]">
-                  Este cartão não está ligado a nenhuma conta, então nenhum Pix
-                  entra na fatura dele.{" "}
-                  <Link href="/cartoes" className="underline">
-                    Ligar a uma conta
-                  </Link>
-                </p>
-              )}
             </>
           )}
         </>
@@ -347,14 +436,18 @@ export default function CicloPage() {
   );
 }
 
-function Total({
+function Numero({
   label,
   value,
-  strong,
+  tone,
+  hint,
+  destaque,
 }: {
   label: string;
   value: number;
-  strong?: boolean;
+  tone: string;
+  hint?: string;
+  destaque?: boolean;
 }) {
   return (
     <div className="card flex flex-col gap-1 px-4 py-4">
@@ -362,13 +455,19 @@ function Total({
         {label}
       </span>
       <strong
+        style={{ color: tone }}
         className={[
           "money font-semibold",
-          strong ? "text-xl text-[var(--color-out)] sm:text-2xl" : "text-lg",
+          destaque ? "text-2xl" : "text-xl",
         ].join(" ")}
       >
         {money(value)}
       </strong>
+      {hint && (
+        <span className="text-[11px] text-[var(--color-text-faint)]">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }

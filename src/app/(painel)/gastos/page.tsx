@@ -98,6 +98,7 @@ export default function GastosPage() {
   const [filterKind, setFilterKind] = useState<"" | ExpenseKind>("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterCard, setFilterCard] = useState("");
+  const [filterAccount, setFilterAccount] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -205,7 +206,13 @@ export default function GastosPage() {
         if (!filterCategory) return true;
         return categoryById[o.category_id ?? ""]?.name === filterCategory;
       })
-      .filter((o) => !filterCard || o.card_id === filterCard);
+      .filter((o) => !filterCard || o.card_id === filterCard)
+      // A conta vem da linha original: a projeção não carrega esse campo.
+      .filter(
+        (o) =>
+          !filterAccount ||
+          expenses[o.expense_id]?.bank_account_id === filterAccount
+      );
 
     // Ordem cronológica dentro do mês: usa o dia da linha original.
     const dayOf = (occurrence: ExpenseOccurrence) =>
@@ -222,13 +229,14 @@ export default function GastosPage() {
     filterKind,
     filterCategory,
     filterCard,
+    filterAccount,
     categoryById,
     expenses,
   ]);
 
   const total = visible.reduce((sum, o) => sum + Number(o.amount), 0);
   const hasFilters = Boolean(
-    filterMethod || filterKind || filterCategory || filterCard
+    filterMethod || filterKind || filterCategory || filterCard || filterAccount
   );
 
   function openEdit(occurrence: ExpenseOccurrence) {
@@ -402,6 +410,22 @@ export default function GastosPage() {
           </select>
         )}
 
+        {accounts.length > 0 && (
+          <select
+            aria-label="Conta"
+            className={`${inputClass} w-auto py-2 sm:text-sm`}
+            value={filterAccount}
+            onChange={(event) => setFilterAccount(event.target.value)}
+          >
+            <option value="">Toda conta</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        )}
+
         {hasFilters && (
           <Button
             variant="quiet"
@@ -411,6 +435,7 @@ export default function GastosPage() {
               setFilterKind("");
               setFilterCategory("");
               setFilterCard("");
+              setFilterAccount("");
             }}
           >
             Limpar filtros
@@ -666,8 +691,8 @@ function ExpenseForm({
           </SelectField>
           <span className="text-xs text-[var(--color-text-faint)]">
             {accounts.length === 0
-              ? "Cadastre uma conta em Ajustes para poder marcar isso."
-              : "Opcional. Sem marcar, este Pix não entra em nenhum relatório por ciclo — só no mensal."}
+              ? "Cadastre uma conta em Ajustes para poder separar por origem."
+              : "Opcional. Serve para separar os gastos por conta na lista."}
           </span>
         </div>
       )}

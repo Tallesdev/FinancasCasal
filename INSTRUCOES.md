@@ -154,23 +154,31 @@ O relatório mensal (`monthly_summary`) responde "quanto ganhei/gastei no mês" 
 bate com o dia 1º — então existe um segundo relatório, por ciclo, que responde
 "quanto vou pagar de fato".
 
+- **O ciclo só tem gasto de cartão.** Pix e transferência saem da conta no dia
+  em que acontecem — não esperam fechamento, então não pertencem a fatura
+  nenhuma. Ficam no relatório mensal.
+- **A fatura é dívida quando fecha, não quando é paga.** Fechou dia 13, o
+  dinheiro já está comprometido. O `due_day` é informação de tela e não entra
+  em cálculo nenhum.
 - **`bank_accounts`** — conta bancária (ex: "Nubank"), privada como cartão.
-  Cartão tem `bank_account_id` opcional. Gasto no Pix também tem
-  `bank_account_id` opcional — é assim que o Pix entra no ciclo de um cartão.
-  **Não existe suposição automática de conta única.** Se o Pix não estiver
-  marcado, ele não aparece em nenhum ciclo, só no relatório mensal.
+  Cartão e gasto têm `bank_account_id` opcional. Serve para **separar a origem
+  do gasto** na lista, para quem usa mais de uma conta. Não puxa nada para
+  dentro de ciclo.
+- **`profiles.anchor_card_id`** — o cartão que define o mês da pessoa. Nulo =
+  mês do calendário. É o que faz o aviso de fechamento aparecer no dashboard.
 - **`card_cycle_bounds(card_id, data_referencia)`** — dado um cartão e uma
   data, devolve a janela do ciclo que contém essa data e a provável data de
   vencimento. Fechamento no dia 13 → uma data em 20/08 cai no ciclo
   14/08–13/09. O próprio dia do fechamento pertence ao ciclo que **termina**
   nele.
-- **`cycle_expense_detail(card_id, data_referencia)`** — os lançamentos dentro
-  dessa janela: gastos do próprio cartão + Pix marcado com a mesma conta.
-  Diferente de `expense_occurrences`, aqui a data importa **por dia**, porque a
-  janela atravessa dois meses do calendário.
-- **`cycle_summary`** e **`cycle_category_ranking`** — total (geral e por
-  forma de pagamento) e ranking de categoria dentro do ciclo. Espelham
-  `monthly_summary` e `category_ranking`, só que na janela do ciclo.
+- **`cycle_expense_detail(card_id, data_referencia)`** — as compras daquele
+  cartão dentro da janela. Diferente de `expense_occurrences`, aqui a data
+  importa **por dia**, porque a janela atravessa dois meses do calendário.
+- **`cycle_summary`** e **`cycle_category_ranking`** — total e ranking de
+  categoria dentro do ciclo.
+- **`income_in_window(de, ate)`** — renda projetada **por dia**, para saber
+  quanto entrou dentro de uma janela 14→13. `income_occurrences` responde por
+  mês e não serve aqui. Devolve `user_id` para filtrar por escopo.
 
 ```ts
 const { data: bounds } = await supabase.rpc("card_cycle_bounds", {
@@ -308,10 +316,11 @@ planilha paralela.
 
 ## Parte 4 — O que falta
 
-### Conferir a matemática do ciclo
+### Conferir a matemática do ciclo contra uma fatura de verdade
 
-Antes de confiar nos números de `/relatorios/ciclo`, rodar no SQL Editor com o
-cartão e as datas reais e comparar com a fatura do Nubank:
+Já foi conferida contra a regra descrita (fecha 13 → compra do dia 14 em diante
+vai pra fatura seguinte, paga dia 21) e contra mês curto (fecha 31 → 28/02 em
+fevereiro). **Falta comparar com uma fatura real.** No SQL Editor:
 
 ```sql
 select * from public.card_cycle_bounds('<uuid-do-cartao>', current_date);

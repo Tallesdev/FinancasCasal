@@ -296,8 +296,8 @@ export default function CartoesPage() {
               ))}
             </SelectField>
             <p className="-mt-2 text-xs text-[var(--color-text-faint)]">
-              Sem conta, o relatório por ciclo deste cartão não consegue juntar
-              os Pix que saíram da mesma conta.
+              Só para organizar de qual conta sai o pagamento. Não muda nenhum
+              cálculo.
             </p>
 
             <Field label="Cor">

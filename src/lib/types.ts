@@ -10,6 +10,8 @@ export type Profile = {
   household_id: string | null;
   display_name: string;
   accent: "a" | "b";
+  /** Cartão que define o mês desta pessoa. Nulo = mês do calendário. */
+  anchor_card_id: string | null;
 };
 
 export type Card = {
@@ -173,9 +175,16 @@ export type CycleExpenseRow = {
 /** Retorno de public.cycle_summary() */
 export type CycleSummaryRow = {
   total: number;
-  total_card: number;
-  total_pix: number;
   entries: number;
+};
+
+/** Retorno de public.income_in_window() — renda projetada por dia. */
+export type IncomeInWindowRow = {
+  income_id: string;
+  user_id: string;
+  occurred_on: string;
+  amount: number;
+  source: string;
 };
 
 /** Retorno de public.cycle_category_ranking() — sem user_id: o ciclo já é

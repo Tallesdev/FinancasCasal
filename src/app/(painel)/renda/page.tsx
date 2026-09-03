@@ -91,6 +91,29 @@ export default function RendaPage() {
     })
     .reduce((sum, income) => sum + Number(income.amount), 0);
 
+  /** Repete a última renda avulsa, só pedindo o valor da vez. */
+  const ultimaAvulsa = useMemo(
+    () =>
+      incomes
+        .filter((income) => income.user_id === me.id && income.kind === "one_time")
+        .sort((a, b) => b.start_date.localeCompare(a.start_date))[0] ?? null,
+    [incomes, me.id]
+  );
+
+  function lancarDaSemana() {
+    if (!ultimaAvulsa) return;
+    setDraft({
+      id: null,
+      source: ultimaAvulsa.source,
+      amount: "",
+      kind: "one_time",
+      start_date: toISODate(new Date()),
+      end_date: "",
+      notes: "",
+    });
+    setFormError(null);
+  }
+
   async function save() {
     if (!draft) return;
 
@@ -151,7 +174,14 @@ export default function RendaPage() {
             : "O que entra na sua conta."
         }
         action={
-          <Button onClick={() => setDraft({ ...EMPTY })}>Nova renda</Button>
+          <div className="flex flex-wrap gap-2">
+            {ultimaAvulsa && (
+              <Button variant="ghost" onClick={lancarDaSemana}>
+                Repetir &ldquo;{ultimaAvulsa.source}&rdquo;
+              </Button>
+            )}
+            <Button onClick={() => setDraft({ ...EMPTY })}>Nova renda</Button>
+          </div>
         }
       />
 
