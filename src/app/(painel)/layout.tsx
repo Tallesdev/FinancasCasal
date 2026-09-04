@@ -5,6 +5,7 @@ import { ScopeProvider } from "@/components/ScopeProvider";
 import { ScopeToggle } from "@/components/ScopeToggle";
 import { Nav } from "@/components/Nav";
 import { SignOutButton } from "@/components/SignOutButton";
+import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import type { Profile } from "@/lib/types";
 
@@ -51,9 +52,10 @@ export default async function PainelLayout({
       <div className="flex min-h-dvh">
         <Nav />
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--color-line)] bg-[var(--color-ink)]/90 px-5 py-3 backdrop-blur">
+          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-[var(--color-line)] bg-[var(--color-ink)]/90 px-3 py-3 backdrop-blur sm:gap-3 sm:px-5">
             <ScopeToggle />
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <PrivacyToggle />
               {/* No celular a barra de baixo não cabe os ajustes. */}
               <Link
                 href="/ajustes"

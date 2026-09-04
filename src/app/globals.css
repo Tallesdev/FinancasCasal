@@ -113,6 +113,15 @@
   .scope-rule { background: var(--scope, var(--color-couple)); }
 }
 
+/* Fora de qualquer @layer de propósito: assim ganha de qualquer utilitário
+   do Tailwind que pinte ou dimensione o valor. Como todo dinheiro do app usa
+   a classe .money, uma regra só cobre o app inteiro — inclusive tela que
+   ainda nem existe. */
+html.hide-money .money {
+  filter: blur(9px);
+  user-select: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

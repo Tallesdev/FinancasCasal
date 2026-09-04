@@ -112,7 +112,12 @@ export function MonthlyBars({
             tickFormatter={(value: number) => moneyShort(value)}
             tickLine={false}
             axisLine={false}
-            tick={{ fill: "var(--color-text-faint)", fontSize: 11 }}
+            // O eixo mostra valor: precisa sumir junto quando ocultar.
+            tick={{
+              fill: "var(--color-text-faint)",
+              fontSize: 11,
+              className: "money",
+            }}
           />
           <Tooltip
             content={<ChartTooltip />}
