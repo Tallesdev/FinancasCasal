@@ -16,6 +16,7 @@ import {
   Tag,
 } from "@/components/ui";
 import { formatDate, money, percent, toISODate } from "@/lib/format";
+import { carregarJanela, JANELA_VAZIA, type TotaisDaJanela } from "@/lib/janela";
 import {
   EXPENSE_KIND_LABEL,
   type Card,
@@ -24,7 +25,6 @@ import {
   type CycleCategoryRow,
   type CycleExpenseRow,
   type CycleSummaryRow,
-  type IncomeInWindowRow,
 } from "@/lib/types";
 
 /** Um dia antes ou depois da janela cai no ciclo vizinho. */
@@ -49,7 +49,7 @@ export default function CicloPage() {
   const [summary, setSummary] = useState<CycleSummaryRow | null>(null);
   const [ranking, setRanking] = useState<CycleCategoryRow[]>([]);
   const [rows, setRows] = useState<CycleExpenseRow[]>([]);
-  const [income, setIncome] = useState(0);
+  const [janela, setJanela] = useState<TotaisDaJanela>(JANELA_VAZIA);
   const [categories, setCategories] = useState<Category[]>([]);
 
   const [loadingCards, setLoadingCards] = useState(true);
@@ -110,27 +110,33 @@ export default function CicloPage() {
       return;
     }
 
-    const janela = ((boundsResult.data ?? []) as CycleBounds[])[0] ?? null;
-    setBounds(janela);
+    const limites = ((boundsResult.data ?? []) as CycleBounds[])[0] ?? null;
+    setBounds(limites);
     setSummary(((summaryResult.data ?? []) as CycleSummaryRow[])[0] ?? null);
     setRanking((rankingResult.data ?? []) as CycleCategoryRow[]);
     setRows((detailResult.data ?? []) as CycleExpenseRow[]);
 
-    // A renda da janela precisa de projeção por dia: a janela vai do 14 ao
-    // 13, então o resumo mensal não serve.
-    if (janela) {
-      const { data } = await supabase.rpc("income_in_window", {
-        p_from: janela.cycle_start,
-        p_to: janela.cycle_end,
-      });
-      const linhas = (data ?? []) as IncomeInWindowRow[];
-      setIncome(
-        linhas
-          .filter((linha) => linha.user_id === me.id)
-          .reduce((soma, linha) => soma + Number(linha.amount), 0)
+    // Renda, gasto e aporte da janela precisam de projeção por dia: a
+    // janela vai do 14 ao 13, então o resumo mensal não serve. A fatura é
+    // só deste cartão, mas a sobra desconta tudo que saiu.
+    try {
+      setJanela(
+        limites
+          ? await carregarJanela(
+              supabase,
+              limites.cycle_start,
+              limites.cycle_end,
+              [me.id]
+            )
+          : JANELA_VAZIA
       );
-    } else {
-      setIncome(0);
+    } catch {
+      setJanela(JANELA_VAZIA);
+      setError(
+        "Não deu para somar a janela. Se o app acabou de ser atualizado, a migração do banco pode não ter rodado ainda."
+      );
+      setLoading(false);
+      return;
     }
 
     setError(null);
@@ -158,7 +164,7 @@ export default function CicloPage() {
   }
 
   const fatura = Number(summary?.total ?? 0);
-  const sobra = income - fatura;
+  const saiu = janela.card + janela.other;
 
   return (
     <div className="flex flex-col gap-6">
@@ -312,30 +318,55 @@ export default function CicloPage() {
                 </Button>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <Numero
+                label={`Fatura fechada${selected ? ` · ${selected.name}` : ""}`}
+                value={fatura}
+                tone="var(--color-out)"
+                destaque
+                hint={
+                  bounds.due_date
+                    ? `Você paga em ${formatDate(bounds.due_date)}`
+                    : undefined
+                }
+              />
+
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Numero
-                  label="Fatura fechada"
-                  value={fatura}
-                  tone="var(--color-out)"
-                  destaque
-                />
-                <Numero
-                  label="Sua renda na janela"
-                  value={income}
+                  label="Entrou"
+                  value={janela.income}
                   tone="var(--color-in)"
                 />
                 <Numero
-                  label="Sobra depois da fatura"
-                  value={sobra}
-                  tone={sobra < 0 ? "var(--color-out)" : "var(--color-text)"}
-                  hint="antes dos gastos fora do cartão"
+                  label="Saiu"
+                  value={saiu}
+                  tone="var(--color-out)"
+                  hint={`cartão ${money(janela.card)} · fora ${money(
+                    janela.other
+                  )}`}
+                />
+                <Numero
+                  label="Investiu"
+                  value={janela.investment}
+                  tone="var(--color-invest)"
+                />
+                <Numero
+                  label="Sobrou"
+                  value={janela.leftover}
+                  tone={
+                    janela.leftover < 0
+                      ? "var(--color-out)"
+                      : "var(--color-text)"
+                  }
+                  hint="entrou menos tudo que saiu"
                 />
               </div>
 
               <p className="text-xs text-[var(--color-text-faint)]">
                 A fatura já está comprometida no momento em que fecha, mesmo que
-                só saia da conta no vencimento. Pix e transferência não entram
-                aqui — eles saíram no dia em que aconteceram, e estão no{" "}
+                só saia da conta no vencimento — por isso ela entra no
+                &ldquo;saiu&rdquo; desta janela, junto com o Pix e as
+                transferências do mesmo período. A lista abaixo mostra só as
+                compras do cartão; o resto está no{" "}
                 <Link href="/relatorios" className="underline">
                   mês a mês
                 </Link>

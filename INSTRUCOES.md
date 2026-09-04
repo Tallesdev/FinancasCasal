@@ -176,9 +176,17 @@ bate com o dia 1º — então existe um segundo relatório, por ciclo, que respo
   importa **por dia**, porque a janela atravessa dois meses do calendário.
 - **`cycle_summary`** e **`cycle_category_ranking`** — total e ranking de
   categoria dentro do ciclo.
-- **`income_in_window(de, ate)`** — renda projetada **por dia**, para saber
-  quanto entrou dentro de uma janela 14→13. `income_occurrences` responde por
-  mês e não serve aqui. Devolve `user_id` para filtrar por escopo.
+- **`income_in_window`**, **`expenses_in_window`** e
+  **`investments_in_window`** — renda, gasto e aporte projetados **por dia**
+  dentro de uma janela qualquer. As versões `_occurrences` respondem por mês e
+  não servem numa janela 14→13, que atravessa dois meses. Todas devolvem
+  `user_id` para filtrar por escopo. `src/lib/janela.ts` junta as três e
+  devolve a conta fechada — a tela do ciclo e o início usam a mesma função,
+  para nunca discordarem entre si.
+
+**A sobra da janela desconta tudo**, não só a fatura: entrou − cartão − Pix −
+investido. A fatura é um número em destaque à parte, porque é o que a pessoa
+precisa ter no dia do vencimento, mas ela não é a única saída do período.
 
 ```ts
 const { data: bounds } = await supabase.rpc("card_cycle_bounds", {

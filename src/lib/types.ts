@@ -195,3 +195,28 @@ export type CycleCategoryRow = {
   total: number;
   entries: number;
 };
+
+/** Retorno de public.expenses_in_window() — gasto projetado por dia. */
+export type ExpenseInWindowRow = {
+  expense_id: string;
+  user_id: string;
+  occurred_on: string;
+  description: string;
+  amount: number;
+  payment_method: PaymentMethod;
+  kind: ExpenseKind;
+  card_id: string | null;
+  category_id: string | null;
+  installment_number: number | null;
+  installments_total: number | null;
+};
+
+/** Retorno de public.investments_in_window() */
+export type InvestmentInWindowRow = {
+  investment_id: string;
+  user_id: string;
+  occurred_on: string;
+  amount: number;
+  name: string;
+  asset_type: string;
+};

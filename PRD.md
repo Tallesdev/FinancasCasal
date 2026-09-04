@@ -212,9 +212,13 @@ relatório adicional; o mensal continua existindo do jeito que está.
 - **RF28** — Contas bancárias são privadas (só o dono vê e edita), mesma regra
   dos cartões.
 - **RF31** — A pessoa escolhe um cartão para **definir o próprio mês**. Quem
-  faz isso passa a ver, na primeira tela, quanto a fatura já acumulou, quando
-  ela fecha e quando é paga. Quem não escolhe nenhum continua no mês do
-  calendário, sem diferença nenhuma.
+  não escolhe nenhum continua no mês do calendário, sem diferença nenhuma.
+- **RF32** — O dashboard alterna entre as duas réguas: mês do calendário e
+  janela do cartão. Os mesmos quatro números (entrou, saiu, investiu, sobrou)
+  respondem à régua escolhida.
+- **RF33** — A sobra da janela desconta **tudo** que saiu no período: fatura,
+  Pix e aportes. A fatura aparece destacada à parte por ser o compromisso do
+  vencimento, mas não é a única saída.
 
 ### P2 — Depois
 
@@ -389,4 +393,5 @@ calendário.
 | Versão | Data | O que mudou |
 | --- | --- | --- |
 | v1.0 | 27/08/2026 | Versão inicial, escrita depois da Fase 1 |
+| v1.2 | 04/09/2026 | RF32 e RF33: o dashboard ganha a régua do cartão, e a sobra da janela passa a descontar Pix e aportes além da fatura — antes era só renda menos fatura, um número que parecia saldo e não era. |
 | v1.1 | 03/09/2026 | Ciclo de fatura passa a ser só gasto de cartão (regra 7 reescrita); fatura vira dívida no fechamento (regra 9); renda semanal é lançamento avulso (regra 10); RF31, o cartão que define o mês. Contas bancárias sobrevivem com outro propósito: separar origem do gasto, já que a Duda usa duas. |
