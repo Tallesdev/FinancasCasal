@@ -116,7 +116,14 @@ isso, mesmo tendo sido pensado para dois.
 
 ## Fase C — Convite para formar casal
 
-### O que muda
+> **Superado. A especificação de verdade é `FASE_C.md`.** Duas coisas abaixo
+> estão erradas: (1) a casa tem **até 6 pessoas**, decisão de 10/09/2026, não
+> duas; (2) a regra de "só aceita convite se a casa não tiver lançamentos" era
+> medo infundado — nenhuma tabela de dado tem `household_id`, tudo é por
+> `user_id`, então mudar de casa é trocar um campo no perfil e o histórico
+> vem junto. Mantido só como registro de como se pensava antes.
+
+### O que muda (contexto original, ver nota acima)
 
 Hoje a "casa" nasce pronta via `seed.sql`. Com cadastro aberto, cada pessoa
 começa sozinha (Fase B). Esta fase é o que deixa duas pessoas virarem
