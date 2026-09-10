@@ -294,9 +294,7 @@ export function Tag({ children }: { children: React.ReactNode }) {
 }
 
 /** Marca de quem é o lançamento, usada na visão do casal. */
-export function OwnerTag({ name, accent }: { name: string; accent: "a" | "b" }) {
-  const color =
-    accent === "b" ? "var(--color-person-b)" : "var(--color-person-a)";
+export function OwnerTag({ name, color }: { name: string; color: string }) {
   return (
     <span
       style={{ color, borderColor: `${color}55` }}

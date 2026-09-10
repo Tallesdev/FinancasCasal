@@ -19,8 +19,10 @@ type ScopeContextValue = {
   partner: Profile | null;
   /** Os user_ids que o escopo atual cobre — use para filtrar toda consulta. */
   userIds: string[];
-  /** Classe de tema que pinta a interface com a cor do escopo. */
+  /** Classe de tema para o escopo do casal (roxo fixo). Vazia no individual. */
   scopeClass: string;
+  /** No escopo individual, a cor da própria pessoa entra inline em --scope. */
+  scopeStyle: React.CSSProperties | undefined;
 };
 
 const ScopeContext = createContext<ScopeContextValue | null>(null);
@@ -53,15 +55,23 @@ export function ScopeProvider({
     const userIds =
       scope === "us" && partner ? [me.id, partner.id] : [me.id];
 
-    const scopeClass =
-      scope === "us" ? "scope-us" : me.accent === "b" ? "scope-b" : "scope-a";
+    // Casal é uma cor fixa (não faria sentido "escolher" a cor de um grupo).
+    // Individual é a cor que a pessoa escolheu — livre, então não vira
+    // classe CSS: entra inline como valor de --scope.
+    const scopeClass = scope === "us" ? "scope-us" : "";
+    const scopeStyle =
+      scope === "us"
+        ? undefined
+        : ({ "--scope": me.color } as React.CSSProperties);
 
-    return { scope, setScope, me, partner, userIds, scopeClass };
+    return { scope, setScope, me, partner, userIds, scopeClass, scopeStyle };
   }, [scope, setScope, me, partner]);
 
   return (
     <ScopeContext.Provider value={value}>
-      <div className={value.scopeClass}>{children}</div>
+      <div className={value.scopeClass} style={value.scopeStyle}>
+        {children}
+      </div>
     </ScopeContext.Provider>
   );
 }

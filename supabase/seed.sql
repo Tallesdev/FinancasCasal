@@ -25,19 +25,23 @@ begin
 
   insert into public.households (name) values ('Nossa casa') returning id into v_household;
 
-  insert into public.profiles (id, household_id, display_name, accent)
-  values (v_a, v_household, nome_a, 'a')
+  -- Com o gatilho de cadastro, cada conta já nasce com perfil e casa
+  -- própria. O seed só junta as duas na mesma casa e fixa as cores.
+  insert into public.profiles (id, household_id, display_name, accent, color)
+  values (v_a, v_household, nome_a, 'a', '#7FD1AE')
   on conflict (id) do update
     set household_id = excluded.household_id,
         display_name = excluded.display_name,
-        accent = excluded.accent;
+        accent = excluded.accent,
+        color = excluded.color;
 
-  insert into public.profiles (id, household_id, display_name, accent)
-  values (v_b, v_household, nome_b, 'b')
+  insert into public.profiles (id, household_id, display_name, accent, color)
+  values (v_b, v_household, nome_b, 'b', '#E9A13B')
   on conflict (id) do update
     set household_id = excluded.household_id,
         display_name = excluded.display_name,
-        accent = excluded.accent;
+        accent = excluded.accent,
+        color = excluded.color;
 
   raise notice 'Casa criada: %', v_household;
 end $$;

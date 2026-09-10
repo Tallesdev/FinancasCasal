@@ -21,11 +21,17 @@ pra dar contexto ao Claude no VSCode/Cowork sobre o que já existe e o que falta
 3. **Authentication → Users → Add user**, duas vezes:
    - seu e-mail + senha, com **Auto Confirm User** marcado
    - o e-mail dela + senha, também com Auto Confirm marcado
-4. **Authentication → Sign In / Providers → Email** → desligue **Enable sign ups**.
-   Sem isso qualquer um que achar a URL consegue criar conta.
-5. Abra `supabase/seed.sql`, troque as 4 variáveis do topo pelos e-mails e nomes
-   de vocês, cole no **SQL Editor** → Run. Deve aparecer
-   `NOTICE: Casa criada: <uuid>`.
+4. **Authentication → Sign In / Providers → Email** → **Enable sign ups: ON**
+   e **Confirm email: ON**. Na v1 isso ficava desligado de propósito (só duas
+   contas, criadas na mão); desde a Fase B o cadastro é público, e a
+   confirmação por e-mail é o que impede alguém de criar conta com e-mail de
+   outro.
+5. **Authentication → URL Configuration** → **Redirect URLs** precisa ter a
+   URL do app com coringa (`https://…/**`), senão o link do e-mail de
+   confirmação é rejeitado — falha silenciosa, chata de achar depois.
+6. O `seed.sql` virou opcional: cada conta nova já nasce com perfil e casa
+   própria pelo gatilho `handle_new_user`. Ele só serve para juntar duas
+   contas numa casa até a Fase C (convite) existir.
 
 > **Num banco que já tem dados, nunca rode o `seed.sql` de novo** — ele cria uma
 > casa nova a cada execução. Mudanças de estrutura entram por

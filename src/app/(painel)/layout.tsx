@@ -33,10 +33,13 @@ export default async function PainelLayout({
     return (
       <main className="flex min-h-dvh items-center justify-center px-6 text-center">
         <div className="max-w-sm">
-          <h1 className="text-xl font-bold">Falta vincular seu perfil</h1>
+          {/* Com o gatilho de cadastro, o perfil nasce junto com a conta.
+              Chegar aqui significa que ele falhou — é rede de segurança,
+              não fluxo normal. */}
+          <h1 className="text-xl font-bold">Seu perfil não foi criado</h1>
           <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-            Rode o <code className="font-mono">supabase/seed.sql</code> para criar
-            a casa e ligar as duas contas a ela.
+            Algo deu errado ao criar sua conta. Saia e entre de novo; se
+            continuar, fale com quem cuida do app.
           </p>
         </div>
       </main>

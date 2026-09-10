@@ -9,7 +9,8 @@ export type Profile = {
   id: string;
   household_id: string | null;
   display_name: string;
-  accent: "a" | "b";
+  /** Cor de identidade, escolhida pela própria pessoa (hex da PALETTE). */
+  color: string;
   /** Cartão que define o mês desta pessoa. Nulo = mês do calendário. */
   anchor_card_id: string | null;
 };

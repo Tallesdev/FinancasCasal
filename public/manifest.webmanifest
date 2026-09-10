@@ -1,7 +1,7 @@
 {
-  "name": "Finanças do casal",
-  "short_name": "Finanças",
-  "description": "Renda, gastos e investimentos dos dois, no mesmo lugar.",
+  "name": "RumoFácil",
+  "short_name": "RumoFácil",
+  "description": "Renda, gastos e investimentos, seus e de quem divide a vida com você.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#101219",
@@ -9,8 +9,23 @@
   "orientation": "portrait",
   "lang": "pt-BR",
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

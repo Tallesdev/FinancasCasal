@@ -1,7 +1,10 @@
-# Finanças do casal
+# RumoFácil
 
-PWA de controle financeiro para duas pessoas. Cada um lança o que é seu; os dois
-enxergam o total. Next.js + Supabase.
+PWA de controle financeiro para quem divide a vida a dois. Cada um lança o que
+é seu; os dois enxergam o total. Next.js + Supabase.
+
+> Nome provisório. O repositório e a URL ainda usam "financas-casal" — é só
+> nome técnico, ninguém vê.
 
 ## Como o dado é organizado
 

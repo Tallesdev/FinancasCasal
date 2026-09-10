@@ -74,11 +74,11 @@ export default function InvestimentosPage() {
   }, [load]);
 
   const profileById = useMemo(() => {
-    const map: Record<string, { name: string; accent: "a" | "b" }> = {
-      [me.id]: { name: me.display_name, accent: me.accent },
+    const map: Record<string, { name: string; color: string }> = {
+      [me.id]: { name: me.display_name, color: me.color },
     };
     if (partner)
-      map[partner.id] = { name: partner.display_name, accent: partner.accent };
+      map[partner.id] = { name: partner.display_name, color: partner.color };
     return map;
   }, [me, partner]);
 
@@ -200,7 +200,7 @@ export default function InvestimentosPage() {
                         : `desde ${formatDate(item.start_date)}`}
                     </span>
                     {scope === "us" && owner && (
-                      <OwnerTag name={owner.name} accent={owner.accent} />
+                      <OwnerTag name={owner.name} color={owner.color} />
                     )}
                   </p>
                   {item.notes && (

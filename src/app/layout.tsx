@@ -2,13 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Finanças do casal",
-  description: "Renda, gastos e investimentos dos dois, no mesmo lugar.",
+  title: "RumoFácil",
+  description:
+    "Renda, gastos e investimentos, seus e de quem divide a vida com você.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Finanças",
+    title: "RumoFácil",
   },
 };
 

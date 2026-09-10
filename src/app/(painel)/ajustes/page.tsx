@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MeuPerfil } from "@/components/MeuPerfil";
 
 /* No desktop os ajustes ficam na coluna lateral. No celular a barra de baixo
    é só para o dia a dia, então eles ganham esta página de entrada. */
@@ -32,6 +33,8 @@ export default function AjustesPage() {
           O que você cadastra uma vez e usa em todo lançamento.
         </p>
       </div>
+
+      <MeuPerfil />
 
       <ul className="grid gap-3 sm:grid-cols-2">
         {LINKS.map((link) => (

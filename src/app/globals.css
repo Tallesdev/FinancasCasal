@@ -16,9 +16,8 @@
   --color-text-dim: #9BA3B7;
   --color-text-faint: #646C81;
 
-  /* Identidade de cada pessoa */
-  --color-person-a: #7FD1AE;
-  --color-person-b: #E9A13B;
+  /* Cada pessoa escolhe a própria cor (profiles.color). Só o "junto" é
+     fixo: não faria sentido escolher a cor de um grupo. */
   --color-couple: #C77DFF;
 
   /* Semântica financeira */
@@ -103,10 +102,8 @@
     border-radius: var(--radius-card);
   }
 
-  /* Marca visual do escopo ativo: individual usa a cor da pessoa,
-     casal usa a mistura das duas. */
-  .scope-a  { --scope: var(--color-person-a); }
-  .scope-b  { --scope: var(--color-person-b); }
+  /* Marca visual do escopo ativo. O individual não tem classe: a cor da
+     pessoa é livre e entra inline em --scope pelo ScopeProvider. */
   .scope-us { --scope: var(--color-couple); }
 
   .scope-tint { color: var(--scope, var(--color-couple)); }
