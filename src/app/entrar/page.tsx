@@ -26,6 +26,10 @@ function traduzir(mensagem: string): string {
     return "Digite um e-mail válido.";
   if (m.includes("rate limit") || m.includes("too many"))
     return "Muitas tentativas seguidas. Espere um minuto e tente de novo.";
+  // Configuração do projeto, não erro da pessoa. Vale dizer com clareza:
+  // foi o que escondeu um toggle desligado no painel, no primeiro teste.
+  if (m.includes("signups not allowed"))
+    return "O cadastro de contas novas está desligado neste momento.";
   return "Não deu certo agora. Tente de novo em instantes.";
 }
 

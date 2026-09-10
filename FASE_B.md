@@ -181,6 +181,22 @@ mesmo com o banco pronto.
    o coringa, o link do e-mail de confirmação será rejeitado pelo Supabase por
    segurança — vale conferir antes de testar, é o tipo de coisa que falha
    silenciosamente e é chato de depurar depois.
+   **Aprendido no primeiro teste (10/09):** no painel novo do Supabase este
+   toggle mudou de lugar. Fica em **Authentication → Sign In / Providers**, no
+   topo da página, como **"Allow new users to sign up"** — separado do bloco do
+   provedor Email logo abaixo. Ligar só o "Enable Email provider" não basta:
+   o cadastro continua rejeitado com `signup_disabled`. O log de auth do
+   projeto mostra esse código na hora; a tela agora também diz isso em
+   português em vez do texto genérico.
+
+   **Limite de e-mail do Supabase (risco real):** o remetente embutido do
+   Supabase manda poucos e-mails por hora (na casa de unidades, no plano
+   grátis). Serve para vocês testarem; **não serve para um cadastro público
+   de verdade**. Antes de divulgar o app, configurar SMTP próprio em
+   Authentication → SMTP Settings — o Resend tem camada grátis (100/dia) e é
+   o mesmo serviço que a Fase C vai precisar para convites. Sem isso, o
+   terceiro cadastro do dia já pode ficar sem e-mail de confirmação.
+
 4. **Authentication → Policies → Password** (opcional, recomendado): mínimo de
    6 caracteres é o padrão do Supabase. Para um app público, considerar subir
    para 8. Não bloqueia esta fase, é reforço de segurança.
