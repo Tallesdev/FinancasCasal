@@ -46,11 +46,11 @@ export default async function PainelLayout({
     );
   }
 
-  const partner =
-    ((profiles ?? []).find((p) => p.id !== user.id) as Profile | undefined) ?? null;
+  // A RLS devolve todo mundo da casa — até 6 pessoas, eu incluso.
+  const members = (profiles ?? []) as Profile[];
 
   return (
-    <ScopeProvider me={me} partner={partner}>
+    <ScopeProvider me={me} members={members}>
       <RegisterServiceWorker />
       <div className="flex min-h-dvh">
         <Nav />

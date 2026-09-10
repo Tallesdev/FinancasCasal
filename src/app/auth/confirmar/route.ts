@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { caminhoSeguro } from "@/lib/supabase/middleware";
 
 /**
  * Destino do link do e-mail de confirmação de cadastro.
@@ -15,11 +16,13 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  // Quem se cadastrou a partir de um convite volta pro convite.
+  const next = caminhoSeguro(searchParams.get("next")) ?? "/";
 
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}/`);
+    if (!error) return NextResponse.redirect(`${origin}${next}`);
   }
 
   // Link vencido, já usado, ou sem código. A tela de login explica.

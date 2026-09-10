@@ -42,7 +42,7 @@ const EMPTY: Draft = {
 
 export default function RendaPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, partner, userIds, scope } = useScope();
+  const { me, members, userIds, scope } = useScope();
 
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,13 +71,11 @@ export default function RendaPage() {
   }, [load]);
 
   const profileById = useMemo(() => {
-    const map: Record<string, { name: string; color: string }> = {
-      [me.id]: { name: me.display_name, color: me.color },
-    };
-    if (partner)
-      map[partner.id] = { name: partner.display_name, color: partner.color };
+    const map: Record<string, { name: string; color: string }> = {};
+    for (const m of members)
+      map[m.id] = { name: m.display_name, color: m.color };
     return map;
-  }, [me, partner]);
+  }, [members]);
 
   // Nenhuma leitura ignora o escopo.
   const visible = incomes.filter((income) => userIds.includes(income.user_id));
@@ -170,7 +168,7 @@ export default function RendaPage() {
         title="Renda"
         description={
           scope === "us"
-            ? "O que entra para os dois."
+            ? "O que entra para a casa."
             : "O que entra na sua conta."
         }
         action={

@@ -42,12 +42,19 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Pra onde ir depois de entrar. Vem de um convite: /entrar?next=/convite/x
+  const [next, setNext] = useState<string | null>(null);
 
   // A rota /auth/confirmar manda pra cá com ?erro= quando o link do e-mail
   // não serve mais. Lido via window em vez de useSearchParams pra não exigir
   // Suspense numa página que é estática.
   useEffect(() => {
-    const erro = new URLSearchParams(window.location.search).get("erro");
+    const params = new URLSearchParams(window.location.search);
+    const destino = params.get("next");
+    // Só caminho relativo dentro do app — nunca URL externa (open redirect).
+    if (destino && destino.startsWith("/") && !destino.startsWith("//"))
+      setNext(destino);
+    const erro = params.get("erro");
     if (erro === "confirmacao") {
       setError(
         "Esse link de confirmação não vale mais — pode ter vencido ou já ter sido usado. Peça um novo criando a conta de novo."
@@ -79,9 +86,14 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/");
+    router.replace(next ?? "/");
     router.refresh();
   }
+
+  /** O link do e-mail leva o next junto, pra cair no convite depois. */
+  const destinoConfirmar = () =>
+    `${window.location.origin}/auth/confirmar` +
+    (next ? `?next=${encodeURIComponent(next)}` : "");
 
   async function criar() {
     setError(null);
@@ -99,7 +111,7 @@ export default function LoginPage() {
       options: {
         // O gatilho do banco lê isto pra nomear o perfil.
         data: { display_name: nome.trim() },
-        emailRedirectTo: `${window.location.origin}/auth/confirmar`,
+        emailRedirectTo: destinoConfirmar(),
       },
     });
 
@@ -125,7 +137,7 @@ export default function LoginPage() {
     const { error: resendError } = await supabase.auth.resend({
       type: "signup",
       email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirmar` },
+      options: { emailRedirectTo: destinoConfirmar() },
     });
 
     setLoading(false);
@@ -154,7 +166,7 @@ export default function LoginPage() {
           />
           <h1 className="text-3xl font-bold">RumoFácil</h1>
           <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-            Cada um lança o seu. Os dois veem o todo.
+            Cada um lança o seu. A casa vê o todo.
           </p>
         </div>
 

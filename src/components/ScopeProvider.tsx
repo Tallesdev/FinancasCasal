@@ -15,11 +15,13 @@ type ScopeContextValue = {
   setScope: (scope: Scope) => void;
   /** Perfil de quem está logado. */
   me: Profile;
-  /** A outra pessoa da casa, se já estiver cadastrada. */
-  partner: Profile | null;
+  /** Todo mundo da casa, incluindo eu. Ordenado por nome. */
+  members: Profile[];
+  /** Todo mundo da casa menos eu. */
+  others: Profile[];
   /** Os user_ids que o escopo atual cobre — use para filtrar toda consulta. */
   userIds: string[];
-  /** Classe de tema para o escopo do casal (roxo fixo). Vazia no individual. */
+  /** Classe de tema para o escopo da casa (cor fixa). Vazia no individual. */
   scopeClass: string;
   /** No escopo individual, a cor da própria pessoa entra inline em --scope. */
   scopeStyle: React.CSSProperties | undefined;
@@ -31,31 +33,39 @@ const STORAGE_KEY = "financas:scope";
 
 export function ScopeProvider({
   me,
-  partner,
+  members,
   children,
 }: {
   me: Profile;
-  partner: Profile | null;
+  members: Profile[];
   children: React.ReactNode;
 }) {
-  const [scope, setScopeState] = useState<Scope>("me");
+  const [saved, setSaved] = useState<Scope>("me");
 
   // A escolha do escopo acompanha a pessoa entre as telas e entre sessões.
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved === "me" || saved === "us") setScopeState(saved);
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "me" || stored === "us") setSaved(stored);
   }, []);
 
   const setScope = useCallback((next: Scope) => {
-    setScopeState(next);
+    setSaved(next);
     window.localStorage.setItem(STORAGE_KEY, next);
   }, []);
 
   const value = useMemo<ScopeContextValue>(() => {
-    const userIds =
-      scope === "us" && partner ? [me.id, partner.id] : [me.id];
+    const ordenados = [...members].sort((a, b) =>
+      a.display_name.localeCompare(b.display_name, "pt-BR")
+    );
+    const others = ordenados.filter((m) => m.id !== me.id);
 
-    // Casal é uma cor fixa (não faria sentido "escolher" a cor de um grupo).
+    // Sozinho na casa não existe "todos": o escopo é sempre "eu", mesmo que
+    // a escolha salva diga outra coisa (ela pode ter vindo de outra casa).
+    const scope: Scope = ordenados.length < 2 ? "me" : saved;
+
+    const userIds = scope === "us" ? ordenados.map((m) => m.id) : [me.id];
+
+    // A casa é uma cor fixa (não faria sentido "escolher" a cor de um grupo).
     // Individual é a cor que a pessoa escolheu — livre, então não vira
     // classe CSS: entra inline como valor de --scope.
     const scopeClass = scope === "us" ? "scope-us" : "";
@@ -64,8 +74,17 @@ export function ScopeProvider({
         ? undefined
         : ({ "--scope": me.color } as React.CSSProperties);
 
-    return { scope, setScope, me, partner, userIds, scopeClass, scopeStyle };
-  }, [scope, setScope, me, partner]);
+    return {
+      scope,
+      setScope,
+      me,
+      members: ordenados,
+      others,
+      userIds,
+      scopeClass,
+      scopeStyle,
+    };
+  }, [saved, setScope, me, members]);
 
   return (
     <ScopeContext.Provider value={value}>

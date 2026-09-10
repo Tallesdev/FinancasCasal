@@ -77,7 +77,7 @@ function emptyDraft(month: string): Draft {
 
 export default function GastosPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, partner, userIds, scope } = useScope();
+  const { me, members, userIds, scope } = useScope();
 
   const [month, setMonth] = useState(() =>
     firstDayOfMonth(toISODate(new Date()))
@@ -162,13 +162,11 @@ export default function GastosPage() {
   }, [cards]);
 
   const profileById = useMemo(() => {
-    const map: Record<string, { name: string; color: string }> = {
-      [me.id]: { name: me.display_name, color: me.color },
-    };
-    if (partner)
-      map[partner.id] = { name: partner.display_name, color: partner.color };
+    const map: Record<string, { name: string; color: string }> = {};
+    for (const m of members)
+      map[m.id] = { name: m.display_name, color: m.color };
     return map;
-  }, [me, partner]);
+  }, [members]);
 
   /** Categorias que aparecem no filtro: as da casa, sem repetir nome. */
   const filterCategories = useMemo(() => {
@@ -334,7 +332,7 @@ export default function GastosPage() {
         title="Gastos"
         description={
           scope === "us"
-            ? "Tudo que os dois gastaram no mês."
+            ? "Tudo que a casa gastou no mês."
             : "Tudo que passou pela sua conta no mês."
         }
         action={

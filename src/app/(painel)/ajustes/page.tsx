@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MeuPerfil } from "@/components/MeuPerfil";
+import { MinhaCasa } from "@/components/MinhaCasa";
 
 /* No desktop os ajustes ficam na coluna lateral. No celular a barra de baixo
    é só para o dia a dia, então eles ganham esta página de entrada. */
@@ -35,6 +36,8 @@ export default function AjustesPage() {
       </div>
 
       <MeuPerfil />
+
+      <MinhaCasa />
 
       <ul className="grid gap-3 sm:grid-cols-2">
         {LINKS.map((link) => (

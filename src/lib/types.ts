@@ -221,3 +221,31 @@ export type InvestmentInWindowRow = {
   name: string;
   asset_type: string;
 };
+
+/** A casa. Só o nome é editável; qualquer membro renomeia. */
+export type Household = {
+  id: string;
+  name: string;
+};
+
+/** Convite por link (household_invites). O token é o que vai na URL. */
+export type HouseholdInvite = {
+  id: string;
+  household_id: string;
+  token: string;
+  created_by: string;
+  invited_email: string | null;
+  status: "pending" | "accepted" | "revoked" | "expired";
+  expires_at: string;
+  created_at: string;
+};
+
+/** Retorno de public.get_invite() — só o que a página do convite mostra. */
+export type InviteInfo = {
+  household_name: string;
+  inviter_name: string;
+  inviter_color: string;
+  member_count: number;
+  expires_at: string;
+  email_locked: boolean;
+};

@@ -4,6 +4,16 @@ import { NextResponse, type NextRequest } from "next/server";
 /** O tipo que o @supabase/ssr entrega ao setAll. */
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
+/**
+ * `next` só é honrado se for caminho relativo dentro do app. Sem isto vira
+ * "open redirect": link que parece do app e manda a pessoa pra outro site.
+ */
+export function caminhoSeguro(next: string | null): string | null {
+  if (!next) return null;
+  if (!next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -34,9 +44,13 @@ export async function updateSession(request: NextRequest) {
 
   // /auth/* é pública de propósito: é onde o link do e-mail de confirmação
   // troca o código por sessão — nesse momento ainda não existe sessão.
+  // /convite/ também: a pessoa pode chegar sem sessão e precisa VER o
+  // convite antes de decidir entrar. Aceitar exige sessão, mas isso quem
+  // garante é a função do banco (auth.uid() nulo → erro), não o middleware.
   const isPublica =
     request.nextUrl.pathname.startsWith("/entrar") ||
-    request.nextUrl.pathname.startsWith("/auth/");
+    request.nextUrl.pathname.startsWith("/auth/") ||
+    request.nextUrl.pathname.startsWith("/convite/");
 
   if (!user && !isPublica) {
     const url = request.nextUrl.clone();
@@ -48,7 +62,9 @@ export async function updateSession(request: NextRequest) {
   // /auth/ ficam de fora: elas são justamente quem cria a sessão.
   if (user && request.nextUrl.pathname.startsWith("/entrar")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    // Quem já está logado e veio de um convite volta pro convite.
+    url.pathname = caminhoSeguro(request.nextUrl.searchParams.get("next")) ?? "/";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

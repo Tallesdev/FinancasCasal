@@ -2,17 +2,28 @@
 
 import { useScope } from "./ScopeProvider";
 
-export function ScopeToggle() {
-  const { scope, setScope, me, partner } = useScope();
+const firstName = (full: string) => full.split(" ")[0];
 
-  const firstName = (full: string) => full.split(" ")[0];
+/**
+ * Rótulo do escopo "todos", pelo tamanho da casa:
+ *   2 pessoas → "A + B" (o caso do casal, fica bonito)
+ *   3 ou mais → "Todos" (seis nomes não cabem num toggle de celular)
+ */
+export function labelTodos(members: { display_name: string }[]) {
+  if (members.length === 2)
+    return `${firstName(members[0].display_name)} + ${firstName(members[1].display_name)}`;
+  return "Todos";
+}
+
+export function ScopeToggle() {
+  const { scope, setScope, me, members } = useScope();
+
+  // Sozinho na casa não existe escolha entre "eu" e "eu".
+  if (members.length < 2) return null;
 
   const options: { value: "me" | "us"; label: string }[] = [
     { value: "me", label: firstName(me.display_name) },
-    {
-      value: "us",
-      label: partner ? `${firstName(me.display_name)} + ${firstName(partner.display_name)}` : "Nós dois",
-    },
+    { value: "us", label: labelTodos(members) },
   ];
 
   return (

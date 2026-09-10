@@ -1,6 +1,6 @@
 # Fase C — Casa com até 6 pessoas e convite
 
-**Status:** Spec para implementação. Nada deste documento está no código ainda.
+**Status:** Implementada em 10/09/2026 — código escrito e compilando. Falta rodar a migração 005 antes de subir.
 **Depende de:** Fase B no ar com o cadastro funcionando de verdade (o toggle
 "Allow new users to sign up" ligado — ver `FASE_B.md` §2).
 **Decisão que dirige tudo (10/09/2026):** uma casa tem **até 6 pessoas**, não

@@ -45,7 +45,7 @@ const EMPTY: Draft = {
 
 export default function InvestimentosPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, partner, userIds, scope } = useScope();
+  const { me, members, userIds, scope } = useScope();
 
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,13 +74,11 @@ export default function InvestimentosPage() {
   }, [load]);
 
   const profileById = useMemo(() => {
-    const map: Record<string, { name: string; color: string }> = {
-      [me.id]: { name: me.display_name, color: me.color },
-    };
-    if (partner)
-      map[partner.id] = { name: partner.display_name, color: partner.color };
+    const map: Record<string, { name: string; color: string }> = {};
+    for (const m of members)
+      map[m.id] = { name: m.display_name, color: m.color };
     return map;
-  }, [me, partner]);
+  }, [members]);
 
   const visible = investments.filter((item) => userIds.includes(item.user_id));
 
@@ -149,7 +147,7 @@ export default function InvestimentosPage() {
         title="Investimentos"
         description={
           scope === "us"
-            ? "O que os dois guardam todo mês."
+            ? "O que a casa guarda todo mês."
             : "O que você guarda todo mês."
         }
         action={
