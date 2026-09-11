@@ -116,7 +116,7 @@ isso, mesmo tendo sido pensado para dois.
 
 ## Fase C — Convite para formar casal
 
-> **Superado. A especificação de verdade é `FASE_C.md`.** Duas coisas abaixo
+> **Superado. A especificação de verdade é `FASE_C.md` — implementada e no ar em 11/09/2026.** Duas coisas abaixo
 > estão erradas: (1) a casa tem **até 6 pessoas**, decisão de 10/09/2026, não
 > duas; (2) a regra de "só aceita convite se a casa não tiver lançamentos" era
 > medo infundado — nenhuma tabela de dado tem `household_id`, tudo é por

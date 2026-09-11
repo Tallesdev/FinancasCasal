@@ -1,8 +1,7 @@
 # Fase B — Cadastro público
 
-**Status:** Implementada em 10/09/2026 — o código descrito abaixo existe e
-compila. Falta rodar a migração 004 e ligar o cadastro no painel do Supabase
-(passos 1 e 2 da §9) antes de subir.
+**Status:** No ar e testada em 11/09/2026 — cadastro público funcionando de
+verdade (o toggle "Allow new users to sign up" era o que faltava).
 **Depende de:** Fase A publicada (feito em 10/09/2026).
 **Não depende de:** Fase C (convite), D (áudio) ou E (foto). Esta fase é
 autossuficiente — dá para parar aqui e o app continua inteiro.
