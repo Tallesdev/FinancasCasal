@@ -37,9 +37,9 @@ grava (MediaRecorder)
         │
         ├─ POST /api/audio ──▶ exige sessão
                                ≤ 3 MB
-                                  ├─ transcrever() ──────▶ whisper-large-v3-turbo
-                                  │        ◀── texto ──────
-                                  ├─ interpretarGasto() ─▶ llama-3.3-70b-versatile
+                                  ├─ transcrever() ──────▶ MODELOS_TRANSCRICAO
+                                  │        ◀── texto ──────   (lista, em ordem)
+                                  ├─ interpretarGasto() ─▶ MODELOS_TEXTO
                                   │   (com as categorias    (JSON estrito)
                                   │    da pessoa)
                                   │        ◀── {description, amount,
@@ -49,9 +49,10 @@ formulário abre preenchido
 pessoa confere e salva
 ```
 
-- **`src/lib/ia.ts`** — as duas chamadas, isoladas. Os nomes dos modelos são
-  constantes no topo: provedor troca modelo com frequência, e a troca é uma
-  linha. Sanitiza o que volta: valor tem que ser número positivo, categoria
+- **`src/lib/ia.ts`** — as duas chamadas, isoladas. Cada tarefa tem uma
+  *lista* de modelos, tentados em ordem: o catálogo visível depende da conta
+  (ver §3.1), e provedor aposenta modelo com frequência. Sanitiza o que
+  volta: valor tem que ser número positivo, categoria
   tem que bater com uma da lista, forma de pagamento tem que ser `pix` ou
   `card`. O que não passa vira `null` — o campo fica vazio no formulário.
 - **`src/app/api/audio/route.ts`** — a única porta pra Groq. A chave mora
@@ -84,9 +85,12 @@ configurado neste app."* quando clicado. Nada mais é afetado.
   cadastro público, todo mundo divide a mesma cota. Se estourar, a chamada
   falha e a pessoa vê "tente de novo ou digite o gasto" — dá pra viver com
   isso. Limite por usuário fica pra quando fizer falta (`PLANO_V2.md`).
-- **Modelo aposentado.** Quando acontecer, o erro aparece no log da Vercel
-  como `transcrição 4xx` ou `interpretação 4xx`. Trocar a constante em
-  `src/lib/ia.ts` e redeployar.
+- **Modelo indisponível pra chave.** Resolvido por construção: `ia.ts` tem
+  uma *lista* de modelos por tarefa e tenta em ordem, caindo pro próximo
+  quando vem 404 `model_not_found`. Só esse erro é engolido — cota, chave
+  inválida e áudio recusado estouram na hora, porque trocar de modelo não
+  ajudaria. Se um dia nenhum da lista existir, a mensagem diz quais foram
+  tentados.
 - **Permissão de microfone.** Primeiro uso pede permissão; PWA instalado no
   iOS às vezes pede de novo. A mensagem de erro aponta pra isso.
 - **Custo zero hoje, não pra sempre.** Vale olhar o painel da Groq de vez
@@ -101,9 +105,17 @@ processar" é indistinguível entre cota estourada, modelo aposentado e
 formato de áudio recusado. Nunca contém a chave: `transcrever()` e
 `interpretarGasto()` só repassam status e corpo da resposta.
 
-Os dois modelos foram conferidos na documentação da Groq em 12/09/2026 e
-existem (`whisper-large-v3-turbo`, `llama-3.3-70b-versatile`), então a
-primeira falha em produção **não foi nome aposentado**.
+**O que o primeiro teste real ensinou (12/09/2026).** O detalhe técnico
+mostrou `interpretação 404: model_not_found` no `llama-3.3-70b-versatile`.
+A transcrição tinha passado — ou seja, chave válida, áudio aceito, Whisper
+ok. O modelo está na documentação como produção, mas a chave não tinha
+acesso a ele: conta nova no plano grátis costuma ver um subconjunto menor
+do catálogo.
+
+A lição não é "trocar o nome do modelo" — é que **o catálogo visível
+depende da conta**, e chutar outro nome só adiaria o mesmo 404. Daí a lista
+com fallback. Vale para qualquer pessoa que for usar o app com a própria
+chave, não só para esta.
 
 ## 4. Checklist de aceite
 
