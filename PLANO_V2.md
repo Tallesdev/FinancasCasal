@@ -245,6 +245,12 @@ formulário salva sem clique) se estende para cá sem exceção.
 
 ## Fase E — Foto de recibo + guarda para imposto de renda
 
+> **A especificação de verdade é `FASE_E.md`** (escrita em 12/09/2026).
+> O resumo abaixo é o contexto original de por que a fase existe; o que
+> mudou desde então: a fase foi dividida em E1 (anexar e guardar) e E2
+> (ler com IA), porque as duas têm riscos diferentes e a primeira entrega
+> sozinha.
+
 ### O que é, com precisão
 
 Você descreveu duas coisas que parecem uma só mas são independentes:
