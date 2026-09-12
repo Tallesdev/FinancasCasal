@@ -222,10 +222,12 @@ export type InvestmentInWindowRow = {
   asset_type: string;
 };
 
-/** A casa. Só o nome é editável; qualquer membro renomeia. */
+/** A casa. Nome e cor são editáveis; qualquer membro muda. */
 export type Household = {
   id: string;
   name: string;
+  /** Cor do escopo "todos" — identidade da casa, como a pessoa tem a dela. */
+  color: string;
 };
 
 /** Convite por link (household_invites). O token é o que vai na URL. */

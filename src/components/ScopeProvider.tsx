@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { Profile, Scope } from "@/lib/types";
+import type { Household, Profile, Scope } from "@/lib/types";
 
 type ScopeContextValue = {
   scope: Scope;
@@ -19,11 +19,13 @@ type ScopeContextValue = {
   members: Profile[];
   /** Todo mundo da casa menos eu. */
   others: Profile[];
+  /** A casa. Nulo só se a leitura falhar — o gatilho garante que existe. */
+  household: Household | null;
   /** Os user_ids que o escopo atual cobre — use para filtrar toda consulta. */
   userIds: string[];
-  /** Classe de tema para o escopo da casa (cor fixa). Vazia no individual. */
+  /** Fallback de tema quando a cor ainda não carregou. */
   scopeClass: string;
-  /** No escopo individual, a cor da própria pessoa entra inline em --scope. */
+  /** A cor do escopo ativo entra inline em --scope: a da pessoa ou a da casa. */
   scopeStyle: React.CSSProperties | undefined;
 };
 
@@ -34,10 +36,12 @@ const STORAGE_KEY = "financas:scope";
 export function ScopeProvider({
   me,
   members,
+  household,
   children,
 }: {
   me: Profile;
   members: Profile[];
+  household: Household | null;
   children: React.ReactNode;
 }) {
   const [saved, setSaved] = useState<Scope>("me");
@@ -65,14 +69,14 @@ export function ScopeProvider({
 
     const userIds = scope === "us" ? ordenados.map((m) => m.id) : [me.id];
 
-    // A casa é uma cor fixa (não faria sentido "escolher" a cor de um grupo).
-    // Individual é a cor que a pessoa escolheu — livre, então não vira
-    // classe CSS: entra inline como valor de --scope.
-    const scopeClass = scope === "us" ? "scope-us" : "";
-    const scopeStyle =
-      scope === "us"
-        ? undefined
-        : ({ "--scope": me.color } as React.CSSProperties);
+    // Nenhuma das duas cores é fixa: a pessoa escolhe a dela, a casa a
+    // dela. Como são livres, não viram classe CSS — entram inline em
+    // --scope. A classe fica só de rede se a casa ainda não carregou.
+    const cor = scope === "us" ? household?.color : me.color;
+    const scopeClass = scope === "us" && !household ? "scope-us" : "";
+    const scopeStyle = cor
+      ? ({ "--scope": cor } as React.CSSProperties)
+      : undefined;
 
     return {
       scope,
@@ -80,11 +84,12 @@ export function ScopeProvider({
       me,
       members: ordenados,
       others,
+      household,
       userIds,
       scopeClass,
       scopeStyle,
     };
-  }, [saved, setScope, me, members]);
+  }, [saved, setScope, me, members, household]);
 
   return (
     <ScopeContext.Provider value={value}>

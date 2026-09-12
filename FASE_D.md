@@ -1,8 +1,9 @@
 # Fase D — Lançar gasto por áudio
 
-**Status:** Implementada em 12/09/2026 — código escrito e compilando. **Não
-funciona até existir a chave da Groq** (§2); sem ela o botão avisa e o resto
-do app segue normal.
+**Status:** No ar desde 12/09/2026. A chave da Groq foi configurada na
+Vercel; falta o teste de ponta a ponta (§4). No `.env.local` ela ainda não
+está, então `npm run dev` cai no aviso de "não configurado" — só afeta teste
+local.
 **Depende de:** nada de banco. Nenhuma migração.
 **Não depende de:** Fase E (foto). As duas são independentes.
 

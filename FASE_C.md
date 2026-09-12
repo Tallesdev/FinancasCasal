@@ -338,6 +338,19 @@ também merecem, para o próximo leitor não achar que o app ainda é de dois.
 
 ---
 
+## 6.1 Acrescentado depois de entrar no ar (12/09/2026)
+
+- **Código curto por convite** (migração 006): além do link, cada convite tem
+  um código de 8 caracteres sem ambiguidade (sem 0/O, 1/I/L) para ditar por
+  telefone. `get_invite` e `accept_invite` aceitam token **ou** código no
+  mesmo parâmetro; `/convite` sem nada é a tela de digitar.
+- **Cor da casa** (migração 007): o escopo "todos" deixa de usar o roxo fixo
+  do CSS e passa a usar `households.color`, escolhido em Ajustes → Minha
+  casa. Simetria com a cor por pessoa da Fase B.
+- **Ajustes no desktop:** a coluna lateral ganhou "Perfil e casa". Sem isso,
+  perfil, casa e convites eram inalcançáveis no navegador — o atalho no
+  header é `md:hidden`. Bug encontrado no uso real.
+
 ## 7. Decisões que ainda são suas
 
 1. **"Todos" ou o nome da casa no toggle?** Com 3+ pessoas, o toggle pode

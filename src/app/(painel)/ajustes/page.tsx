@@ -39,7 +39,8 @@ export default function AjustesPage() {
 
       <MinhaCasa />
 
-      <ul className="grid gap-3 sm:grid-cols-2">
+      {/* No desktop estes três já estão na coluna lateral. */}
+      <ul className="grid gap-3 sm:grid-cols-2 md:hidden">
         {LINKS.map((link) => (
           <li key={link.href}>
             <Link

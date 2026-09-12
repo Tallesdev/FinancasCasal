@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "./ScopeProvider";
 import { TextField } from "./form/Field";
-import { Button, DeleteButton, Dot, ErrorNote } from "./ui";
+import { Button, ColorPicker, DeleteButton, Dot, ErrorNote, Field } from "./ui";
 import { formatDate } from "@/lib/format";
 import type { Household, HouseholdInvite } from "@/lib/types";
 
@@ -28,6 +28,7 @@ export function MinhaCasa() {
 
   const [casa, setCasa] = useState<Household | null>(null);
   const [nome, setNome] = useState("");
+  const [cor, setCor] = useState("#C77DFF");
   const [convites, setConvites] = useState<HouseholdInvite[]>([]);
   const [emailConvite, setEmailConvite] = useState("");
   const [link, setLink] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export function MinhaCasa() {
   const load = useCallback(async () => {
     // A RLS devolve só a minha casa e só os convites dela.
     const [casaResult, convitesResult] = await Promise.all([
-      supabase.from("households").select("id, name").limit(1).maybeSingle(),
+      supabase.from("households").select("id, name, color").limit(1).maybeSingle(),
       supabase
         .from("household_invites")
         .select("*")
@@ -51,6 +52,7 @@ export function MinhaCasa() {
     const c = (casaResult.data as Household | null) ?? null;
     setCasa(c);
     setNome(c?.name ?? "");
+    if (c?.color) setCor(c.color);
     // Tabela ausente = migração 005 não rodou. Não é motivo pra quebrar
     // a tela de ajustes inteira; a seção só fica sem convites.
     setConvites((convitesResult.data ?? []) as HouseholdInvite[]);
@@ -62,18 +64,24 @@ export function MinhaCasa() {
 
   const vagas = LIMITE - members.length - convites.length;
 
-  async function renomear() {
+  const mudouCasa =
+    Boolean(casa) && (nome.trim() !== casa!.name || cor !== casa!.color);
+
+  async function salvarCasa() {
     const name = nome.trim();
-    if (!casa || !name || name === casa.name) return;
+    if (!casa || !name || !mudouCasa) return;
     setSaving(true);
     setError(null);
     const { error: e } = await supabase
       .from("households")
-      .update({ name })
+      .update({ name, color: cor })
       .eq("id", casa.id);
     setSaving(false);
-    if (e) return setError("Não deu para renomear. Tente de novo.");
-    setCasa({ ...casa, name });
+    if (e) return setError("Não deu para salvar. Tente de novo.");
+    setCasa({ ...casa, name, color: cor });
+    // O layout lê a casa no servidor: sem isso a cor nova só apareceria
+    // na próxima abertura do app.
+    router.refresh();
   }
 
   async function convidar() {
@@ -161,23 +169,30 @@ export function MinhaCasa() {
       </div>
 
       {casa && (
-        <div className="flex items-end gap-2">
-          <div className="min-w-0 flex-1">
-            <TextField
-              label="Nome da casa"
-              value={nome}
-              placeholder="Família Silva, Nossa casa…"
-              onChange={(event) => setNome(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && renomear()}
-            />
-          </div>
-          <Button
-            variant="ghost"
-            onClick={renomear}
-            disabled={saving || !nome.trim() || nome.trim() === casa.name}
+        <div className="flex flex-col gap-4">
+          <TextField
+            label="Nome da casa"
+            value={nome}
+            placeholder="Família Silva, Nossa casa…"
+            onChange={(event) => setNome(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && salvarCasa()}
+          />
+
+          <Field
+            label="Cor da casa"
+            hint="Pinta a interface quando você olha os números de todos."
           >
-            Renomear
-          </Button>
+            <ColorPicker value={cor} onChange={setCor} />
+          </Field>
+
+          <div>
+            <Button
+              onClick={salvarCasa}
+              disabled={saving || !nome.trim() || !mudouCasa}
+            >
+              {saving ? "Salvando…" : "Salvar casa"}
+            </Button>
+          </div>
         </div>
       )}
 

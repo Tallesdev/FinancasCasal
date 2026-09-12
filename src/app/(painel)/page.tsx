@@ -56,6 +56,7 @@ export default function DashboardPage() {
 
   // --- janela do cartão ---
   const [cards, setCards] = useState<Card[]>([]);
+  const [cartaoId, setCartaoId] = useState<string | null>(null);
   const [reference, setReference] = useState(() => toISODate(new Date()));
   const [bounds, setBounds] = useState<CycleBounds | null>(null);
   const [janela, setJanela] = useState<TotaisDaJanela>(JANELA_VAZIA);
@@ -64,13 +65,23 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /** O cartão que define o mês; sem escolha, o primeiro com fechamento. */
+  /** Só cartão com fechamento tem ciclo pra calcular. */
+  const cartoesComCiclo = useMemo(
+    () => cards.filter((card) => card.closing_day),
+    [cards]
+  );
+
+  /**
+   * O cartão da vez: o escolhido aqui, senão o que define o mês da pessoa,
+   * senão o primeiro com fechamento.
+   */
   const cartaoDoMes = useMemo(
     () =>
-      cards.find((card) => card.id === me.anchor_card_id && card.closing_day) ??
-      cards.find((card) => card.closing_day) ??
+      cartoesComCiclo.find((card) => card.id === cartaoId) ??
+      cartoesComCiclo.find((card) => card.id === me.anchor_card_id) ??
+      cartoesComCiclo[0] ??
       null,
-    [cards, me.anchor_card_id]
+    [cartoesComCiclo, cartaoId, me.anchor_card_id]
   );
 
   // Cartões e categorias mudam pouco; carregam uma vez.
@@ -280,7 +291,14 @@ export default function DashboardPage() {
             {(
               [
                 { value: "mes" as Periodo, label: "Mês" },
-                { value: "cartao" as Periodo, label: `Pelo ${cartaoDoMes.name}` },
+                {
+                  value: "cartao" as Periodo,
+                  // Com vários cartões o nome vai nas pastilhas de baixo.
+                  label:
+                    cartoesComCiclo.length > 1
+                      ? "Pelo cartão"
+                      : `Pelo ${cartaoDoMes.name}`,
+                },
               ]
             ).map((opcao) => (
               <button
@@ -299,6 +317,35 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Mais de um cartão com fechamento: dá pra ver a janela de cada um. */}
+      {periodo === "cartao" && cartoesComCiclo.length > 1 && (
+        <div className="-mt-3 flex flex-wrap items-center gap-2">
+          {cartoesComCiclo.map((card) => {
+            const ativo = card.id === cartaoDoMes?.id;
+            return (
+              <button
+                key={card.id}
+                type="button"
+                aria-pressed={ativo}
+                onClick={() => {
+                  setCartaoId(card.id);
+                  setReference(toISODate(new Date()));
+                }}
+                className={[
+                  "flex min-h-11 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors",
+                  ativo
+                    ? "border-[var(--scope)] bg-[var(--scope)]/10 text-[var(--color-text)]"
+                    : "border-[var(--color-line)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]",
+                ].join(" ")}
+              >
+                <Dot color={card.color} />
+                {card.name}
+              </button>
+            );
+          })}
         </div>
       )}
 

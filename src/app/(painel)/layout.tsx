@@ -7,7 +7,7 @@ import { Nav } from "@/components/Nav";
 import { SignOutButton } from "@/components/SignOutButton";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
-import type { Profile } from "@/lib/types";
+import type { Household, Profile } from "@/lib/types";
 
 export default async function PainelLayout({
   children,
@@ -25,7 +25,11 @@ export default async function PainelLayout({
   // A RLS já limita esta consulta à casa de quem está logado.
   // `select("*")` de propósito: se uma migração ainda não rodou, a coluna
   // nova só vem indefinida em vez de derrubar o app inteiro.
-  const { data: profiles } = await supabase.from("profiles").select("*");
+  const [{ data: profiles }, { data: casa }] = await Promise.all([
+    supabase.from("profiles").select("*"),
+    // A RLS devolve só a casa de quem está logado.
+    supabase.from("households").select("id, name, color").maybeSingle(),
+  ]);
 
   const me = (profiles ?? []).find((p) => p.id === user.id) as Profile | undefined;
 
@@ -50,7 +54,11 @@ export default async function PainelLayout({
   const members = (profiles ?? []) as Profile[];
 
   return (
-    <ScopeProvider me={me} members={members}>
+    <ScopeProvider
+      me={me}
+      members={members}
+      household={(casa as Household | null) ?? null}
+    >
       <RegisterServiceWorker />
       <div className="flex min-h-dvh">
         <Nav />

@@ -1605,3 +1605,25 @@ begin
   where id = v_inv.id;
 end;
 $$;
+
+
+-- =====================================================================
+-- Cor da casa
+-- Idêntico a supabase/migrations/007_cor_da_casa.sql.
+-- =====================================================================
+begin;
+
+alter table public.households add column if not exists color text;
+
+-- O roxo que já era a cor de "todos" no CSS: ninguém vê mudança.
+update public.households set color = '#C77DFF' where color is null;
+
+alter table public.households alter column color set default '#C77DFF';
+alter table public.households alter column color set not null;
+
+do $$ begin
+  alter table public.households
+    add constraint households_color_format check (color ~ '^#[0-9A-Fa-f]{6}$');
+exception when duplicate_object then null; end $$;
+
+commit;

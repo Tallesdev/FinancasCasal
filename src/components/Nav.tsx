@@ -15,6 +15,9 @@ const SETTINGS = [
   { href: "/contas", label: "Contas" },
   { href: "/cartoes", label: "Cartões" },
   { href: "/categorias", label: "Categorias" },
+  // Sem isto, perfil, casa e convites ficam inalcançáveis no desktop: o
+  // atalho de /ajustes no header é md:hidden.
+  { href: "/ajustes", label: "Perfil e casa" },
 ];
 
 export function Nav() {
