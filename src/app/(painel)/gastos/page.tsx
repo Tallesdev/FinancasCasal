@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
+import { GravarGasto, type GastoPorAudio } from "@/components/GravarGasto";
 import { SegmentedField, SelectField } from "@/components/form/Field";
 import {
   Button,
@@ -258,6 +259,28 @@ export default function GastosPage() {
     setFormError(null);
   }
 
+  /**
+   * A IA sugere; o formulário abre preenchido e a pessoa confere. Nunca salva
+   * sozinho. A transcrição vai pra observação, pra ela ver o que foi ouvido.
+   */
+  function abrirPorAudio(g: GastoPorAudio) {
+    const categoria = g.category_name
+      ? myCategories.find(
+          (c) => c.name.toLowerCase() === g.category_name!.toLowerCase()
+        )
+      : undefined;
+
+    setDraft({
+      ...emptyDraft(month),
+      description: g.description,
+      amount: g.amount != null ? String(g.amount) : "",
+      payment_method: g.payment_method ?? "pix",
+      category_id: categoria?.id ?? "",
+      notes: g.texto ? `Por áudio: "${g.texto}"` : "",
+    });
+    setFormError(null);
+  }
+
   async function save() {
     if (!draft) return;
 
@@ -336,7 +359,13 @@ export default function GastosPage() {
             : "Tudo que passou pela sua conta no mês."
         }
         action={
-          <Button onClick={() => setDraft(emptyDraft(month))}>Novo gasto</Button>
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            <GravarGasto
+              categorias={myCategories.map((c) => c.name)}
+              onDraft={abrirPorAudio}
+            />
+            <Button onClick={() => setDraft(emptyDraft(month))}>Novo gasto</Button>
+          </div>
         }
       />
 
