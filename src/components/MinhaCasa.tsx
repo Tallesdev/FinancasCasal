@@ -11,6 +11,9 @@ import type { Household, HouseholdInvite } from "@/lib/types";
 
 const LIMITE = 6;
 
+/** XXXXXXXX → XXXX-XXXX. Só pra ler; o banco guarda sem hífen. */
+const formatarCodigo = (c: string) => `${c.slice(0, 4)}-${c.slice(4)}`;
+
 /**
  * A casa: nome, quem está nela, convidar por link, sair.
  *
@@ -28,6 +31,7 @@ export function MinhaCasa() {
   const [convites, setConvites] = useState<HouseholdInvite[]>([]);
   const [emailConvite, setEmailConvite] = useState("");
   const [link, setLink] = useState<string | null>(null);
+  const [codigo, setCodigo] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +91,10 @@ export function MinhaCasa() {
     // As mensagens de erro do banco já vêm em português.
     if (e) return setError(e.message);
 
-    setLink(`${window.location.origin}/convite/${data as string}`);
+    const novo = ((data ?? []) as { token: string; code: string }[])[0];
+    if (!novo) return setError("Não deu para gerar o convite. Tente de novo.");
+    setLink(`${window.location.origin}/convite/${novo.token}`);
+    setCodigo(novo.code);
     setEmailConvite("");
     load();
   }
@@ -127,7 +134,10 @@ export function MinhaCasa() {
       .update({ status: "revoked" })
       .eq("id", id);
     if (e) return setError("Não deu para revogar. Tente de novo.");
-    if (link) setLink(null);
+    if (link) {
+      setLink(null);
+      setCodigo(null);
+    }
     load();
   }
 
@@ -221,8 +231,14 @@ export function MinhaCasa() {
         {link && (
           <div className="flex flex-col gap-2 rounded-lg border border-[var(--scope)]/30 bg-[var(--scope)]/10 px-3.5 py-3">
             <p className="text-xs text-[var(--color-text-faint)]">
-              Mande este link pra pessoa. Vale por 7 dias.
+              Mande o link — ou dite o código, pra quem prefere digitar. Vale
+              por 7 dias.
             </p>
+            {codigo && (
+              <p className="money text-2xl font-semibold tracking-[0.2em]">
+                {formatarCodigo(codigo)}
+              </p>
+            )}
             <code className="break-all font-mono text-xs">{link}</code>
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={copiar} className="px-3 py-1.5 text-xs">
@@ -243,6 +259,11 @@ export function MinhaCasa() {
                 className="flex items-center justify-between gap-3 text-sm"
               >
                 <span className="min-w-0 text-[var(--color-text-dim)]">
+                  {c.code && (
+                    <span className="money mr-2 font-semibold">
+                      {formatarCodigo(c.code)}
+                    </span>
+                  )}
                   <span className="truncate">
                     {c.invited_email ?? "Qualquer um com o link"}
                   </span>
@@ -264,6 +285,15 @@ export function MinhaCasa() {
       </div>
 
       {error && <ErrorNote>{error}</ErrorNote>}
+
+      {members.length < 2 && (
+        <p className="text-xs text-[var(--color-text-faint)]">
+          Alguém te passou um código?{" "}
+          <a href="/convite" className="underline hover:text-[var(--color-text)]">
+            Entrar numa casa
+          </a>
+        </p>
+      )}
 
       {/* Sair de uma casa solo não significa nada. */}
       {members.length > 1 && (

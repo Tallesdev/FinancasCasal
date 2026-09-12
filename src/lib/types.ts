@@ -233,6 +233,8 @@ export type HouseholdInvite = {
   id: string;
   household_id: string;
   token: string;
+  /** 8 caracteres sem ambiguidade (sem 0/O, 1/I/L). Vai por telefone. */
+  code: string | null;
   created_by: string;
   invited_email: string | null;
   status: "pending" | "accepted" | "revoked" | "expired";

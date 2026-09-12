@@ -47,10 +47,15 @@ export async function updateSession(request: NextRequest) {
   // /convite/ também: a pessoa pode chegar sem sessão e precisa VER o
   // convite antes de decidir entrar. Aceitar exige sessão, mas isso quem
   // garante é a função do banco (auth.uid() nulo → erro), não o middleware.
+  // /api/ também fica de fora do redirect: rota de API responde 401, não
+  // manda pra tela de login. Cada handler checa a própria sessão.
+  const path = request.nextUrl.pathname;
   const isPublica =
-    request.nextUrl.pathname.startsWith("/entrar") ||
-    request.nextUrl.pathname.startsWith("/auth/") ||
-    request.nextUrl.pathname.startsWith("/convite/");
+    path.startsWith("/entrar") ||
+    path.startsWith("/auth/") ||
+    path === "/convite" ||
+    path.startsWith("/convite/") ||
+    path.startsWith("/api/");
 
   if (!user && !isPublica) {
     const url = request.nextUrl.clone();

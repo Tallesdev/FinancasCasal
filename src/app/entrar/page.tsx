@@ -11,7 +11,9 @@ import { TextField } from "@/components/form/Field";
  *   criar   → nome + e-mail + senha; ao enviar, cai em "confira"
  *   confira → "mandamos um link para o seu e-mail", com reenvio
  */
-type Modo = "entrar" | "criar" | "confira";
+type Modo = "entrar" | "criar" | "esqueci" | "confira";
+/** A tela "confira seu e-mail" serve pra cadastro e pra senha. */
+type Motivo = "cadastro" | "senha";
 
 /** Mensagens do Supabase vêm em inglês; quem usa lê em português. */
 function traduzir(mensagem: string): string {
@@ -36,6 +38,7 @@ function traduzir(mensagem: string): string {
 export default function LoginPage() {
   const router = useRouter();
   const [modo, setModo] = useState<Modo>("entrar");
+  const [motivo, setMotivo] = useState<Motivo>("cadastro");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -125,12 +128,38 @@ export default function LoginPage() {
     // Por segurança o Supabase responde "sucesso" mesmo pra e-mail que já
     // tem conta — pra ninguém descobrir quem está cadastrado. Então esta
     // tela é sempre a mesma, independente do que aconteceu de verdade.
+    setMotivo("cadastro");
+    trocarModo("confira");
+  }
+
+  /**
+   * O link do e-mail troca o código por sessão em /auth/confirmar e cai em
+   * /auth/redefinir já logado — lá a pessoa escolhe a senha nova.
+   */
+  async function pedirRedefinicao() {
+    setError(null);
+    setLoading(true);
+
+    const supabase = createClient();
+    const { error: e } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/confirmar?next=${encodeURIComponent("/auth/redefinir")}`,
+    });
+
+    setLoading(false);
+
+    if (e) {
+      setError(traduzir(e.message));
+      return;
+    }
+    // Mesma lógica: não revela se o e-mail existe.
+    setMotivo("senha");
     trocarModo("confira");
   }
 
   async function reenviar() {
     setAviso(null);
     setError(null);
+    if (motivo === "senha") return pedirRedefinicao();
     setLoading(true);
 
     const supabase = createClient();
@@ -170,16 +199,57 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {modo === "confira" ? (
+        {modo === "esqueci" ? (
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="font-semibold">Esqueceu a senha?</p>
+              <p className="mt-1 text-sm text-[var(--color-text-dim)]">
+                Mandamos um link pro seu e-mail pra você escolher outra.
+              </p>
+            </div>
+
+            <TextField
+              label="E-mail"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={email}
+              autoFocus
+              onChange={(event) => setEmail(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && pedirRedefinicao()}
+            />
+
+            {error && <Erro>{error}</Erro>}
+
+            <button
+              type="button"
+              onClick={pedirRedefinicao}
+              disabled={loading || !email}
+              className="min-h-11 rounded-lg bg-[var(--color-couple)] px-4 font-semibold text-[var(--color-ink)] transition-opacity disabled:opacity-40"
+            >
+              {loading ? "Mandando…" : "Mandar link"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => trocarModo("entrar")}
+              className="text-sm text-[var(--color-text-faint)] underline hover:text-[var(--color-text)]"
+            >
+              Voltar
+            </button>
+          </div>
+        ) : modo === "confira" ? (
           <div className="flex flex-col gap-4">
             <div className="card px-5 py-6">
               <p className="font-semibold">Confira seu e-mail</p>
               <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-                Mandamos um link de confirmação para{" "}
+                {motivo === "senha"
+                  ? "Se esse e-mail tem conta, mandamos um link para escolher uma senha nova para "
+                  : "Mandamos um link de confirmação para "}
                 <strong className="text-[var(--color-text)]">
                   {email.trim()}
                 </strong>
-                . Clique nele para começar.
+                {motivo === "senha" ? "." : ". Clique nele para começar."}
               </p>
             </div>
 
@@ -291,6 +361,16 @@ export default function LoginPage() {
                   ? "Criar conta"
                   : "Entrar"}
             </button>
+
+            {modo === "entrar" && (
+              <button
+                type="button"
+                onClick={() => trocarModo("esqueci")}
+                className="self-start text-sm text-[var(--color-text-faint)] underline hover:text-[var(--color-text)]"
+              >
+                Esqueci minha senha
+              </button>
+            )}
           </div>
         )}
       </div>
