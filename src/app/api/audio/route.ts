@@ -50,17 +50,22 @@ export async function POST(request: Request) {
     );
   }
 
-  let categorias: string[] = [];
-  try {
-    const bruto = form.get("categorias");
-    if (typeof bruto === "string") {
+  /** Listas do próprio usuário, pra IA casar pelo nome em vez de inventar. */
+  const lerLista = (campo: string, limite: number): string[] => {
+    try {
+      const bruto = form.get(campo);
+      if (typeof bruto !== "string") return [];
       const lista = JSON.parse(bruto);
-      if (Array.isArray(lista))
-        categorias = lista.filter((c) => typeof c === "string").slice(0, 50);
+      return Array.isArray(lista)
+        ? lista.filter((c) => typeof c === "string").slice(0, limite)
+        : [];
+    } catch {
+      return [];
     }
-  } catch {
-    categorias = [];
-  }
+  };
+
+  const categorias = lerLista("categorias", 50);
+  const cartoes = lerLista("cartoes", 20);
 
   // A extensão ajuda o Whisper a escolher o decodificador certo.
   const ext = audio.type.includes("mp4") || audio.type.includes("m4a") ? "m4a"
@@ -75,7 +80,7 @@ export async function POST(request: Request) {
         { status: 422 }
       );
     }
-    const gasto = await interpretarGasto(texto, categorias);
+    const gasto = await interpretarGasto(texto, categorias, cartoes);
     return NextResponse.json({ texto, gasto });
   } catch (e) {
     // A mensagem amigável fica; o motivo técnico vai junto num campo à

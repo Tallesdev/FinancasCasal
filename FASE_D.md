@@ -62,9 +62,15 @@ pessoa confere e salva
   sem `MediaRecorder`. Para em 30 s. Escolhe o formato que o navegador sabe
   gravar (Chrome/Android: webm; Safari iOS: mp4).
 - **`/gastos`** — recebe a sugestão e abre o `Sheet` com o `Draft`
-  preenchido. Categoria casa pelo nome (sem diferenciar maiúscula). Se a IA
-  disse "cartão", a pessoa ainda escolhe **qual** cartão — cartão é privado,
-  a IA não sabe quais existem.
+  preenchido. Categoria **e cartão** casam pelo nome, sem diferenciar
+  maiúscula. Falar "no Itaú" seleciona o cartão Itaú.
+
+  *Correção de 12/09:* a primeira versão não passava os cartões pra IA,
+  com a justificativa de que "cartão é privado". Estava errado — privado é
+  **entre pessoas da casa**, não entre a pessoa e o próprio app, que já
+  conhece os cartões dela. Nome de cartão ("Itaú") também não é número de
+  cartão. O resultado era falar "87 no Itaú" e ter que escolher o cartão na
+  mão.
 
 ## 2. O que precisa de você
 

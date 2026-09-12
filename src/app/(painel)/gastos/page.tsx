@@ -270,11 +270,17 @@ export default function GastosPage() {
         )
       : undefined;
 
+    const cartao = g.card_name
+      ? myCards.find((c) => c.name.toLowerCase() === g.card_name!.toLowerCase())
+      : undefined;
+
     setDraft({
       ...emptyDraft(month),
       description: g.description,
       amount: g.amount != null ? String(g.amount) : "",
-      payment_method: g.payment_method ?? "pix",
+      // Cartão reconhecido implica pagamento no cartão.
+      payment_method: cartao ? "card" : (g.payment_method ?? "pix"),
+      card_id: cartao?.id ?? "",
       category_id: categoria?.id ?? "",
       notes: g.texto ? `Por áudio: "${g.texto}"` : "",
     });
@@ -362,6 +368,7 @@ export default function GastosPage() {
           <div className="flex flex-wrap items-start justify-end gap-2">
             <GravarGasto
               categorias={myCategories.map((c) => c.name)}
+              cartoes={myCards.map((c) => c.name)}
               onDraft={abrirPorAudio}
             />
             <Button onClick={() => setDraft(emptyDraft(month))}>Novo gasto</Button>

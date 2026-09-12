@@ -122,16 +122,24 @@ export type GastoInterpretado = {
   amount: number | null;
   /** Nome exato de uma das categorias passadas, ou nulo. */
   category_name: string | null;
+  /** Nome exato de um dos cartões passados, ou nulo. */
+  card_name: string | null;
   payment_method: "pix" | "card" | null;
 };
 
 /**
- * Texto → campos do gasto. Recebe as categorias da pessoa pra tentar casar
- * pelo nome. Devolve sugestão; quem decide é a pessoa, no formulário.
+ * Texto → campos do gasto. Recebe as categorias e os cartões da pessoa pra
+ * casar pelo nome em vez de inventar. Devolve sugestão; quem decide é a
+ * pessoa, no formulário.
+ *
+ * Passar os nomes dos cartões é seguro: cartão é privado entre pessoas da
+ * casa, não entre a pessoa e o próprio app. Nome de cartão ("Itaú") não é
+ * número de cartão.
  */
 export async function interpretarGasto(
   texto: string,
-  categorias: string[]
+  categorias: string[],
+  cartoes: string[] = []
 ): Promise<GastoInterpretado> {
   const sistema = [
     "Você extrai UM gasto de uma frase falada em português do Brasil.",
@@ -139,10 +147,14 @@ export async function interpretarGasto(
     "  description (string curta, sem o valor),",
     "  amount (número em reais, ou null),",
     "  category_name (uma das categorias da lista, exatamente como escrita, ou null),",
+    "  card_name (um dos cartões da lista, exatamente como escrito, ou null),",
     '  payment_method ("pix", "card" ou null — "cartão"/"crédito" = card; "pix"/"débito"/"dinheiro" = pix).',
     "Não invente valor. Se a frase não tem número, amount é null.",
     "Se a categoria não bate com nenhuma da lista, category_name é null.",
+    "Se a pessoa disser o nome do cartão (ex: 'no Itaú'), case com a lista.",
+    "Se nenhum cartão da lista foi citado, card_name é null.",
     `Categorias da pessoa: ${categorias.length ? categorias.join(", ") : "(nenhuma)"}`,
+    `Cartões da pessoa: ${cartoes.length ? cartoes.join(", ") : "(nenhum)"}`,
   ].join("\n");
 
   const bruto = await comFallback("interpretação", MODELOS_TEXTO, async (modelo) => {
@@ -199,8 +211,18 @@ export async function interpretarGasto(
           (c) => c.toLowerCase() === parsed.category_name!.toLowerCase()
         )!
       : null;
-  const payment_method =
-    parsed.payment_method === "pix" || parsed.payment_method === "card"
+  const card_name =
+    typeof parsed.card_name === "string" &&
+    cartoes.some((c) => c.toLowerCase() === parsed.card_name!.toLowerCase())
+      ? cartoes.find(
+          (c) => c.toLowerCase() === parsed.card_name!.toLowerCase()
+        )!
+      : null;
+  // Citar um cartão já diz a forma de pagamento: se a IA acertou o cartão
+  // mas escorregou no método, o cartão manda.
+  const payment_method = card_name
+    ? ("card" as const)
+    : parsed.payment_method === "pix" || parsed.payment_method === "card"
       ? parsed.payment_method
       : null;
   const description =
@@ -208,5 +230,5 @@ export async function interpretarGasto(
       ? parsed.description.trim().slice(0, 120)
       : texto.slice(0, 120);
 
-  return { description, amount, category_name, payment_method };
+  return { description, amount, category_name, card_name, payment_method };
 }

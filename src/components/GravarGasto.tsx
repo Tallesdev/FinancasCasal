@@ -17,9 +17,11 @@ type Estado = "parado" | "gravando" | "enviando";
  */
 export function GravarGasto({
   categorias,
+  cartoes,
   onDraft,
 }: {
   categorias: string[];
+  cartoes: string[];
   onDraft: (gasto: GastoPorAudio) => void;
 }) {
   const [estado, setEstado] = useState<Estado>("parado");
@@ -101,6 +103,7 @@ export function GravarGasto({
       const form = new FormData();
       form.append("audio", audio);
       form.append("categorias", JSON.stringify(categorias));
+      form.append("cartoes", JSON.stringify(cartoes));
 
       const r = await fetch("/api/audio", { method: "POST", body: form });
       const json = (await r.json()) as
