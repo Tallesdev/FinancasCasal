@@ -45,8 +45,9 @@ export default function PrivacidadePage() {
           <strong className="text-[var(--color-text)]">
             a data não é enviada nem guardada
           </strong>
-          . Guardamos apenas que você declarou ter a idade mínima, e quando
-          aceitou estes termos.
+          . Guardamos apenas que você declarou ter a idade mínima, quando
+          aceitou estes termos e, se você marcar a caixa opcional, quando
+          permitiu guardar recibos.
         </p>
         <p>
           <strong className="text-[var(--color-text)]">Enquanto você usa:</strong>{" "}
@@ -62,6 +63,13 @@ export default function PrivacidadePage() {
           guardado pelo RumoFácil. O texto transcrito só fica salvo se você
           salvar o gasto — ele entra no campo de observação, onde você pode
           apagá-lo.
+        </p>
+        <p>
+          <strong className="text-[var(--color-text)]">Quando você importa uma planilha:</strong>{" "}
+          o arquivo é lido no seu próprio aparelho e não é enviado. Só as
+          linhas que você confirmar viram lançamentos. Guardamos o nome do
+          arquivo e quantos lançamentos vieram dele, para que você possa
+          desfazer a importação.
         </p>
         <p>
           <strong className="text-[var(--color-text)]">Recibos</strong> (recurso
@@ -97,8 +105,10 @@ export default function PrivacidadePage() {
         </p>
         <p>
           Imagens de recibos, por poderem conter dados de saúde, só serão
-          guardadas com o seu consentimento específico, pedido antes do primeiro
-          envio.
+          guardadas com o seu consentimento específico. Ele é opcional: você
+          pode dá-lo no cadastro, em Ajustes ou antes do primeiro envio, e
+          retirá-lo em Ajustes quando quiser. Não dar o consentimento não
+          impede o uso do resto do app.
         </p>
       </Secao>
 
@@ -132,8 +142,9 @@ export default function PrivacidadePage() {
           Dado financeiro não é, pela lei, um dado sensível. Mas um recibo pode
           conter um: o comprovante de uma farmácia ou de uma clínica revela
           algo sobre sua saúde, que a LGPD protege de forma especial. Por isso
-          o envio de recibos pedirá seu consentimento explícito, e você pode
-          apagar qualquer recibo quando quiser.
+          guardar recibos depende do seu consentimento explícito e separado
+          do aceite destes termos. Você pode retirá-lo e apagar qualquer
+          recibo quando quiser.
         </p>
       </Secao>
 
@@ -141,7 +152,7 @@ export default function PrivacidadePage() {
         <p>
           Enquanto sua conta existir. Quando você exclui a conta, apagamos na
           hora tudo o que é seu: perfil, lançamentos, cartões, categorias,
-          contas, convites e recibos. Seus lançamentos também deixam de
+          contas, convites, importações e recibos. Seus lançamentos também deixam de
           aparecer para as pessoas da casa.
         </p>
         <p>
@@ -158,9 +169,14 @@ export default function PrivacidadePage() {
         </p>
         <p>
           Muita coisa você faz sozinho no app: editar nome e cor, editar ou
-          apagar qualquer lançamento, sair da casa e{" "}
+          apagar qualquer lançamento, sair da casa, retirar o consentimento de
+          recibos,{" "}
+          <strong className="text-[var(--color-text)]">baixar seus dados</strong>{" "}
+          (numa planilha ou num arquivo completo) e{" "}
           <strong className="text-[var(--color-text)]">excluir a conta</strong>{" "}
-          em Ajustes. Para o resto, escreva para <Contato />.
+          — tudo em Ajustes. O arquivo baixado traz só o que é seu, não os
+          lançamentos das outras pessoas da casa. Para o resto, escreva para{" "}
+          <Contato />.
         </p>
       </Secao>
 

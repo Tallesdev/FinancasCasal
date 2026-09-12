@@ -54,6 +54,7 @@ export default function LoginPage() {
   // banco recebe apenas "declarou ser maior". Minimização, LGPD art. 6º.
   const [nascimento, setNascimento] = useState("");
   const [aceite, setAceite] = useState(false);
+  const [consenteRecibos, setConsenteRecibos] = useState(false);
   /** Mensagem neutra (nem erro nem sucesso), ex: depois de excluir a conta. */
   const [info, setInfo] = useState<string | null>(null);
 
@@ -146,6 +147,7 @@ export default function LoginPage() {
           display_name: nome.trim(),
           terms_version: TERMOS_VERSAO,
           adult_declared: true,
+          receipts_consent: consenteRecibos,
         },
         emailRedirectTo: destinoConfirmar(),
       },
@@ -412,6 +414,25 @@ export default function LoginPage() {
                     política de privacidade
                   </Link>
                   .
+                </span>
+              </label>
+            )}
+
+            {/* Separada e desmarcada de propósito: recibo pode ter dado de saúde,
+                e consentimento pra dado sensível tem que ser específico e livre
+                (LGPD art. 11). Não marcar não impede nada — dá pra permitir
+                depois em Ajustes, ou na hora de guardar o primeiro recibo. */}
+            {modo === "criar" && (
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-[var(--color-text-dim)]">
+                <input
+                  type="checkbox"
+                  checked={consenteRecibos}
+                  onChange={(event) => setConsenteRecibos(event.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-couple)]"
+                />
+                <span>
+                  Opcional: permito guardar fotos dos meus recibos, que podem conter dados de
+                  saúde (como os de farmácia). Dá pra mudar depois em Ajustes.
                 </span>
               </label>
             )}

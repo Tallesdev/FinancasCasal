@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { MeuPerfil } from "@/components/MeuPerfil";
 import { MinhaCasa } from "@/components/MinhaCasa";
+import { ConsentimentoRecibos } from "@/components/ConsentimentoRecibos";
+import { ExportarDados } from "@/components/ExportarDados";
 import { ExcluirConta } from "@/components/ExcluirConta";
 
 /* No desktop os ajustes ficam na coluna lateral. No celular a barra de baixo
@@ -23,6 +25,11 @@ const LINKS = [
     title: "Categorias",
     description: "Sua lista de categorias e as cores de cada uma.",
   },
+  {
+    href: "/importar",
+    title: "Importar planilha",
+    description: "Traga lançamentos de um CSV do Excel ou do Google Planilhas.",
+  },
 ];
 
 export default function AjustesPage() {
@@ -40,7 +47,7 @@ export default function AjustesPage() {
 
       <MinhaCasa />
 
-      {/* No desktop estes três já estão na coluna lateral. */}
+      {/* No desktop estes já estão na coluna lateral. */}
       <ul className="grid gap-3 sm:grid-cols-2 md:hidden">
         {LINKS.map((link) => (
           <li key={link.href}>
@@ -56,6 +63,10 @@ export default function AjustesPage() {
           </li>
         ))}
       </ul>
+
+      <ConsentimentoRecibos />
+
+      <ExportarDados />
 
       {/* Por último de propósito: irreversível não fica no caminho de nada. */}
       <ExcluirConta />

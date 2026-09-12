@@ -190,17 +190,29 @@ de upload no 4G.
   valor e descrição do gasto ligado (quando houver), e botão de baixar.
   Pensada pra ser aberta uma vez por ano.
 
-### 3.6 Consentimento antes do primeiro recibo
+### 3.6 Consentimento para guardar recibos
 
 Recibo de farmácia ou clínica é **dado de saúde**, que a LGPD trata como
 sensível (art. 11) e que exige consentimento específico — o aceite genérico
-dos termos no cadastro não basta. Antes do primeiro anexo, uma tela curta
-diz: a imagem fica guardada, pode conter dado de saúde, pode ser apagada a
-qualquer momento, e, se a leitura por IA for usada, é enviada a provedor no
-exterior. A pessoa aceita ou não anexa.
+dos termos no cadastro não basta.
 
-Grava `receipts_consent_at` em `profiles` (entra na migração 009). Sem ele,
-o botão de anexar abre essa tela em vez da câmera.
+**Já existe (migração 008):** a coluna `receipts_consent_at` em `profiles`,
+e dois lugares pra dar o consentimento:
+
+- **no cadastro**, numa caixa **separada, opcional e desmarcada** (marcar
+  não é condição pra criar a conta — senão o consentimento não é livre);
+- **em Ajustes → Recibos**, onde também dá pra retirar.
+
+**Falta na Fase E:** o terceiro lugar. Se a pessoa não consentiu, o botão
+de anexar abre uma tela curta em vez da câmera: a imagem fica guardada, pode
+conter dado de saúde, pode ser apagada a qualquer momento, e, se a leitura
+por IA for usada, é enviada a provedor no exterior. Aceita ou não anexa.
+
+**Retirar o consentimento com recibos já guardados:** retirar é pedir pra
+parar de tratar, e guardar é tratar. A tela de Ajustes, quando houver
+recibos, avisa quantos são e apaga os objetos do R2 e as linhas junto. Hoje
+o componente (`ConsentimentoRecibos.tsx`) só zera a coluna, porque ainda
+não existe recibo nenhum.
 
 ### 3.7 Recibo órfão
 

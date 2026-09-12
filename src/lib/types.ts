@@ -18,6 +18,17 @@ export type Profile = {
   terms_accepted_at?: string | null;
   /** Quando declarou ter 18+. A data de nascimento em si não é guardada. */
   adult_declared_at?: string | null;
+  /** Consentimento específico para guardar recibos (dado sensível). Nulo = não deu. */
+  receipts_consent_at?: string | null;
+};
+
+/** Uma importação de planilha. Apagar esta linha apaga, por cascade, tudo o que veio dela. */
+export type Import = {
+  id: string;
+  user_id: string;
+  file_name: string;
+  row_count: number;
+  created_at: string;
 };
 
 export type Card = {

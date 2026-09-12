@@ -1,7 +1,7 @@
 # LGPD — o que o RumoFácil faz, e o que falta
 
 **Status:** Implementado em 12/09/2026. Falta rodar a migração 008 e
-configurar três variáveis (§5) antes de subir.
+configurar três variáveis (§7) antes de subir.
 **Aviso que vale para o documento inteiro:** foi escrito por IA a partir do
 que o app faz de verdade, conferido no código e no banco. **Não é orientação
 jurídica.** Serve pra saber onde olhar. Antes de divulgar amplamente, vale
@@ -112,7 +112,63 @@ mandar e-mail**, porque o remetente do Supabase já é gargalo.
 **Recibos (Fase E):** decisão de 12/09/2026 — somem junto, na hora. O lugar
 está marcado na rota: apagar os objetos do R2 **antes** de apagar o usuário.
 
-## 5. O que precisa de você
+## 5. Baixar meus dados
+
+Ajustes → Baixar meus dados. Direito de portabilidade (art. 18, V).
+
+- **Planilha (CSV):** gastos, rendas e investimentos numa tabela só, com
+  coluna `tipo`. Abre direto no Excel brasileiro (`;`, vírgula decimal,
+  UTF-8 com BOM) e **a tela de importar lê de volta sem ajuste** — os nomes
+  das colunas são os que ela reconhece.
+- **Tudo (JSON):** perfil (com as datas de aceite e consentimento), casa,
+  lançamentos, cartões, categorias, contas e importações.
+
+**Só o que é da pessoa.** Os lançamentos das outras pessoas da casa ela vê
+no app, mas não são dela pra levar: pôr dado de terceiro num arquivo de
+portabilidade seria o contrário do que a lei protege. Da casa, vão só nome e
+cor — quem mais está nela também é dado das outras pessoas.
+
+Texto começando com `=`, `+`, `-` ou `@` sai com um `'` na frente, senão o
+Excel executa como fórmula (injeção de CSV). A importação tira o `'` na volta.
+
+## 6. Consentimento para recibos
+
+Coluna `receipts_consent_at` (migração 008). Recibo pode conter dado de
+saúde (art. 11), então o consentimento precisa ser **específico e livre**:
+
+- **No cadastro:** caixa separada do aceite dos termos, **desmarcada e
+  opcional**. Se marcar fosse obrigatório pra criar conta, o consentimento
+  não seria livre.
+- **Em Ajustes → Recibos:** dar ou retirar a qualquer momento.
+- **Na Fase E:** se a pessoa não consentiu, anexar recibo pergunta antes
+  (`FASE_E.md` §3.6).
+
+## 7. Correção de segurança (migração 008, parte 3)
+
+Encontrada em 12/09/2026, ao revisar o que a pessoa pode alterar no próprio
+perfil pra gravar o consentimento. A política `profiles_update_own` só
+conferia "o perfil é seu?", **sem restringir coluna**. Resultado: quem
+estava logado podia mudar o próprio `household_id` direto pela API e entrar
+em qualquer casa cujo id conhecesse — sem convite, furando o limite de 6, e
+passando a ver os lançamentos dela. O caso realista é quem saiu de uma casa
+e guardou o id. Conferido no banco: `has_column_privilege` dava verdadeiro,
+e não havia trigger barrando.
+
+**Nada indica que tenha sido usado** — o app nunca faz isso e só existem
+contas conhecidas — mas com cadastro público era questão de tempo.
+
+A correção é **privilégio por coluna**, que o Postgres confere antes da RLS:
+quem está logado só altera o que o app altera de fato (conferido tela a
+tela). Em `profiles`: nome, cor, cartão do mês e consentimento de recibos.
+Em `households`: nome e cor. Em `household_invites`: só o status (revogar).
+O resto muda apenas por funções `security definer` que validam — aceitar
+convite, sair da casa, cadastro.
+
+**Cuidado futuro:** coluna nova editável pela tela precisa entrar nos
+grants da 008. Se esquecer, o sintoma é "permission denied" — falha visível,
+não brecha.
+
+## 8. O que precisa de você
 
 1. **Rodar a migração 008** (SQL na conversa / `supabase/migrations/`).
 2. **Na Vercel**, três variáveis:
@@ -124,32 +180,32 @@ está marcado na rota: apagar os objetos do R2 **antes** de apagar o usuário.
      pessoal.
 3. Os mesmos três no `.env.local` para testar local.
 
-## 6. O que ainda falta
+## 9. O que ainda falta
 
 Em ordem de importância:
 
 - **Revisão profissional dos textos** antes de divulgar amplamente.
-- **Exportar meus dados** (portabilidade, art. 18, V). Hoje a pessoa vê tudo
-  no app mas não baixa. O "exportar CSV" do PRD resolve.
-- **Consentimento específico do recibo** — especificado em `FASE_E.md` §3.6,
-  entra junto com a Fase E.
+- **Consentimento na hora do primeiro recibo, e apagar recibos ao retirar**
+  — entra com a Fase E (`FASE_E.md` §3.6).
 - **Pedir novo aceite quando os termos mudarem** — só vira necessário na
   primeira mudança de versão.
 - **SMTP próprio** — pendente desde a Fase B; sem ele, "esqueci minha senha"
   e cadastro dependem de um remetente que manda poucos e-mails por hora.
 
-## 7. O que a LGPD pede e já está coberto
+## 10. O que a LGPD pede e já está coberto
 
 | Exigência | Onde |
 | --- | --- |
 | Identificar o controlador e um contato | `/privacidade` (via variáveis) |
 | Informar o que coleta e para quê | `/privacidade` |
-| Base legal | execução de contrato; consentimento pro recibo |
+| Base legal | execução de contrato; consentimento separado e opcional pro recibo |
+| Revogar consentimento | Ajustes → Recibos |
 | Informar transferência internacional | `/privacidade` — Groq, Cloudflare |
 | Informar com quem compartilha | `/privacidade` — casa e provedores |
 | Minimização | data de nascimento não é guardada |
 | Direito de exclusão | Ajustes → Excluir conta |
 | Direito de correção | editar perfil e qualquer lançamento |
-| Segurança | RLS no banco, chaves só no servidor, senha cifrada |
+| Direito de acesso e portabilidade | Ajustes → Baixar meus dados (CSV e JSON) |
+| Segurança | RLS no banco, privilégio por coluna, chaves só no servidor, senha cifrada |
 | Menores | 18+ declarado no cadastro, nos termos |
 | Comunicar incidente | compromisso em `/privacidade` |
