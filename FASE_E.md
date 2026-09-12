@@ -48,9 +48,9 @@ decisão consciente, não descoberta depois:
 - **O bucket precisa ser privado de verdade.** Bucket R2 público é um erro
   de uma linha no painel, e o custo dele aqui é alto: recibos indexáveis.
   O §2 insiste nisso.
-- **Não existe "apagar minha conta" no app.** Hoje isso é uma lacuna
-  pequena; com documentos guardados, vira uma lacuna com nome — a pessoa
-  não tem como pedir que os arquivos dela sumam. Vale entrar no radar (§8).
+- **Apagar conta precisa levar os arquivos junto.** A exclusão de conta já
+  existe (`LGPD.md` §4) e apaga banco e usuário; esta fase acrescenta a parte
+  do R2 — decidido que os recibos somem na hora (§8).
 
 Nada disso bloqueia a fase. Só não quero que apareça como surpresa.
 
@@ -114,7 +114,7 @@ comprime (§3.4)
 Para **ver** depois, o mesmo desenho ao contrário: o servidor confere que o
 recibo é seu e assina uma URL de leitura curta. O bucket nunca é público.
 
-### 3.2 Banco (migração 008)
+### 3.2 Banco (migração 009)
 
 ```sql
 create table if not exists public.receipts (
@@ -160,8 +160,8 @@ create policy receipts_write_own on public.receipts
 ```
 
 O `user_id` na frente não é segurança (quem garante é a URL assinada) — é
-organização: dá pra apagar tudo de uma pessoa com um prefixo, quando
-"apagar conta" existir. O ano facilita listar o que interessa na época do
+organização: é o que deixa a exclusão de conta apagar tudo de uma pessoa
+com um prefixo só. O ano facilita listar o que interessa na época do
 imposto.
 
 ### 3.4 Comprimir antes de subir
@@ -190,7 +190,19 @@ de upload no 4G.
   valor e descrição do gasto ligado (quando houver), e botão de baixar.
   Pensada pra ser aberta uma vez por ano.
 
-### 3.6 Recibo órfão
+### 3.6 Consentimento antes do primeiro recibo
+
+Recibo de farmácia ou clínica é **dado de saúde**, que a LGPD trata como
+sensível (art. 11) e que exige consentimento específico — o aceite genérico
+dos termos no cadastro não basta. Antes do primeiro anexo, uma tela curta
+diz: a imagem fica guardada, pode conter dado de saúde, pode ser apagada a
+qualquer momento, e, se a leitura por IA for usada, é enviada a provedor no
+exterior. A pessoa aceita ou não anexa.
+
+Grava `receipts_consent_at` em `profiles` (entra na migração 009). Sem ele,
+o botão de anexar abre essa tela em vez da câmera.
+
+### 3.7 Recibo órfão
 
 Se a pessoa sobe a foto e desiste do gasto, a linha fica com `expense_id`
 nulo. **Isso é um estado válido, não lixo** — "tenho o comprovante, lanço
@@ -271,9 +283,12 @@ o caminho é limite por conta, não desligar a feature.
 
 ## 8. Pendências que esta fase cria
 
-- **Apagar conta.** Com documentos guardados, "some com meus dados" deixa
-  de ser detalhe. Precisa apagar as linhas, os objetos do R2 (o prefixo por
-  `user_id` da §3.3 existe pra isso) e o usuário no Supabase.
+- **Apagar conta — decidido em 12/09/2026:** excluir a conta apaga todos os
+  recibos da pessoa **na hora**. A exclusão já existe (`LGPD.md`) e apaga
+  linhas e usuário; falta só a parte do R2, que tem lugar marcado em
+  `src/app/api/conta/excluir/route.ts`: apagar os objetos com prefixo
+  `<user_id>/` (§3.3) **antes** de apagar o usuário — depois some a linha
+  que diz quais arquivos existem.
 - **SMTP próprio.** Continua pendente desde a Fase B, e continua sendo o
   que trava a divulgação.
 
@@ -283,7 +298,7 @@ o caminho é limite por conta, não desligar a feature.
 | --- | --- |
 | 1. Criar bucket, token restrito e CORS (§2) | Você |
 | 2. Variáveis na Vercel e no `.env.local` | Você |
-| 3. Migração 008 (§3.2) | Eu escrevo, você roda |
+| 3. Migração 009 (§3.2) | Eu escrevo, você roda |
 | 4. E1: assinar, subir, listar, baixar (§3) | Eu |
 | 5. Checklist (§7) | Os dois |
 | 6. E2: leitura por IA (§4), se quiser | Eu |

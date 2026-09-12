@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { PasswordField, TextField } from "@/components/form/Field";
+import Link from "next/link";
+import { DateField, PasswordField, TextField } from "@/components/form/Field";
+import { IDADE_MINIMA, TERMOS_VERSAO, idadeEm } from "@/lib/legal";
+import { toISODate } from "@/lib/format";
 
 /**
  * Login e cadastro na mesma tela. Três modos:
@@ -47,6 +50,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   // Pra onde ir depois de entrar. Vem de um convite: /entrar?next=/convite/x
   const [next, setNext] = useState<string | null>(null);
+  // Só usada pra conferir a idade AQUI. Nunca é enviada nem guardada: o
+  // banco recebe apenas "declarou ser maior". Minimização, LGPD art. 6º.
+  const [nascimento, setNascimento] = useState("");
+  const [aceite, setAceite] = useState(false);
+  /** Mensagem neutra (nem erro nem sucesso), ex: depois de excluir a conta. */
+  const [info, setInfo] = useState<string | null>(null);
 
   // A rota /auth/confirmar manda pra cá com ?erro= quando o link do e-mail
   // não serve mais. Lido via window em vez de useSearchParams pra não exigir
@@ -57,6 +66,10 @@ export default function LoginPage() {
     // Só caminho relativo dentro do app — nunca URL externa (open redirect).
     if (destino && destino.startsWith("/") && !destino.startsWith("//"))
       setNext(destino);
+    if (params.get("conta") === "excluida") {
+      setInfo("Sua conta foi excluída, com tudo o que era seu.");
+      window.history.replaceState(null, "", "/entrar");
+    }
     const erro = params.get("erro");
     if (erro === "confirmacao") {
       setError(
@@ -108,6 +121,15 @@ export default function LoginPage() {
     setError(null);
 
     if (!nome.trim()) return setError("Diga como quer ser chamado.");
+
+    const idade = idadeEm(nascimento);
+    if (idade === null) return setError("Confira sua data de nascimento.");
+    if (idade < IDADE_MINIMA)
+      return setError(`O RumoFácil é para maiores de ${IDADE_MINIMA} anos.`);
+
+    if (!aceite)
+      return setError("Para criar a conta, aceite os termos e a política de privacidade.");
+
     if (password.length < 6)
       return setError("A senha precisa ter pelo menos 6 caracteres.");
 
@@ -118,8 +140,13 @@ export default function LoginPage() {
       email: email.trim(),
       password,
       options: {
-        // O gatilho do banco lê isto pra nomear o perfil.
-        data: { display_name: nome.trim() },
+        // O gatilho do banco lê isto: nome do perfil, versão dos termos
+        // aceitos e a declaração de idade. A data de nascimento NÃO vai.
+        data: {
+          display_name: nome.trim(),
+          terms_version: TERMOS_VERSAO,
+          adult_declared: true,
+        },
         emailRedirectTo: destinoConfirmar(),
       },
     });
@@ -191,7 +218,7 @@ export default function LoginPage() {
     !loading &&
     Boolean(email) &&
     Boolean(password) &&
-    (modo === "entrar" || Boolean(nome));
+    (modo === "entrar" || (Boolean(nome) && Boolean(nascimento) && aceite));
 
   return (
     <main className="scope-us flex min-h-dvh items-center justify-center px-6 py-16">
@@ -327,6 +354,21 @@ export default function LoginPage() {
               />
             )}
 
+            {modo === "criar" && (
+              <div className="flex flex-col gap-1.5">
+                <DateField
+                  label="Data de nascimento"
+                  value={nascimento}
+                  max={toISODate(new Date())}
+                  onChange={(event) => setNascimento(event.target.value)}
+                />
+                <span className="text-xs text-[var(--color-text-faint)]">
+                  Só pra confirmar que você tem {IDADE_MINIMA} anos ou mais. A
+                  data não é guardada.
+                </span>
+              </div>
+            )}
+
             <TextField
               label="E-mail"
               type="email"
@@ -352,6 +394,33 @@ export default function LoginPage() {
               </p>
             )}
 
+            {modo === "criar" && (
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-[var(--color-text-dim)]">
+                <input
+                  type="checkbox"
+                  checked={aceite}
+                  onChange={(event) => setAceite(event.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-couple)]"
+                />
+                <span>
+                  Tenho {IDADE_MINIMA} anos ou mais e aceito os{" "}
+                  <Link href="/termos" target="_blank" className="underline hover:text-[var(--color-text)]">
+                    termos de uso
+                  </Link>{" "}
+                  e a{" "}
+                  <Link href="/privacidade" target="_blank" className="underline hover:text-[var(--color-text)]">
+                    política de privacidade
+                  </Link>
+                  .
+                </span>
+              </label>
+            )}
+
+            {info && (
+              <p className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)] px-3.5 py-2.5 text-sm text-[var(--color-text-dim)]">
+                {info}
+              </p>
+            )}
             {error && <Erro>{error}</Erro>}
 
             <button
@@ -380,8 +449,23 @@ export default function LoginPage() {
             )}
           </div>
         )}
+
+        <Rodape />
       </div>
     </main>
+  );
+}
+
+function Rodape() {
+  return (
+    <nav className="mt-10 flex flex-wrap gap-4 text-xs text-[var(--color-text-faint)]">
+      <Link href="/termos" className="underline hover:text-[var(--color-text)]">
+        Termos de uso
+      </Link>
+      <Link href="/privacidade" className="underline hover:text-[var(--color-text)]">
+        Política de privacidade
+      </Link>
+    </nav>
   );
 }
 

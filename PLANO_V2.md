@@ -30,6 +30,11 @@ Este plano segue nessa ordem: **Fase A** (já pronta, só falta publicar) →
 **Fase E** (foto + guarda fiscal). Cada fase é utilizável sozinha — dá para
 parar depois de qualquer uma e o app continua inteiro.
 
+> **Transversal a todas as fases: `LGPD.md`** (12/09/2026) — idade no
+> cadastro, aceite dos termos, política de privacidade, termos de uso e
+> exclusão de conta. Escrito quando a Fase E mostrou que o app ia passar a
+> guardar documento, e não só número.
+
 ---
 
 ## Fase A — Publicar o que já está pronto

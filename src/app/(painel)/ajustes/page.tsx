@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MeuPerfil } from "@/components/MeuPerfil";
 import { MinhaCasa } from "@/components/MinhaCasa";
+import { ExcluirConta } from "@/components/ExcluirConta";
 
 /* No desktop os ajustes ficam na coluna lateral. No celular a barra de baixo
    é só para o dia a dia, então eles ganham esta página de entrada. */
@@ -55,6 +56,9 @@ export default function AjustesPage() {
           </li>
         ))}
       </ul>
+
+      {/* Por último de propósito: irreversível não fica no caminho de nada. */}
+      <ExcluirConta />
     </div>
   );
 }

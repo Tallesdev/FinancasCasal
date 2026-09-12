@@ -13,6 +13,11 @@ export type Profile = {
   color: string;
   /** Cartão que define o mês desta pessoa. Nulo = mês do calendário. */
   anchor_card_id: string | null;
+  /** Versão dos termos aceita no cadastro. Nulo em conta anterior à 008. */
+  terms_version?: string | null;
+  terms_accepted_at?: string | null;
+  /** Quando declarou ter 18+. A data de nascimento em si não é guardada. */
+  adult_declared_at?: string | null;
 };
 
 export type Card = {

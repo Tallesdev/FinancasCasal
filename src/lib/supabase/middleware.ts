@@ -55,7 +55,10 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/auth/") ||
     path === "/convite" ||
     path.startsWith("/convite/") ||
-    path.startsWith("/api/");
+    path.startsWith("/api/") ||
+    // Quem ainda não tem conta precisa ler o que está aceitando.
+    path === "/privacidade" ||
+    path === "/termos";
 
   if (!user && !isPublica) {
     const url = request.nextUrl.clone();
