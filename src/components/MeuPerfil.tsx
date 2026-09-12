@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "./ScopeProvider";
-import { TextField } from "./form/Field";
+import { PasswordField, TextField } from "./form/Field";
 import { Button, ColorPicker, ErrorNote, Field } from "./ui";
 
 /**
@@ -25,6 +25,14 @@ export function MeuPerfil() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
+
+  // Trocar senha mora aqui porque o fluxo de "esqueci" vive fora do app —
+  // quem já está logado não tinha nenhum caminho pra trocar.
+  const [senha, setSenha] = useState("");
+  const [confirma, setConfirma] = useState("");
+  const [senhaSalva, setSenhaSalva] = useState(false);
+  const [senhaErro, setSenhaErro] = useState<string | null>(null);
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
 
   const mudou = nome.trim() !== me.display_name || cor !== me.color;
 
@@ -55,6 +63,33 @@ export function MeuPerfil() {
     // O layout lê o perfil no servidor: sem isso, o toggle no topo e a cor
     // da interface só mudariam na próxima abertura do app.
     router.refresh();
+  }
+
+  async function trocarSenha() {
+    setSenhaErro(null);
+    setSenhaSalva(false);
+
+    if (senha.length < 6)
+      return setSenhaErro("A senha precisa ter pelo menos 6 caracteres.");
+    if (senha !== confirma) return setSenhaErro("As duas senhas não batem.");
+
+    setSalvandoSenha(true);
+    const { error: e } = await supabase.auth.updateUser({ password: senha });
+    setSalvandoSenha(false);
+
+    if (e) {
+      const m = e.message.toLowerCase();
+      setSenhaErro(
+        m.includes("different from the old")
+          ? "A senha nova precisa ser diferente da antiga."
+          : "Não deu para trocar a senha. Tente de novo."
+      );
+      return;
+    }
+
+    setSenha("");
+    setConfirma("");
+    setSenhaSalva(true);
   }
 
   return (
@@ -96,6 +131,50 @@ export function MeuPerfil() {
         <Button onClick={salvar} disabled={saving || !mudou}>
           {saving ? "Salvando…" : "Salvar perfil"}
         </Button>
+      </div>
+
+      <div className="flex flex-col gap-4 border-t border-[var(--color-line)] pt-4">
+        <div>
+          <h3 className="text-sm font-semibold">Trocar senha</h3>
+          <p className="mt-0.5 text-xs text-[var(--color-text-faint)]">
+            Sem precisar sair do app nem pedir link por e-mail.
+          </p>
+        </div>
+
+        <PasswordField
+          label="Nova senha"
+          autoComplete="new-password"
+          value={senha}
+          onChange={(event) => {
+            setSenha(event.target.value);
+            setSenhaSalva(false);
+          }}
+        />
+        <PasswordField
+          label="Repita a nova senha"
+          autoComplete="new-password"
+          value={confirma}
+          onChange={(event) => {
+            setConfirma(event.target.value);
+            setSenhaSalva(false);
+          }}
+          onKeyDown={(event) => event.key === "Enter" && trocarSenha()}
+        />
+
+        {senhaErro && <ErrorNote>{senhaErro}</ErrorNote>}
+        {senhaSalva && (
+          <p className="text-xs text-[var(--color-in)]">Senha trocada.</p>
+        )}
+
+        <div>
+          <Button
+            variant="ghost"
+            onClick={trocarSenha}
+            disabled={salvandoSenha || !senha || !confirma}
+          >
+            {salvandoSenha ? "Trocando…" : "Trocar senha"}
+          </Button>
+        </div>
       </div>
     </section>
   );

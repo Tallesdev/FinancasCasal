@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 
 /**
@@ -35,6 +36,62 @@ export function TextField({ label, className, style, ...props }: BaseProps) {
         className={[baseInputClass, className].filter(Boolean).join(" ")}
       />
     </label>
+  );
+}
+
+/**
+ * Campo de senha com olhinho pra conferir o que foi digitado. Sem isso, em
+ * teclado de celular, errar a senha e não saber onde é rotina.
+ *
+ * O botão fica DENTRO do campo, à direita, com padding à direita no input
+ * pra não cobrir o texto.
+ */
+export function PasswordField({ label, className, style, ...props }: BaseProps) {
+  const [visivel, setVisivel] = useState(false);
+
+  return (
+    <label className="flex flex-col gap-1.5">
+      <FieldLabel>{label}</FieldLabel>
+      <div className="relative">
+        <input
+          {...props}
+          type={visivel ? "text" : "password"}
+          style={{ fontSize: "16px", ...style }}
+          className={[baseInputClass, "pr-12", className].filter(Boolean).join(" ")}
+        />
+        <button
+          type="button"
+          onClick={() => setVisivel((v) => !v)}
+          aria-label={visivel ? "Esconder senha" : "Mostrar senha"}
+          title={visivel ? "Esconder senha" : "Mostrar senha"}
+          className="absolute right-1 top-1/2 flex h-9 w-10 -translate-y-1/2 items-center justify-center rounded-md text-[var(--color-text-faint)] transition-colors hover:text-[var(--color-text)]"
+        >
+          {visivel ? <OlhoFechado /> : <Olho />}
+        </button>
+      </div>
+    </label>
+  );
+}
+
+function Olho() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function OlhoFechado() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.1A9.7 9.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1" />
+      <path d="M6.2 6.2A17 17 0 0 0 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4.2-.9" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </svg>
   );
 }
 

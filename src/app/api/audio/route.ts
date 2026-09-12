@@ -78,11 +78,20 @@ export async function POST(request: Request) {
     const gasto = await interpretarGasto(texto, categorias);
     return NextResponse.json({ texto, gasto });
   } catch (e) {
-    // Cota da camada grátis, modelo aposentado, rede: a pessoa não precisa
-    // saber qual. Ela precisa saber que dá pra digitar.
-    console.error("[api/audio]", e instanceof Error ? e.message : e);
+    // A mensagem amigável fica; o motivo técnico vai junto num campo à
+    // parte. Sem isso, "não deu para processar" é indistinguível entre
+    // cota estourada, modelo aposentado e formato de áudio recusado — e
+    // sem acesso ao log da Vercel não dá pra saber qual foi.
+    const motivo = e instanceof Error ? e.message : String(e);
+    console.error("[api/audio]", motivo);
     return NextResponse.json(
-      { error: "Não deu para processar o áudio agora. Tente de novo ou digite o gasto." },
+      {
+        error:
+          "Não deu para processar o áudio agora. Tente de novo ou digite o gasto.",
+        // Nunca contém a chave: transcrever/interpretarGasto só repassam
+        // status e corpo da resposta da Groq.
+        detalhe: motivo.slice(0, 300),
+      },
       { status: 502 }
     );
   }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { TextField } from "@/components/form/Field";
+import { PasswordField, TextField } from "@/components/form/Field";
 
 /**
  * Login e cadastro na mesma tela. Três modos:
@@ -61,6 +61,12 @@ export default function LoginPage() {
     if (erro === "confirmacao") {
       setError(
         "Esse link de confirmação não vale mais — pode ter vencido ou já ter sido usado. Peça um novo criando a conta de novo."
+      );
+      window.history.replaceState(null, "", "/entrar");
+    }
+    if (erro === "recuperacao") {
+      setError(
+        "Esse link de recuperação não vale mais — pode ter vencido ou já ter sido usado. Peça outro em \u201cEsqueci minha senha\u201d."
       );
       window.history.replaceState(null, "", "/entrar");
     }
@@ -141,8 +147,10 @@ export default function LoginPage() {
     setLoading(true);
 
     const supabase = createClient();
+    // URL limpa, sem query: com `?next=` o Supabase descartava o destino e
+    // mandava pra home já logado, pulando a tela de trocar a senha.
     const { error: e } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth/confirmar?next=${encodeURIComponent("/auth/redefinir")}`,
+      redirectTo: `${window.location.origin}/auth/nova-senha`,
     });
 
     setLoading(false);
@@ -329,9 +337,8 @@ export default function LoginPage() {
               onKeyDown={(event) => event.key === "Enter" && enviar()}
             />
 
-            <TextField
+            <PasswordField
               label="Senha"
-              type="password"
               autoComplete={
                 modo === "criar" ? "new-password" : "current-password"
               }

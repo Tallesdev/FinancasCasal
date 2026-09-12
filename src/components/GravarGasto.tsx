@@ -25,6 +25,8 @@ export function GravarGasto({
   const [estado, setEstado] = useState<Estado>("parado");
   const [segundos, setSegundos] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /** Motivo técnico da falha. Some quando dá certo; serve pra reportar. */
+  const [detalhe, setDetalhe] = useState<string | null>(null);
   const [suportado, setSuportado] = useState(true);
 
   const recorder = useRef<MediaRecorder | null>(null);
@@ -54,6 +56,7 @@ export function GravarGasto({
 
   async function comecar() {
     setError(null);
+    setDetalhe(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mime = escolherMime();
@@ -102,15 +105,17 @@ export function GravarGasto({
       const r = await fetch("/api/audio", { method: "POST", body: form });
       const json = (await r.json()) as
         | { texto: string; gasto: GastoInterpretado }
-        | { error: string };
+        | { error: string; detalhe?: string };
 
       if (!r.ok || "error" in json) {
         setError("error" in json ? json.error : "Não deu para processar o áudio.");
+        setDetalhe("detalhe" in json ? (json.detalhe ?? null) : null);
         return;
       }
       onDraft({ ...json.gasto, texto: json.texto });
     } catch {
       setError("Sem conexão. Tente de novo ou digite o gasto.");
+      setDetalhe(null);
     } finally {
       setEstado("parado");
     }
@@ -137,9 +142,21 @@ export function GravarGasto({
         </Button>
       )}
       {error && (
-        <p role="alert" className="max-w-[16rem] text-right text-xs text-[var(--color-out)]">
-          {error}
-        </p>
+        <div className="max-w-[20rem] text-right">
+          <p role="alert" className="text-xs text-[var(--color-out)]">
+            {error}
+          </p>
+          {detalhe && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-[11px] text-[var(--color-text-faint)]">
+                Detalhe técnico
+              </summary>
+              <p className="mt-1 break-all text-left font-mono text-[10px] text-[var(--color-text-faint)]">
+                {detalhe}
+              </p>
+            </details>
+          )}
+        </div>
       )}
     </div>
   );

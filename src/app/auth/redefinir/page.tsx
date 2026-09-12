@@ -4,14 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { TextField } from "@/components/form/Field";
+import { PasswordField } from "@/components/form/Field";
 
 /**
  * Onde o link de "esqueci minha senha" termina.
  *
- * O e-mail leva pra /auth/confirmar?next=/auth/redefinir: a rota troca o
- * código por sessão e manda pra cá. Então quem chega aqui JÁ está logado —
- * só falta escolher a senha nova. Sem sessão, o link não serviu.
+ * O e-mail leva pra /auth/nova-senha: a rota troca o código por sessão e
+ * manda pra cá. Então quem chega aqui JÁ está logado — só falta escolher a
+ * senha nova. Sem sessão, o link não serviu.
+ *
+ * Quem já está logado não precisa deste caminho: troca direto em
+ * Ajustes → Meu perfil.
  */
 type Estado = "verificando" | "sem-sessao" | "pronto" | "feito";
 
@@ -78,14 +81,24 @@ export default function RedefinirPage() {
             <p className="font-semibold">Esse link não vale mais</p>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               Pode ter vencido ou já ter sido usado. Peça outro em
-              &ldquo;Esqueci minha senha&rdquo; na tela de entrada.
+              &ldquo;Esqueci minha senha&rdquo; na tela de entrada. Se você já
+              está logado no app, dá pra trocar direto em Ajustes &rarr; Meu
+              perfil.
             </p>
-            <Link
-              href="/entrar"
-              className="mt-4 inline-block text-sm text-[var(--color-text-faint)] underline hover:text-[var(--color-text)]"
-            >
-              Ir para a tela de entrada
-            </Link>
+            <div className="mt-4 flex flex-wrap gap-4">
+              <Link
+                href="/entrar"
+                className="text-sm text-[var(--color-text-faint)] underline hover:text-[var(--color-text)]"
+              >
+                Tela de entrada
+              </Link>
+              <Link
+                href="/ajustes"
+                className="text-sm text-[var(--color-text-faint)] underline hover:text-[var(--color-text)]"
+              >
+                Ajustes
+              </Link>
+            </div>
           </div>
         )}
 
@@ -100,18 +113,16 @@ export default function RedefinirPage() {
 
         {estado === "pronto" && (
           <div className="flex flex-col gap-4">
-            <TextField
+            <PasswordField
               label="Nova senha"
-              type="password"
               autoComplete="new-password"
               value={senha}
               autoFocus
               onChange={(event) => setSenha(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && salvar()}
             />
-            <TextField
+            <PasswordField
               label="Repita a nova senha"
-              type="password"
               autoComplete="new-password"
               value={confirma}
               onChange={(event) => setConfirma(event.target.value)}

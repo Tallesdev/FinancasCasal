@@ -92,6 +92,19 @@ configurado neste app."* quando clicado. Nada mais é afetado.
 - **Custo zero hoje, não pra sempre.** Vale olhar o painel da Groq de vez
   em quando depois de abrir ao público.
 
+## 3.1 Diagnóstico quando falha
+
+A mensagem pra quem usa continua amigável, mas agora vem com um
+**"Detalhe técnico"** expansível: o status e o começo do corpo que a Groq
+devolveu. Sem isso — e sem acesso ao log da Vercel — "não deu para
+processar" é indistinguível entre cota estourada, modelo aposentado e
+formato de áudio recusado. Nunca contém a chave: `transcrever()` e
+`interpretarGasto()` só repassam status e corpo da resposta.
+
+Os dois modelos foram conferidos na documentação da Groq em 12/09/2026 e
+existem (`whisper-large-v3-turbo`, `llama-3.3-70b-versatile`), então a
+primeira falha em produção **não foi nome aposentado**.
+
 ## 4. Checklist de aceite
 
 - [ ] Sem `GROQ_API_KEY`: botão aparece, clicar mostra o aviso de "não
