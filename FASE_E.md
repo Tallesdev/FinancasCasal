@@ -1,6 +1,8 @@
 # Fase E — Recibo guardado, para o imposto de renda
 
-**Status:** Spec para implementação. Nada está no código ainda.
+**Status:** E1 e E2 implementadas em 13/09/2026. Falta você: bucket, token,
+CORS, variáveis e migração 009 (§2 e §10). Decisões tomadas na implementação
+estão em §10.
 **Depende de:** conta na Cloudflare com um bucket R2 (§2). Sem isso, nada
 desta fase funciona — e é a primeira fase do plano que depende de
 infraestrutura que o projeto ainda não tem.
@@ -203,16 +205,17 @@ e dois lugares pra dar o consentimento:
   não é condição pra criar a conta — senão o consentimento não é livre);
 - **em Ajustes → Recibos**, onde também dá pra retirar.
 
-**Falta na Fase E:** o terceiro lugar. Se a pessoa não consentiu, o botão
-de anexar abre uma tela curta em vez da câmera: a imagem fica guardada, pode
-conter dado de saúde, pode ser apagada a qualquer momento, e, se a leitura
-por IA for usada, é enviada a provedor no exterior. Aceita ou não anexa.
+**E o terceiro (feito na Fase E):** se a pessoa não consentiu, o botão de
+anexar abre uma explicação curta em vez da câmera: a imagem fica guardada,
+pode conter dado de saúde, pode ser apagada a qualquer momento, e, se a
+leitura por IA for usada, é enviada a provedor no exterior. Permite ou não
+anexa. **O servidor confere de novo** antes de assinar o envio — a tela é
+conveniência, não a trava.
 
 **Retirar o consentimento com recibos já guardados:** retirar é pedir pra
-parar de tratar, e guardar é tratar. A tela de Ajustes, quando houver
-recibos, avisa quantos são e apaga os objetos do R2 e as linhas junto. Hoje
-o componente (`ConsentimentoRecibos.tsx`) só zera a coluna, porque ainda
-não existe recibo nenhum.
+parar de tratar, e guardar é tratar. Ajustes avisa quantos recibos existem e
+a retirada passa por `/api/recibos/retirar-consentimento`, que apaga os
+arquivos do R2 (por prefixo), as linhas, e só então zera a coluna.
 
 ### 3.7 Recibo órfão
 
@@ -223,10 +226,10 @@ lançamento", e de lá dá pra ligar a um gasto ou apagar.
 
 O que não pode existir é arquivo no R2 **sem** linha no banco (upload que
 subiu e a inserção falhou). Nesse caso o arquivo fica invisível e ocupando
-espaço. Mitigação simples: inserir a linha **antes** de liberar o upload,
-com um campo de estado, ou aceitar o risco e limpar manualmente de tempos
-em tempos — decisão que vale tomar na implementação, olhando o custo de
-cada uma.
+espaço.
+
+**Decidido na implementação: a linha nasce antes do arquivo**, com
+`uploaded_at` nulo. Ver §10.
 
 ---
 
@@ -295,12 +298,11 @@ o caminho é limite por conta, não desligar a feature.
 
 ## 8. Pendências que esta fase cria
 
-- **Apagar conta — decidido em 12/09/2026:** excluir a conta apaga todos os
-  recibos da pessoa **na hora**. A exclusão já existe (`LGPD.md`) e apaga
-  linhas e usuário; falta só a parte do R2, que tem lugar marcado em
-  `src/app/api/conta/excluir/route.ts`: apagar os objetos com prefixo
-  `<user_id>/` (§3.3) **antes** de apagar o usuário — depois some a linha
-  que diz quais arquivos existem.
+- **Apagar conta — decidido em 12/09/2026, feito em 13/09:** excluir a conta
+  apaga todos os recibos da pessoa **na hora**. `/api/conta/excluir` apaga os
+  objetos com prefixo `<user_id>/` **antes** de apagar o usuário. Se o R2
+  falhar, a exclusão para inteira ("nada foi apagado") — melhor que deixar
+  foto de documento sem dono.
 - **SMTP próprio.** Continua pendente desde a Fase B, e continua sendo o
   que trava a divulgação.
 
@@ -314,3 +316,83 @@ o caminho é limite por conta, não desligar a feature.
 | 4. E1: assinar, subir, listar, baixar (§3) | Eu |
 | 5. Checklist (§7) | Os dois |
 | 6. E2: leitura por IA (§4), se quiser | Eu |
+
+---
+
+## 10. Como ficou (13/09/2026)
+
+### Arquivos
+
+| Onde | O quê |
+| --- | --- |
+| `supabase/migrations/009_recibos.sql` | tabela, trava de chave, trigger, RLS, grants |
+| `src/lib/r2.ts` | assinar envio/leitura, conferir, apagar, apagar por prefixo |
+| `src/lib/recibos-servidor.ts` | sessão, cliente admin, `recibosAtivos()` |
+| `src/lib/recibos.ts` | navegador: comprimir, enviar em 3 passos, apagar, ler |
+| `src/app/api/recibos/assinar` | cria a linha e assina o PUT (confere consentimento) |
+| `src/app/api/recibos/[id]/confirmar` | HEAD no R2, marca `uploaded_at` |
+| `src/app/api/recibos/[id]/arquivo` | 302 pra link de leitura de 5 min (`?baixar=1`) |
+| `src/app/api/recibos/[id]` | DELETE: arquivo primeiro, linha depois |
+| `src/app/api/recibos/[id]/ler` | E2: R2 → Groq visão → sugestão |
+| `src/app/api/recibos/retirar-consentimento` | apaga tudo e zera a coluna |
+| `src/components/AnexarRecibos.tsx` | botão, consentimento, miniaturas, "Ler recibo" |
+| `src/app/(painel)/recibos/page.tsx` | por ano e mês, baixar, ligar a gasto, apagar |
+
+### Decisões
+
+**Envio em três passos, com a linha antes do arquivo.** `assinar` cria a
+linha (`uploaded_at` nulo) e devolve o link; o navegador faz o PUT;
+`confirmar` faz HEAD no R2 e só então marca `uploaded_at` e `size_bytes`.
+Resultado: nunca existe arquivo sem linha. Se o PUT falhar, o navegador
+apaga a linha. Se a confirmação falhar (sinal caiu no fim), a linha aparece
+em Recibos como "envio não concluído", com "Conferir envio" e "Apagar".
+
+**O link assinado não limita tamanho nem tipo** (a biblioteca não assina
+esses cabeçalhos). Quem limita é a confirmação: arquivo acima de 3 MB ou que
+não é imagem é apagado na hora.
+
+**Três travas no banco, cada uma contra uma coisa:**
+
+| Trava | Protege contra |
+| --- | --- |
+| chave do R2 começa com o `user_id` (check) | criar linha apontando pro arquivo de outra pessoa e pedir link de leitura |
+| trigger `receipts_gasto_do_dono` | ligar recibo ao gasto de outra pessoa da casa (FK não passa pela RLS) |
+| grants por coluna | a pessoa marcar `uploaded_at` sozinha, sem o servidor conferir |
+
+**`recibosAtivos()` exige R2 e `SUPABASE_SECRET_KEY`**, porque é com a chave
+secreta que o servidor grava `uploaded_at`. O layout passa só o sim/não pro
+navegador (`recursos` no `ScopeProvider`).
+
+**Compressão** com `createImageBitmap` (respeitando a rotação do EXIF) e
+fallback pra `<img>`, lado maior 1600 px, JPEG 0,75. Se a foto já era JPEG
+menor que o resultado, sobe a original.
+
+**Gasto novo:** a foto sobe solta e é ligada ao salvar, junto com
+`occurred_on` = data do gasto. Cancelar o formulário deixa a foto em
+Recibos, "sem lançamento" — o componente avisa.
+
+**E2 só preenche campo vazio.** O que a pessoa digitou não é sobrescrito;
+se o recibo diverge, vira aviso. Exceção: em gasto novo a data do formulário
+é só o padrão (hoje), então a do recibo entra. O prompt manda não devolver
+CPF, endereço, nome de remédio nem dado de cartão.
+
+**Termos:** `TERMOS_VERSAO` subiu pra 2026-09-13 (a política agora descreve
+recibos e leitura por IA como recursos ativos).
+
+### CORS do bucket (item 4 do §2)
+
+No painel do R2 → bucket → Settings → CORS Policy:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://financascasal-pi.vercel.app", "http://localhost:3000"],
+    "AllowedMethods": ["PUT", "GET"],
+    "AllowedHeaders": ["content-type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Sem isso o envio falha com "Não deu para enviar a foto" e o detalhe técnico
+"Failed to fetch" — e nada aparece no log da Vercel.

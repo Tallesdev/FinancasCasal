@@ -140,8 +140,12 @@ saúde (art. 11), então o consentimento precisa ser **específico e livre**:
   opcional**. Se marcar fosse obrigatório pra criar conta, o consentimento
   não seria livre.
 - **Em Ajustes → Recibos:** dar ou retirar a qualquer momento.
-- **Na Fase E:** se a pessoa não consentiu, anexar recibo pergunta antes
-  (`FASE_E.md` §3.6).
+- **Na hora do primeiro recibo:** se a pessoa não consentiu, anexar
+  pergunta antes (`FASE_E.md` §3.6). O servidor confere de novo antes de
+  aceitar o envio.
+
+**Retirar apaga os recibos guardados**, na hora — arquivos no R2 e linhas.
+Ajustes diz quantos são antes de confirmar.
 
 ## 7. Correção de segurança (migração 008, parte 3)
 
@@ -185,8 +189,6 @@ não brecha.
 Em ordem de importância:
 
 - **Revisão profissional dos textos** antes de divulgar amplamente.
-- **Consentimento na hora do primeiro recibo, e apagar recibos ao retirar**
-  — entra com a Fase E (`FASE_E.md` §3.6).
 - **Pedir novo aceite quando os termos mudarem** — só vira necessário na
   primeira mudança de versão.
 - **SMTP próprio** — pendente desde a Fase B; sem ele, "esqueci minha senha"
@@ -201,6 +203,7 @@ Em ordem de importância:
 | Base legal | execução de contrato; consentimento separado e opcional pro recibo |
 | Revogar consentimento | Ajustes → Recibos |
 | Informar transferência internacional | `/privacidade` — Groq, Cloudflare |
+| Dado sensível (saúde em recibo) | consentimento específico, conferido no servidor; retirar apaga |
 | Informar com quem compartilha | `/privacidade` — casa e provedores |
 | Minimização | data de nascimento não é guardada |
 | Direito de exclusão | Ajustes → Excluir conta |

@@ -9,7 +9,7 @@
  */
 
 /** Muda quando termos ou política mudam. Fica gravado no aceite do cadastro. */
-export const TERMOS_VERSAO = "2026-09-12";
+export const TERMOS_VERSAO = "2026-09-13";
 
 /**
  * Quem responde pelos dados e como falar com essa pessoa. Vem de variável de

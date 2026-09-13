@@ -22,6 +22,32 @@ export type Profile = {
   receipts_consent_at?: string | null;
 };
 
+/**
+ * Recibo (Fase E). O arquivo mora no R2; a chave dele nunca chega ao
+ * navegador — a imagem é pedida por /api/recibos/<id>/arquivo.
+ */
+export type Receipt = {
+  id: string;
+  /** Nulo = recibo sem lançamento (estado válido). */
+  expense_id: string | null;
+  mime_type: string;
+  size_bytes: number | null;
+  /** A data do gasto, não a do envio. */
+  occurred_on: string;
+  notes: string | null;
+  /** Nulo = envio não concluído. */
+  uploaded_at: string | null;
+  created_at: string;
+};
+
+/** Sugestão da leitura por IA. Nada disso é salvo sem a pessoa confirmar. */
+export type ReciboLido = {
+  description: string | null;
+  amount: number | null;
+  date: string | null;
+  category_name: string | null;
+};
+
 /** Uma importação de planilha. Apagar esta linha apaga, por cascade, tudo o que veio dela. */
 export type Import = {
   id: string;

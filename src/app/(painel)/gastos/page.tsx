@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
 import { GravarGasto, type GastoPorAudio } from "@/components/GravarGasto";
+import { AnexarRecibos, Clipe } from "@/components/AnexarRecibos";
 import { SegmentedField, SelectField } from "@/components/form/Field";
 import {
   Button,
@@ -38,6 +39,8 @@ import {
   type ExpenseKind,
   type ExpenseOccurrence,
   type PaymentMethod,
+  type Receipt,
+  type ReciboLido,
 } from "@/lib/types";
 
 type Draft = {
@@ -78,7 +81,7 @@ function emptyDraft(month: string): Draft {
 
 export default function GastosPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, members, userIds, scope } = useScope();
+  const { me, members, userIds, scope, recursos } = useScope();
 
   const [month, setMonth] = useState(() =>
     firstDayOfMonth(toISODate(new Date()))
@@ -93,6 +96,14 @@ export default function GastosPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Recibos (só os meus) por gasto — pro clipe na lista e pra abrir na edição. */
+  const [recibosPorGasto, setRecibosPorGasto] = useState<Record<string, Receipt[]>>({});
+  /** Os recibos do formulário aberto. Em gasto novo, sobem soltos e são ligados ao salvar. */
+  const [recibosDoForm, setRecibosDoForm] = useState<Receipt[]>([]);
+  // A leitura por IA termina depois de alguns segundos; nesse meio tempo a
+  // pessoa pode ter digitado. O ref sempre aponta pro rascunho atual.
+  const draftRef = useRef<Draft | null>(null);
+  draftRef.current = draft;
 
   // Filtros da lista
   const [filterMethod, setFilterMethod] = useState<"" | PaymentMethod>("");
@@ -144,7 +155,21 @@ export default function GastosPage() {
     setCards((cardsResult.data ?? []) as Card[]);
     setAccounts((accountsResult.data ?? []) as BankAccount[]);
     setLoading(false);
-  }, [supabase, month, me.id]);
+
+    if (recursos.recibos) {
+      const { data: recibos } = await supabase
+        .from("receipts")
+        .select("id, expense_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at")
+        .eq("user_id", me.id)
+        .not("expense_id", "is", null)
+        .not("uploaded_at", "is", null);
+      const porGasto: Record<string, Receipt[]> = {};
+      for (const r of (recibos ?? []) as Receipt[]) {
+        (porGasto[r.expense_id!] ??= []).push(r);
+      }
+      setRecibosPorGasto(porGasto);
+    }
+  }, [supabase, month, me.id, recursos.recibos]);
 
   useEffect(() => {
     load();
@@ -256,7 +281,76 @@ export default function GastosPage() {
       notes: expense.notes ?? "",
       bank_account_id: expense.bank_account_id ?? "",
     });
+    setRecibosDoForm(recibosPorGasto[expense.id] ?? []);
     setFormError(null);
+  }
+
+  function abrirNovo() {
+    setDraft(emptyDraft(month));
+    setRecibosDoForm([]);
+    setFormError(null);
+  }
+
+  /**
+   * A IA leu o recibo. Mesma regra do áudio: sugere, não salva. Só preenche
+   * campo VAZIO — o que a pessoa já digitou não é sobrescrito; se diverge,
+   * vira aviso pra ela decidir.
+   */
+  function aplicarLeitura(l: ReciboLido): string {
+    const atual = draftRef.current;
+    if (!atual) return "";
+
+    const patch: Partial<Draft> = {};
+    const preenchidos: string[] = [];
+    const diferentes: string[] = [];
+
+    if (l.description) {
+      if (!atual.description.trim()) {
+        patch.description = l.description;
+        preenchidos.push("descrição");
+      }
+    }
+
+    if (l.amount != null) {
+      const digitado = Number(atual.amount.replace(",", "."));
+      if (!atual.amount) {
+        patch.amount = String(l.amount);
+        preenchidos.push("valor");
+      } else if (Math.abs(digitado - l.amount) > 0.005) {
+        diferentes.push(`valor ${money(l.amount)}`);
+      }
+    }
+
+    if (l.date && l.date !== atual.start_date) {
+      // Em gasto novo a data do formulário é só o padrão (hoje): o recibo
+      // sabe mais. Em edição, a data é da pessoa.
+      if (!atual.id) {
+        patch.start_date = l.date;
+        preenchidos.push("data");
+      } else {
+        diferentes.push(`data ${formatDate(l.date)}`);
+      }
+    }
+
+    if (l.category_name && !atual.category_id) {
+      const categoria = myCategories.find(
+        (c) => c.name.toLowerCase() === l.category_name!.toLowerCase()
+      );
+      if (categoria) {
+        patch.category_id = categoria.id;
+        preenchidos.push("categoria");
+      }
+    }
+
+    if (Object.keys(patch).length) {
+      setDraft((d) => (d ? { ...d, ...patch } : d));
+    }
+
+    const partes: string[] = [];
+    if (preenchidos.length) partes.push(`Preenchido pelo recibo: ${preenchidos.join(", ")}.`);
+    if (diferentes.length) partes.push(`O recibo diz ${diferentes.join(" e ")} — diferente do que está no formulário.`);
+    if (!partes.length) return "A leitura não trouxe nada novo. Confira os campos à mão.";
+    return `${partes.join(" ")} Confira antes de salvar.`;
   }
 
   /**
@@ -284,6 +378,7 @@ export default function GastosPage() {
       category_id: categoria?.id ?? "",
       notes: g.texto ? `Por áudio: "${g.texto}"` : "",
     });
+    setRecibosDoForm([]);
     setFormError(null);
   }
 
@@ -335,18 +430,32 @@ export default function GastosPage() {
     setSaving(true);
     setFormError(null);
 
-    const { error: writeError } = draft.id
-      ? await supabase.from("expenses").update(payload).eq("id", draft.id)
-      : await supabase.from("expenses").insert(payload);
+    const { data: salvo, error: writeError } = draft.id
+      ? await supabase.from("expenses").update(payload).eq("id", draft.id).select("id").single()
+      : await supabase.from("expenses").insert(payload).select("id").single();
 
-    setSaving(false);
-
-    if (writeError) {
+    if (writeError || !salvo) {
+      setSaving(false);
       setFormError("Não deu para salvar o gasto. Confira os campos.");
       return;
     }
 
+    // Liga as fotos ao gasto e acerta a data delas pela do gasto — é por
+    // essa data que a tela de recibos agrupa.
+    if (recibosDoForm.length) {
+      const { error: ligarError } = await supabase
+        .from("receipts")
+        .update({ expense_id: salvo.id, occurred_on: payload.start_date })
+        .in("id", recibosDoForm.map((r) => r.id));
+      if (ligarError) {
+        // O gasto já está salvo: reabrir o formulário faria salvar duas vezes.
+        setError("O gasto foi salvo, mas o recibo não foi ligado a ele. Ligue pela tela Recibos.");
+      }
+    }
+
+    setSaving(false);
     setDraft(null);
+    setRecibosDoForm([]);
     load();
   }
 
@@ -371,7 +480,7 @@ export default function GastosPage() {
               cartoes={myCards.map((c) => c.name)}
               onDraft={abrirPorAudio}
             />
-            <Button onClick={() => setDraft(emptyDraft(month))}>Novo gasto</Button>
+            <Button onClick={abrirNovo}>Novo gasto</Button>
           </div>
         }
       />
@@ -491,7 +600,7 @@ export default function GastosPage() {
           }
           action={
             hasFilters ? undefined : (
-              <Button onClick={() => setDraft(emptyDraft(month))}>
+              <Button onClick={abrirNovo}>
                 Novo gasto
               </Button>
             )
@@ -536,6 +645,15 @@ export default function GastosPage() {
                       {occurrence.kind === "variable" && expense && (
                         <span>{formatDate(expense.start_date)}</span>
                       )}
+                      {mine && recibosPorGasto[occurrence.expense_id]?.length ? (
+                        <span
+                          className="inline-flex items-center text-[var(--color-text-dim)]"
+                          title="Tem recibo"
+                        >
+                          <Clipe className="h-3.5 w-3.5" />
+                          <span className="sr-only">Tem recibo</span>
+                        </span>
+                      ) : null}
                       {scope === "us" && owner && (
                         <OwnerTag name={owner.name} color={owner.color} />
                       )}
@@ -584,6 +702,16 @@ export default function GastosPage() {
             saving={saving}
             onSave={save}
             onCancel={() => setDraft(null)}
+            anexos={
+              <AnexarRecibos
+                recibos={recibosDoForm}
+                onChange={setRecibosDoForm}
+                data={draft.start_date}
+                expenseId={draft.id}
+                categorias={myCategories.map((c) => c.name)}
+                onLeitura={aplicarLeitura}
+              />
+            }
           />
         </Sheet>
       )}
@@ -601,6 +729,7 @@ function ExpenseForm({
   saving,
   onSave,
   onCancel,
+  anexos,
 }: {
   draft: Draft;
   setDraft: (draft: Draft) => void;
@@ -611,6 +740,8 @@ function ExpenseForm({
   saving: boolean;
   onSave: () => void;
   onCancel: () => void;
+  /** Recibos. Fica fora do formulário pra ele não depender do R2. */
+  anexos?: React.ReactNode;
 }) {
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
 
@@ -805,6 +936,8 @@ function ExpenseForm({
           ))}
         </select>
       </Field>
+
+      {anexos}
 
       <Field label="Observação" hint="Opcional">
         <input

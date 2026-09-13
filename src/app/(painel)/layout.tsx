@@ -7,6 +7,8 @@ import { Nav } from "@/components/Nav";
 import { SignOutButton } from "@/components/SignOutButton";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
+import { iaConfigurada } from "@/lib/ia";
+import { recibosAtivos } from "@/lib/recibos-servidor";
 import type { Household, Profile } from "@/lib/types";
 
 export default async function PainelLayout({
@@ -60,6 +62,10 @@ export default async function PainelLayout({
       me={me}
       members={members}
       household={(casa as Household | null) ?? null}
+      recursos={{
+        recibos: recibosAtivos(),
+        lerRecibo: recibosAtivos() && iaConfigurada(),
+      }}
     >
       <RegisterServiceWorker />
       <div className="flex min-h-dvh">

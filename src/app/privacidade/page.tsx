@@ -72,11 +72,14 @@ export default function PrivacidadePage() {
           desfazer a importação.
         </p>
         <p>
-          <strong className="text-[var(--color-text)]">Recibos</strong> (recurso
-          em preparação): quando você anexar a foto de um recibo, a imagem
-          ficará guardada para que você possa consultá-la, por exemplo na
-          declaração de imposto de renda. Ver também &ldquo;Dados de saúde em
-          recibos&rdquo;.
+          <strong className="text-[var(--color-text)]">Recibos, se você permitir:</strong>{" "}
+          a foto que você anexa fica guardada para que você possa consultá-la,
+          por exemplo na declaração de imposto de renda. Antes de subir, ela é
+          reduzida no seu aparelho. Guardamos também a data e a que gasto ela
+          pertence. Se você tocar em &ldquo;Ler recibo&rdquo;, a foto é enviada
+          a um provedor de inteligência artificial que sugere descrição, valor
+          e data — a sugestão só vira dado se você salvar o gasto. Ver também
+          &ldquo;Dados de saúde em recibos&rdquo;.
         </p>
         <p>
           <strong className="text-[var(--color-text)]">No seu aparelho:</strong>{" "}
@@ -123,8 +126,9 @@ export default function PrivacidadePage() {
         <p>
           <strong className="text-[var(--color-text)]">Os provedores que fazem o app funcionar</strong>,
           que tratam dados em nosso nome e só para isso: Supabase (banco de
-          dados e autenticação), Vercel (hospedagem), Groq (transcrição e
-          interpretação de áudio) e Cloudflare (armazenamento de recibos).
+          dados e autenticação), Vercel (hospedagem), Groq (transcrição de
+          áudio e leitura de recibos, quando você pede) e Cloudflare
+          (armazenamento das fotos de recibos).
           Alguns deles processam dados{" "}
           <strong className="text-[var(--color-text)]">fora do Brasil</strong>,
           em especial nos Estados Unidos — o que a LGPD chama de transferência
@@ -143,8 +147,11 @@ export default function PrivacidadePage() {
           conter um: o comprovante de uma farmácia ou de uma clínica revela
           algo sobre sua saúde, que a LGPD protege de forma especial. Por isso
           guardar recibos depende do seu consentimento explícito e separado
-          do aceite destes termos. Você pode retirá-lo e apagar qualquer
-          recibo quando quiser.
+          do aceite destes termos. Você pode apagar qualquer recibo quando
+          quiser. Se retirar o consentimento, todos os recibos guardados são
+          apagados na hora; os gastos continuam. As fotos ficam num
+          armazenamento privado: não existe endereço público para elas, e cada
+          visualização usa um link que expira em minutos.
         </p>
       </Secao>
 

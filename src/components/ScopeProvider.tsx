@@ -10,6 +10,19 @@ import {
 } from "react";
 import type { Household, Profile, Scope } from "@/lib/types";
 
+/**
+ * O que está ligado neste deploy. Vem do servidor, que é quem sabe quais
+ * variáveis existem — o navegador nunca vê as chaves, só o sim/não.
+ */
+export type Recursos = {
+  /** R2 + chave secreta do Supabase configurados. */
+  recibos: boolean;
+  /** Groq configurada: dá pra ler recibo com IA. */
+  lerRecibo: boolean;
+};
+
+const SEM_RECURSOS: Recursos = { recibos: false, lerRecibo: false };
+
 type ScopeContextValue = {
   scope: Scope;
   setScope: (scope: Scope) => void;
@@ -27,6 +40,7 @@ type ScopeContextValue = {
   scopeClass: string;
   /** A cor do escopo ativo entra inline em --scope: a da pessoa ou a da casa. */
   scopeStyle: React.CSSProperties | undefined;
+  recursos: Recursos;
 };
 
 const ScopeContext = createContext<ScopeContextValue | null>(null);
@@ -37,11 +51,13 @@ export function ScopeProvider({
   me,
   members,
   household,
+  recursos = SEM_RECURSOS,
   children,
 }: {
   me: Profile;
   members: Profile[];
   household: Household | null;
+  recursos?: Recursos;
   children: React.ReactNode;
 }) {
   const [saved, setSaved] = useState<Scope>("me");
@@ -88,8 +104,9 @@ export function ScopeProvider({
       userIds,
       scopeClass,
       scopeStyle,
+      recursos,
     };
-  }, [saved, setScope, me, members, household]);
+  }, [saved, setScope, me, members, household, recursos]);
 
   return (
     <ScopeContext.Provider value={value}>

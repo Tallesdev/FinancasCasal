@@ -15,6 +15,7 @@ const SETTINGS = [
   { href: "/contas", label: "Contas" },
   { href: "/cartoes", label: "Cartões" },
   { href: "/categorias", label: "Categorias" },
+  { href: "/recibos", label: "Recibos" },
   { href: "/importar", label: "Importar planilha" },
   // Sem isto, perfil, casa e convites ficam inalcançáveis no desktop: o
   // atalho de /ajustes no header é md:hidden.

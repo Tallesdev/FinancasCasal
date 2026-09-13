@@ -43,7 +43,7 @@ export function ExportarDados() {
   const [error, setError] = useState<string | null>(null);
 
   async function coletar() {
-    const [auth, gastos, rendas, aportes, cartoes, categorias, contas, importacoes] =
+    const [auth, gastos, rendas, aportes, cartoes, categorias, contas, importacoes, recibos] =
       await Promise.all([
         supabase.auth.getUser(),
         supabase.from("expenses").select("*").eq("user_id", me.id).order("start_date"),
@@ -53,6 +53,11 @@ export function ExportarDados() {
         supabase.from("categories").select("*").eq("user_id", me.id),
         supabase.from("bank_accounts").select("*").eq("user_id", me.id),
         supabase.from("imports").select("*").eq("user_id", me.id),
+        // As fotos em si baixam-se em Recibos; aqui vai o registro de cada uma.
+        supabase
+          .from("receipts")
+          .select("id, expense_id, occurred_on, notes, mime_type, size_bytes, uploaded_at, created_at")
+          .eq("user_id", me.id),
       ]);
 
     const falha = [gastos, rendas, aportes, cartoes, categorias, contas].find((r) => r.error);
@@ -67,6 +72,7 @@ export function ExportarDados() {
       categorias: (categorias.data ?? []) as Category[],
       contas: (contas.data ?? []) as BankAccount[],
       importacoes: importacoes.data ?? [],
+      recibos: recibos.data ?? [],
     };
   }
 
@@ -97,6 +103,10 @@ export function ExportarDados() {
         categorias: d.categorias,
         contas_bancarias: d.contas,
         importacoes: d.importacoes,
+        recibos: {
+          observacao: "Registro de cada recibo. As fotos se baixam na tela Recibos.",
+          itens: d.recibos,
+        },
       };
       baixar(
         `rumofacil-meus-dados-${toISODate(new Date())}.json`,

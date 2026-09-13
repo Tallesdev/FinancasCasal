@@ -32,6 +32,16 @@ export const MODELOS_TEXTO = [
 ];
 
 /**
+ * Modelos com visão, pra ler recibo (Fase E2). Mesma lógica das outras
+ * listas: o catálogo depende da conta. Se nenhum existir, "Ler recibo" dá
+ * erro e o anexo continua funcionando — as duas coisas são independentes.
+ */
+export const MODELOS_VISAO = [
+  "meta-llama/llama-4-scout-17b-16e-instruct",
+  "meta-llama/llama-4-maverick-17b-128e-instruct",
+];
+
+/**
  * Qual modelo funcionou nesta instância. Serverless recicla, então isto
  * some de tempos em tempos — mas dentro de uma instância quente evita
  * repetir a tentativa que já se sabe que falha.
@@ -48,9 +58,15 @@ function chave() {
   return k;
 }
 
-/** 404 com `model_not_found`: tentar o próximo da lista resolve. */
+/**
+ * 404 com `model_not_found`: tentar o próximo da lista resolve. Na visão,
+ * um modelo que existe mas não aceita imagem responde 400 — também vale
+ * tentar o próximo.
+ */
 function modeloInexistente(status: number, corpo: string) {
-  return status === 404 && corpo.includes("model_not_found");
+  if (status === 404 && corpo.includes("model_not_found")) return true;
+  const c = corpo.toLowerCase();
+  return status === 400 && c.includes("image") && (c.includes("not support") || c.includes("does not"));
 }
 
 /**
@@ -231,4 +247,124 @@ export async function interpretarGasto(
       : texto.slice(0, 120);
 
   return { description, amount, category_name, card_name, payment_method };
+}
+
+export type ReciboLido = {
+  /** Estabelecimento ou o que foi comprado, curto. */
+  description: string | null;
+  /** Total pago, em reais. */
+  amount: number | null;
+  /** AAAA-MM-DD, só se estiver legível e for uma data plausível. */
+  date: string | null;
+  /** Nome exato de uma das categorias passadas, ou nulo. */
+  category_name: string | null;
+};
+
+/**
+ * Foto de recibo → campos sugeridos (Fase E2). Mesma regra do áudio: sugere,
+ * não salva. Recebe a imagem JÁ comprimida (a que está no R2), que custa
+ * menos e lê igual.
+ *
+ * O prompt pede explicitamente pra NÃO transcrever CPF, endereço ou item de
+ * saúde: a IA só precisa devolver quatro campos, e o que ela não devolve
+ * não fica guardado em lugar nenhum.
+ */
+export async function lerRecibo(
+  imagem: ArrayBuffer,
+  tipo: string,
+  categorias: string[]
+): Promise<ReciboLido> {
+  const sistema = [
+    "Você lê a foto de um recibo, nota fiscal ou comprovante brasileiro.",
+    "Responda SOMENTE um JSON com as chaves:",
+    "  description (nome do estabelecimento ou o que foi comprado, até 60 caracteres, ou null),",
+    "  amount (o TOTAL pago, número em reais, ou null),",
+    "  date (data da compra no formato AAAA-MM-DD, ou null),",
+    "  category_name (uma das categorias da lista, exatamente como escrita, ou null).",
+    "Nunca invente: se não estiver legível, use null.",
+    "Não inclua CPF, endereço, nome de pessoa, nome de remédio nem dados de cartão em nenhum campo.",
+    "Datas brasileiras são dia/mês/ano.",
+    `Categorias da pessoa: ${categorias.length ? categorias.join(", ") : "(nenhuma)"}`,
+  ].join("\n");
+
+  const dataUrl = `data:${tipo};base64,${Buffer.from(imagem).toString("base64")}`;
+
+  const bruto = await comFallback("leitura de recibo", MODELOS_VISAO, async (modelo) => {
+    const r = await fetch(`${GROQ}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${chave()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modelo,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: sistema },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Leia este recibo." },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!r.ok) {
+      const corpo = (await r.text()).slice(0, 300);
+      if (modeloInexistente(r.status, corpo))
+        throw new Error(`MODELO_INEXISTENTE: ${modelo} → ${corpo}`);
+      throw new Error(`leitura de recibo ${r.status}: ${corpo}`);
+    }
+
+    const json = (await r.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return json.choices?.[0]?.message?.content ?? "{}";
+  });
+
+  return sanitizarRecibo(bruto, categorias);
+}
+
+/** Separado pra dar pra testar sem chamar a IA. */
+export function sanitizarRecibo(
+  bruto: string,
+  categorias: string[],
+  hoje = new Date()
+): ReciboLido {
+  let p: Record<string, unknown> = {};
+  try {
+    const v = JSON.parse(bruto);
+    if (v && typeof v === "object") p = v as Record<string, unknown>;
+  } catch {
+    p = {};
+  }
+
+  const amount =
+    typeof p.amount === "number" && Number.isFinite(p.amount) && p.amount > 0 && p.amount < 1e7
+      ? Math.round(p.amount * 100) / 100
+      : null;
+
+  // Data real, não no futuro (1 dia de folga pro fuso) e não absurda.
+  let date: string | null = null;
+  if (typeof p.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.date)) {
+    const [a, m, d] = p.date.split("-").map(Number);
+    const dt = new Date(Date.UTC(a, m - 1, d));
+    const valida = dt.getUTCFullYear() === a && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+    const limite = hoje.getTime() + 24 * 3600 * 1000;
+    if (valida && a >= 2000 && dt.getTime() <= limite) date = p.date;
+  }
+
+  const nome = typeof p.category_name === "string" ? p.category_name.toLowerCase() : null;
+  const category_name = nome ? categorias.find((c) => c.toLowerCase() === nome) ?? null : null;
+
+  const description =
+    typeof p.description === "string" && p.description.trim()
+      ? p.description.trim().slice(0, 60)
+      : null;
+
+  return { description, amount, date, category_name };
 }

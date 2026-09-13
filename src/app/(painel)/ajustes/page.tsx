@@ -26,6 +26,11 @@ const LINKS = [
     description: "Sua lista de categorias e as cores de cada uma.",
   },
   {
+    href: "/recibos",
+    title: "Recibos",
+    description: "Fotos dos comprovantes por ano, pra hora do imposto. Só você vê.",
+  },
+  {
     href: "/importar",
     title: "Importar planilha",
     description: "Traga lançamentos de um CSV do Excel ou do Google Planilhas.",

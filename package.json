@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
+    "aws4fetch": "1.0.20",
     "next": "^15.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

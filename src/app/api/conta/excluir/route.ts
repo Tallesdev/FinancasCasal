@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as criarClienteSupabase } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { apagarPrefixo, r2Configurado } from "@/lib/r2";
 
 export const runtime = "nodejs";
 
@@ -93,8 +94,33 @@ export async function POST(request: Request) {
     .maybeSingle();
   const casa = (perfil?.household_id as string | null) ?? null;
 
-  // Fase E: apagar do R2 os objetos com prefixo `${user.id}/` aqui, ANTES de
-  // apagar o usuário. Depois disso some a linha que diz quais arquivos existem.
+  // Recibos (decisão de 12/09/2026: somem na hora). Os arquivos do R2 saem
+  // ANTES do usuário — depois, some a linha que diz quais existem. Lista pelo
+  // prefixo no R2, então leva até envio que não foi concluído.
+  if (r2Configurado()) {
+    try {
+      await apagarPrefixo(`${user.id}/`);
+    } catch (e) {
+      console.error("[api/conta/excluir] R2", e);
+      return NextResponse.json(
+        { error: "Não deu para apagar seus recibos agora. Nada foi apagado; tente de novo." },
+        { status: 502 }
+      );
+    }
+  } else {
+    // Sem R2 configurado não dá pra apagar arquivo. Se houver recibo, parar
+    // é melhor que deixar foto de documento sem dono pra sempre.
+    const { count, error: semTabela } = await admin
+      .from("receipts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    if (!semTabela && count) {
+      return NextResponse.json(
+        { error: "Não deu para apagar seus recibos agora (armazenamento indisponível). Nada foi apagado." },
+        { status: 503 }
+      );
+    }
+  }
 
   const { error: falha } = await admin.auth.admin.deleteUser(user.id);
   if (falha) {
