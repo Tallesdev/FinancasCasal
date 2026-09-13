@@ -5,7 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
 import { ScopeHeading } from "@/components/ScopeHeading";
-import { MonthlyBars, RankBar } from "@/components/charts";
+import { MonthlyBars } from "@/components/MonthlyBarsLazy";
+import { RankBar } from "@/components/RankBar";
 import {
   Button,
   Dot,

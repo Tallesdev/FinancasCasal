@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
-import { RankBar } from "@/components/charts";
+import { RankBar } from "@/components/RankBar";
 import {
   Button,
   Dot,

@@ -38,9 +38,14 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims, não getUser: o projeto assina os tokens com chave assimétrica
+  // (ES256), então a assinatura é conferida aqui mesmo com a chave pública,
+  // que fica em cache. getUser ia ao servidor de autenticação em TODA
+  // requisição — inclusive nos prefetch de link — e era o que mais pesava.
+  // Se o token venceu, getClaims renova a sessão antes, e o setAll acima
+  // grava os cookies novos, igual getUser fazia.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   // /auth/* é pública de propósito: é onde o link do e-mail de confirmação
   // troca o código por sessão — nesse momento ainda não existe sessão.

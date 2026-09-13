@@ -2,11 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { DateField, PasswordField, TextField } from "@/components/form/Field";
 import { IDADE_MINIMA, TERMOS_VERSAO, idadeEm } from "@/lib/legal";
 import { toISODate } from "@/lib/format";
+
+/**
+ * O cliente do Supabase é a maior parte do JavaScript desta tela, e ela só
+ * precisa dele no toque do botão. Importado sob demanda, o formulário fica
+ * pronto pra digitar antes; o download começa logo depois de a tela
+ * aparecer (useEffect abaixo), então no clique ele quase sempre já chegou.
+ */
+const carregarCliente = () =>
+  import("@/lib/supabase/client").then((modulo) => modulo.createClient());
 
 /**
  * Login e cadastro na mesma tela. Três modos:
@@ -58,6 +66,11 @@ export default function LoginPage() {
   /** Mensagem neutra (nem erro nem sucesso), ex: depois de excluir a conta. */
   const [info, setInfo] = useState<string | null>(null);
 
+  // Adianta o download do cliente (ver carregarCliente).
+  useEffect(() => {
+    import("@/lib/supabase/client");
+  }, []);
+
   // A rota /auth/confirmar manda pra cá com ?erro= quando o link do e-mail
   // não serve mais. Lido via window em vez de useSearchParams pra não exigir
   // Suspense numa página que é estática.
@@ -96,21 +109,24 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
+    const supabase = await carregarCliente();
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
 
-    setLoading(false);
-
     if (signInError) {
+      setLoading(false);
       setError(traduzir(signInError.message));
       return;
     }
 
+    // Sem router.refresh() aqui: ele disparava uma segunda renderização no
+    // servidor, em paralelo com a navegação. Rota dinâmica não fica em cache
+    // no roteador (Next 15), então o replace já busca tudo com a sessão nova.
+    // O botão continua em "Entrando…" até a tela trocar — antes ele voltava
+    // a ficar clicável no meio da navegação e parecia que nada tinha acontecido.
     router.replace(next ?? "/");
-    router.refresh();
   }
 
   /** O link do e-mail leva o next junto, pra cair no convite depois. */
@@ -136,7 +152,7 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    const supabase = createClient();
+    const supabase = await carregarCliente();
     const { error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -175,7 +191,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
+    const supabase = await carregarCliente();
     // URL limpa, sem query: com `?next=` o Supabase descartava o destino e
     // mandava pra home já logado, pulando a tela de trocar a senha.
     const { error: e } = await supabase.auth.resetPasswordForEmail(email.trim(), {
@@ -199,7 +215,7 @@ export default function LoginPage() {
     if (motivo === "senha") return pedirRedefinicao();
     setLoading(true);
 
-    const supabase = createClient();
+    const supabase = await carregarCliente();
     const { error: resendError } = await supabase.auth.resend({
       type: "signup",
       email: email.trim(),

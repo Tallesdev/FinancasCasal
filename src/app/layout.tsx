@@ -1,5 +1,33 @@
 import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
+
+/* Fontes servidas pelo próprio app (next/font baixa no build). Antes vinham
+   de fonts.googleapis.com: duas conexões a mais e um CSS que travava a
+   primeira pintura — no 4G, fácil meio segundo antes de aparecer qualquer
+   coisa. As variáveis alimentam --font-* em globals.css. */
+const display = Bricolage_Grotesque({
+  subsets: ["latin"],
+  axes: ["opsz"],
+  variable: "--font-bricolage",
+  display: "swap",
+});
+
+const sans = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-instrument",
+  display: "swap",
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-mono",
+  display: "swap",
+  // Três arquivos; pré-carregar todos disputaria banda com o que importa
+  // na primeira pintura. O fallback já tem métrica ajustada.
+  preload: false,
+});
 
 export const metadata: Metadata = {
   title: "RumoFácil",
@@ -30,15 +58,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600&display=swap"
-        />
-      </head>
+    <html
+      lang="pt-BR"
+      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+    >
       <body>{children}</body>
     </html>
   );

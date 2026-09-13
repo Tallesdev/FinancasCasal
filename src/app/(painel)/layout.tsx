@@ -16,9 +16,11 @@ export default async function PainelLayout({
 }) {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Conferido localmente pela assinatura (ver lib/supabase/middleware.ts).
+  // Mesmo que um token forjado passasse daqui, as consultas abaixo levam o
+  // token ao banco, e a RLS confere de novo.
+  const { data: auth } = await supabase.auth.getClaims();
+  const user = auth?.claims ? { id: auth.claims.sub } : null;
 
   if (!user) redirect("/entrar");
 
