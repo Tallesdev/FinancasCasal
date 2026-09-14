@@ -24,11 +24,20 @@ export class ErroRecibo extends Error {
  * rotação que a câmera grava no EXIF — sem isso, recibo em pé sai deitado.
  */
 export async function comprimirImagem(arquivo: File): Promise<Blob> {
+  // Vai junto de todo erro daqui: sem isto, "não deu para abrir" não diz
+  // NADA sobre o que a foto era, e o problema não dá pra reproduzir.
+  const ficha = fichaDoArquivo(arquivo);
+
   if (!arquivo.type.startsWith("image/")) {
-    throw new ErroRecibo("Escolha uma foto.");
+    throw new ErroRecibo("Escolha uma foto.", ficha);
   }
 
-  const imagem = await abrirImagem(arquivo);
+  const imagem = await abrirImagem(arquivo, ficha);
+
+  if (!imagem.width || !imagem.height) {
+    imagem.liberar();
+    throw new ErroRecibo("Essa foto chegou vazia. Tente escolher outra.", ficha);
+  }
 
   const escala = Math.min(1, LADO_MAXIMO / Math.max(imagem.width, imagem.height));
   const largura = Math.round(imagem.width * escala);
@@ -38,7 +47,7 @@ export async function comprimirImagem(arquivo: File): Promise<Blob> {
   canvas.width = largura;
   canvas.height = altura;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new ErroRecibo("Não deu para preparar a foto.");
+  if (!ctx) throw new ErroRecibo("Não deu para preparar a foto.", ficha);
   // JPEG não tem transparência: PNG com fundo transparente ficaria preto.
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, largura, altura);
@@ -48,7 +57,13 @@ export async function comprimirImagem(arquivo: File): Promise<Blob> {
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/jpeg", QUALIDADE)
   );
-  if (!blob) throw new ErroRecibo("Não deu para preparar a foto.");
+  // Acontece quando a foto é grande demais pro canvas do aparelho.
+  if (!blob) {
+    throw new ErroRecibo(
+      "Não deu para preparar a foto neste aparelho. Tente uma foto menor.",
+      `${ficha} · ${imagem.width}x${imagem.height} → ${largura}x${altura}`
+    );
+  }
 
   // Imagem já pequena e já JPEG pode ficar MAIOR ao recomprimir.
   return arquivo.type === "image/jpeg" && arquivo.size <= blob.size ? arquivo : blob;
@@ -59,18 +74,27 @@ export async function comprimirImagem(arquivo: File): Promise<Blob> {
  * orientação e alguns navegadores não abrem HEIC por ele. O <img> é a rede
  * de segurança — e ele também aplica a rotação do EXIF por padrão.
  */
-async function abrirImagem(arquivo: File): Promise<{
+async function abrirImagem(arquivo: File, ficha: string): Promise<{
   fonte: CanvasImageSource;
   width: number;
   height: number;
   liberar: () => void;
 }> {
+  const falhas: string[] = [];
+
   if (typeof createImageBitmap === "function") {
     try {
       const b = await createImageBitmap(arquivo, { imageOrientation: "from-image" });
       return { fonte: b, width: b.width, height: b.height, liberar: () => b.close() };
-    } catch {
-      // cai pro <img>
+    } catch (e) {
+      falhas.push(`bitmap: ${curto(e)}`);
+    }
+    // Safari antigo recusa a OPÇÃO, não a foto: sem ela, costuma abrir.
+    try {
+      const b = await createImageBitmap(arquivo);
+      return { fonte: b, width: b.width, height: b.height, liberar: () => b.close() };
+    } catch (e) {
+      falhas.push(`bitmap simples: ${curto(e)}`);
     }
   }
 
@@ -85,13 +109,33 @@ async function abrirImagem(arquivo: File): Promise<{
       height: img.naturalHeight,
       liberar: () => URL.revokeObjectURL(url),
     };
-  } catch {
+  } catch (e) {
     URL.revokeObjectURL(url);
+    falhas.push(`img: ${curto(e)}`);
+
+    // HEIC é o formato padrão do iPhone ("Alta eficiência"). O Safari abre;
+    // Chrome e Android, quase nunca — e o arquivo chega com o tipo vazio ou
+    // image/heic, que o canvas não decodifica.
+    const pareceHeic =
+      /heic|heif/i.test(arquivo.type) || /\.(heic|heif)$/i.test(arquivo.name);
+
     throw new ErroRecibo(
-      "Não deu para abrir essa foto neste aparelho. Tente tirar a foto de novo ou escolher outra."
+      pareceHeic
+        ? "Este navegador não abre fotos HEIC (o formato padrão do iPhone). Tire a foto pelo próprio app, ou mude em Ajustes → Câmera → Formatos para “Mais compatível”."
+        : "Não deu para abrir essa foto neste aparelho. Tente tirar a foto de novo ou escolher outra.",
+      `${ficha} · ${falhas.join(" | ")}`
     );
   }
 }
+
+/** O que a foto era, em uma linha: é o que a pessoa consegue me mandar num print. */
+function fichaDoArquivo(arquivo: File) {
+  const ext = arquivo.name.includes(".") ? arquivo.name.split(".").pop() : "sem extensão";
+  return `${arquivo.type || "tipo vazio"} · .${ext} · ${Math.round(arquivo.size / 1024)} KB`;
+}
+
+const curto = (e: unknown) =>
+  (e instanceof Error ? `${e.name}: ${e.message}` : String(e)).slice(0, 80);
 
 async function lerErro(r: Response, padrao: string): Promise<ErroRecibo> {
   try {

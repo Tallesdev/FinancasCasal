@@ -205,7 +205,10 @@ export function AnexarRecibos({
           <input
             id={inputId}
             type="file"
-            accept="image/*"
+            // Sem "image/*": listando os formatos que o servidor aceita, o
+            // iPhone converte HEIC em JPEG ao enviar, em vez de mandar HEIC
+            // (que Chrome e Android não abrem).
+            accept="image/jpeg,image/png,image/webp"
             multiple
             className="sr-only"
             onChange={(event) => {
