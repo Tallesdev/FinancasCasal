@@ -174,6 +174,10 @@ export function AnexarRecibos({
           <ul className="flex list-disc flex-col gap-1 pl-5">
             <li>A foto fica guardada na sua conta, e só você vê — nem as pessoas da casa.</li>
             <li>Recibo pode conter dado de saúde, como o de uma farmácia.</li>
+            <li>
+              A câmera só abre quando você toca em &ldquo;Tirar foto&rdquo;, e quem tira é o
+              app de câmera do aparelho — este app não acessa a câmera sozinho nem grava vídeo.
+            </li>
             <li>Você pode apagar qualquer recibo, ou retirar esta permissão em Ajustes.</li>
             {recursos.lerRecibo && (
               <li>
@@ -190,33 +194,33 @@ export function AnexarRecibos({
           </div>
         </div>
       ) : consentido ? (
-        // <label> em vez de botão + click(): no iOS, abrir a câmera exige
-        // que o toque seja direto no campo.
-        <label
-          htmlFor={inputId}
-          aria-disabled={enviando > 0}
-          className={[
-            "inline-flex min-h-11 w-fit cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-text-dim)] hover:text-[var(--color-text)]",
-            enviando > 0 ? "pointer-events-none opacity-50" : "",
-          ].join(" ")}
-        >
-          <Clipe />
-          {enviando > 0 ? "Enviando…" : recibos.length ? "Anexar outro" : textoBotao}
-          <input
-            id={inputId}
-            type="file"
-            // Sem "image/*": listando os formatos que o servidor aceita, o
-            // iPhone converte HEIC em JPEG ao enviar, em vez de mandar HEIC
-            // (que Chrome e Android não abrem).
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            className="sr-only"
-            onChange={(event) => {
-              escolher(event.target.files);
-              event.target.value = "";
-            }}
+        <div className="flex flex-wrap gap-2">
+          {/*
+            Dois caminhos, porque são dois momentos: o recibo na mão agora
+            (câmera) e o que já está no rolo da câmera (galeria). Com um
+            seletor só, a escolha ficava com o sistema — e no Android ele
+            costuma abrir a galeria e esconder a câmera.
+
+            `capture` abre a câmera pelo próprio sistema e devolve a foto
+            pronta: o app não acessa a câmera, não pede permissão de câmera
+            no navegador e não consegue gravar nada por conta própria. É por
+            isso que não existe uma segunda permissão aqui — a pessoa tira a
+            foto e escolhe enviar, uma ação de cada vez.
+          */}
+          <Anexo
+            id={inputId + "-camera"}
+            rotulo={enviando > 0 ? "Enviando…" : "Tirar foto"}
+            desativado={enviando > 0}
+            camera
+            onEscolher={escolher}
           />
-        </label>
+          <Anexo
+            id={inputId + "-galeria"}
+            rotulo="Escolher da galeria"
+            desativado={enviando > 0}
+            onEscolher={escolher}
+          />
+        </div>
       ) : (
         <Button variant="ghost" className="min-h-11 w-fit" onClick={() => setExplicando(true)}>
           <Clipe />
@@ -245,6 +249,71 @@ export function AnexarRecibos({
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * Um campo de arquivo com cara de botão. `<label>` em vez de botão com
+ * click(): no iOS, abrir a câmera exige que o toque seja direto no campo.
+ */
+function Anexo({
+  id,
+  rotulo,
+  desativado,
+  camera = false,
+  onEscolher,
+}: {
+  id: string;
+  rotulo: string;
+  desativado: boolean;
+  camera?: boolean;
+  onEscolher: (arquivos: FileList | null) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      aria-disabled={desativado}
+      className={[
+        "inline-flex min-h-11 w-fit cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-text-dim)] hover:text-[var(--color-text)]",
+        desativado ? "pointer-events-none opacity-50" : "",
+      ].join(" ")}
+    >
+      {camera ? <Camera /> : <Clipe />}
+      {rotulo}
+      <input
+        id={id}
+        type="file"
+        // Sem "image/*": listando os formatos que o servidor aceita, o
+        // iPhone converte HEIC em JPEG ao enviar, em vez de mandar HEIC
+        // (que Chrome e Android não abrem).
+        accept="image/jpeg,image/png,image/webp"
+        // "environment" é a câmera de trás — a que fotografa papel.
+        {...(camera ? { capture: "environment" as const } : { multiple: true })}
+        className="sr-only"
+        onChange={(event) => {
+          onEscolher(event.target.files);
+          event.target.value = "";
+        }}
+      />
+    </label>
+  );
+}
+
+function Camera({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
   );
 }
 

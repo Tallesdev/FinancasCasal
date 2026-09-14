@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { createClient as criarClienteSupabase } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
 import { r2Configurado } from "@/lib/r2";
+import { erro } from "@/lib/rotas";
+
+export { SEM_SESSAO, clienteAdmin, erro, sessao } from "@/lib/rotas";
 
 /**
  * O que as rotas de recibo têm em comum. SÓ DO SERVIDOR.
@@ -9,7 +9,7 @@ import { r2Configurado } from "@/lib/r2";
 
 /**
  * Teto do arquivo que chega no R2. A foto é comprimida no navegador pra
- * algumas centenas de KB (lib/imagem.ts); 3 MB é folga pro caso de a
+ * algumas centenas de KB (lib/recibos.ts); 3 MB é folga pro caso de a
  * compressão não rodar, não meta.
  */
 export const TAMANHO_MAXIMO = 3 * 1024 * 1024;
@@ -29,35 +29,6 @@ export function recibosAtivos() {
   return r2Configurado() && Boolean(process.env.SUPABASE_SECRET_KEY);
 }
 
-/** Ignora RLS e grants. Só pra gravar o que a pessoa não pode gravar sozinha. */
-export function clienteAdmin() {
-  return criarClienteSupabase(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
-}
-
-/**
- * Sessão de quem chamou. O cliente devolvido carrega o token dela, então
- * toda consulta feita com ele passa pela RLS — é o que garante que um
- * recibo de outra pessoa simplesmente não é encontrado.
- */
-export async function sessao() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-  return userId ? { supabase, userId } : null;
-}
-
-export function erro(mensagem: string, status: number, detalhe?: string) {
-  return NextResponse.json(
-    detalhe ? { error: mensagem, detalhe: detalhe.slice(0, 300) } : { error: mensagem },
-    { status }
-  );
-}
-
-export const SEM_SESSAO = () => erro("Entre na sua conta.", 401);
 export const DESLIGADO = () =>
   erro("Guardar recibos ainda não está configurado neste app.", 503);
 

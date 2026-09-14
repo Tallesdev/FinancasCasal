@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
+import { AvisoCookies } from "@/components/AvisoCookies";
 import "./globals.css";
 
 /* Fontes servidas pelo próprio app (next/font baixa no build). Antes vinham
@@ -62,7 +63,10 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${display.variable} ${sans.variable} ${mono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        <AvisoCookies />
+      </body>
     </html>
   );
 }

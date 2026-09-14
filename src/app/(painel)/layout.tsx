@@ -7,6 +7,7 @@ import { Nav } from "@/components/Nav";
 import { SignOutButton } from "@/components/SignOutButton";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
+import { AceiteTermos } from "@/components/AceiteTermos";
 import { iaConfigurada } from "@/lib/ia";
 import { recibosAtivos } from "@/lib/recibos-servidor";
 import type { Household, Profile } from "@/lib/types";
@@ -68,6 +69,7 @@ export default async function PainelLayout({
       }}
     >
       <RegisterServiceWorker />
+      <AceiteTermos />
       <div className="flex min-h-dvh">
         <Nav />
         <div className="flex min-w-0 flex-1 flex-col">

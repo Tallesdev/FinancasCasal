@@ -76,22 +76,63 @@ export default function PrivacidadePage() {
           a foto que você anexa fica guardada para que você possa consultá-la,
           por exemplo na declaração de imposto de renda. Antes de subir, ela é
           reduzida no seu aparelho. Guardamos também a data e a que gasto ela
-          pertence. Se você tocar em &ldquo;Ler recibo&rdquo;, a foto é enviada
+          pertence. A câmera só abre quando você toca em &ldquo;Tirar
+          foto&rdquo;, e quem fotografa é o app de câmera do seu aparelho: o
+          RumoFácil não acessa a câmera por conta própria, não grava vídeo e
+          não vê nada antes de você escolher enviar. Se você tocar em &ldquo;Ler recibo&rdquo;, a foto é enviada
           a um provedor de inteligência artificial que sugere descrição, valor
           e data — a sugestão só vira dado se você salvar o gasto. Ver também
           &ldquo;Dados de saúde em recibos&rdquo;.
         </p>
         <p>
           <strong className="text-[var(--color-text)]">No seu aparelho:</strong>{" "}
-          duas preferências de tela — se você está vendo só os seus números ou
-          os da casa, e se os valores estão ocultos. Elas ficam no seu
-          navegador e não são enviadas.
+          preferências de tela e o cookie que mantém você conectado. A lista
+          completa está em &ldquo;Cookies e o que fica no seu aparelho&rdquo;.
         </p>
         <p>
           <strong className="text-[var(--color-text)]">O que não coletamos:</strong>{" "}
           número de cartão, número de conta, senha de banco ou acesso ao seu
           banco. Não usamos rastreadores de publicidade nem ferramentas de
           análise de comportamento.
+        </p>
+      </Secao>
+
+      <Secao titulo="Cookies e o que fica no seu aparelho">
+        <p>
+          Usamos só o que é necessário para o app funcionar.{" "}
+          <strong className="text-[var(--color-text)]">
+            Não há cookie de publicidade, de rastreamento ou de medição de
+            audiência
+          </strong>{" "}
+          — nem nossos, nem de terceiros.
+        </p>
+        <p>
+          <strong className="text-[var(--color-text)]">Cookie de sessão</strong>{" "}
+          (criado pelo Supabase, nosso provedor de autenticação): guarda a prova
+          de que você entrou na sua conta. Sem ele, cada tela pediria login de
+          novo. Ele se renova enquanto você usa o app e é apagado quando você
+          sai da conta.
+        </p>
+        <p>
+          <strong className="text-[var(--color-text)]">
+            No armazenamento do navegador
+          </strong>{" "}
+          ficam três preferências, que nunca são enviadas para nós: se você está
+          vendo só os seus números ou os da casa, se os valores estão ocultos, e
+          se você já fechou o aviso sobre esta seção.
+        </p>
+        <p>
+          Por isso não pedimos sua permissão para cookies: a lei dispensa
+          consentimento para o que é estritamente necessário, e pedir permissão
+          para algo que você não pode recusar (e seguir usando o app) seria uma
+          escolha de mentira. O que a lei pede aqui é explicar — é o que esta
+          seção faz. Se um dia entrar qualquer cookie que não seja necessário,
+          ele virá com pedido de permissão, recusável.
+        </p>
+        <p>
+          Você pode apagar tudo isso a qualquer momento limpando os dados do
+          site no seu navegador. Isso desconecta sua conta, mas não apaga nada
+          do que você lançou.
         </p>
       </Secao>
 
@@ -215,8 +256,10 @@ export default function PrivacidadePage() {
 
       <Secao titulo="Mudanças nesta política">
         <p>
-          Se esta política mudar de forma importante, avisaremos no app. A data
-          da versão em vigor fica no topo desta página.
+          Se esta política mudar de forma importante, avisaremos no app e
+          pediremos que você leia e aceite a nova versão — guardamos qual
+          versão você aceitou e quando. A data da versão em vigor fica no topo
+          desta página.
         </p>
       </Secao>
     </PaginaLegal>

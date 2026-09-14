@@ -54,11 +54,35 @@ aba pra não perder o formulário). O banco grava `terms_version` e
 `terms_accepted_at`.
 
 A versão mora em `TERMOS_VERSAO` (`src/lib/legal.ts`). **Mudança importante
-nos textos = subir a versão.** Quando isso acontecer, dá pra pedir novo
-aceite a quem aceitou a versão antiga — ainda não existe essa tela.
+nos textos = subir a versão.**
 
-**Contas anteriores à migração 008** (Talles e Duda) ficam com as colunas
-nulas. Não é erro: nasceram antes de existir termo.
+**Quem já tinha conta é avisado** (13/09/2026): se `terms_version` do perfil
+é diferente da atual, uma faixa aparece no topo do painel com os links e o
+botão "Li e aceito". Quem grava é `/api/termos/aceitar`, com a chave
+secreta — as colunas de aceite ficam fora dos grants de quem está logado
+(§7), pra ninguém registrar aceite de versão que não leu. A faixa avisa, não
+bloqueia: travar o app seria transformar informação em barreira.
+
+**Contas anteriores à migração 008** (Talles e Duda) nasceram com as colunas
+nulas — e caem na mesma faixa de aceite, com o texto "sua conta é anterior
+aos nossos termos".
+
+## 2b. Cookies
+
+Só o necessário: o cookie de sessão do Supabase e três preferências no
+`localStorage` (escopo, ocultar valores, e se a barra de aviso já foi
+fechada). Nenhum rastreador, nenhuma medição de audiência — conferido no
+código.
+
+**Por isso não existe "aceitar cookies".** A LGPD e a orientação da ANPD
+dispensam consentimento para cookie estritamente necessário; pedir permissão
+para algo que a pessoa não pode recusar e seguir usando seria consentimento
+de mentira. O que a lei exige é transparência: há uma seção própria em
+`/privacidade` e uma barra informativa (`AvisoCookies.tsx`) que aparece uma
+vez e some ao ser fechada.
+
+**Se um dia entrar cookie não necessário** (analytics, por exemplo), aí sim
+precisa de pedido de permissão recusável, antes de gravar qualquer coisa.
 
 ## 3. Política de privacidade e termos de uso
 
@@ -189,8 +213,6 @@ não brecha.
 Em ordem de importância:
 
 - **Revisão profissional dos textos** antes de divulgar amplamente.
-- **Pedir novo aceite quando os termos mudarem** — só vira necessário na
-  primeira mudança de versão.
 - **SMTP próprio** — pendente desde a Fase B; sem ele, "esqueci minha senha"
   e cadastro dependem de um remetente que manda poucos e-mails por hora.
 
@@ -202,6 +224,7 @@ Em ordem de importância:
 | Informar o que coleta e para quê | `/privacidade` |
 | Base legal | execução de contrato; consentimento separado e opcional pro recibo |
 | Revogar consentimento | Ajustes → Recibos |
+| Cookies | só necessários; seção própria em `/privacidade` e aviso no app |
 | Informar transferência internacional | `/privacidade` — Groq, Cloudflare |
 | Dado sensível (saúde em recibo) | consentimento específico, conferido no servidor; retirar apaga |
 | Informar com quem compartilha | `/privacidade` — casa e provedores |
