@@ -270,7 +270,11 @@ export default function GastosPage() {
     setDraft({
       id: expense.id,
       description: expense.description,
-      amount: String(expense.amount),
+      // Parcelado guarda o valor da parcela; o formulário mostra o total.
+      amount:
+        expense.kind === "fixed_installment" && expense.installments_total
+          ? String(expense.amount * expense.installments_total)
+          : String(expense.amount),
       payment_method: expense.payment_method,
       kind: expense.kind,
       card_id: expense.card_id ?? "",
@@ -405,10 +409,17 @@ export default function GastosPage() {
     )
       return setFormError("O fim não pode ser antes do começo.");
 
+    // No parcelado a pessoa digita o valor total da compra; guardamos o
+    // valor de cada parcela, que é o que o resto do app espera.
+    const amountToSave =
+      draft.kind === "fixed_installment"
+        ? Math.round((amount / installments) * 100) / 100
+        : amount;
+
     // O formato de cada tipo precisa bater com as constraints do banco.
     const payload = {
       description,
-      amount,
+      amount: amountToSave,
       payment_method: draft.payment_method,
       kind: draft.kind,
       card_id: draft.payment_method === "card" ? draft.card_id : null,
@@ -748,16 +759,17 @@ function ExpenseForm({
   const amount = Number(draft.amount.replace(",", "."));
   const installments = Number(draft.installments_total);
 
-  // Prévia do parcelamento: quanto no total e em que mês termina.
+  // Prévia do parcelamento: no parcelado o valor digitado é o total da
+  // compra, dividido pelas parcelas para achar o valor de cada uma.
   const preview =
     draft.kind === "fixed_installment" &&
     installments >= 2 &&
     Number.isFinite(amount) &&
     amount > 0 &&
     draft.start_date
-      ? `${installments}x de ${money(amount)} — ${money(
-          amount * installments
-        )} no total, termina em ${monthLabel(
+      ? `${installments}x de ${money(
+          Math.round((amount / installments) * 100) / 100
+        )} — ${money(amount)} no total, termina em ${monthLabel(
           addMonths(firstDayOfMonth(draft.start_date), installments - 1)
         )}`
       : null;
@@ -782,10 +794,10 @@ function ExpenseForm({
       </Field>
 
       <Field
-        label="Valor"
+        label={draft.kind === "fixed_installment" ? "Valor total" : "Valor"}
         hint={
           draft.kind === "fixed_installment"
-            ? "O valor de uma parcela, não o total."
+            ? "O valor total da compra. Nós dividimos pelas parcelas."
             : draft.kind === "fixed_recurring"
               ? "O valor que se repete todo mês."
               : undefined

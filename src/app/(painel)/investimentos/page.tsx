@@ -91,6 +91,8 @@ export default function InvestimentosPage() {
     })
     .reduce((sum, item) => sum + Number(item.amount), 0);
 
+  const total = visible.reduce((sum, item) => sum + Number(item.amount), 0);
+
   async function save() {
     if (!draft) return;
 
@@ -155,13 +157,24 @@ export default function InvestimentosPage() {
         }
       />
 
-      <div className="card flex items-baseline justify-between gap-3 px-4 py-4">
-        <span className="text-sm text-[var(--color-text-dim)]">
-          Aporte mensal
-        </span>
-        <strong className="money text-xl text-[var(--color-invest)]">
-          {money(monthly)}
-        </strong>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="card flex items-baseline justify-between gap-3 px-4 py-4">
+          <span className="text-sm text-[var(--color-text-dim)]">
+            Aporte mensal
+          </span>
+          <strong className="money text-xl text-[var(--color-invest)]">
+            {money(monthly)}
+          </strong>
+        </div>
+
+        <div className="card flex items-baseline justify-between gap-3 px-4 py-4">
+          <span className="text-sm text-[var(--color-text-dim)]">
+            Total investido
+          </span>
+          <strong className="money text-xl text-[var(--color-invest)]">
+            {money(total)}
+          </strong>
+        </div>
       </div>
 
       {error && <ErrorNote>{error}</ErrorNote>}
