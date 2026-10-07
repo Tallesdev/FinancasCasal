@@ -1,29 +1,35 @@
 "use client";
 
 import { useScope } from "./ScopeProvider";
+import type { HouseholdKind } from "@/lib/types";
 
 const firstName = (full: string) => full.split(" ")[0];
 
 /**
- * Rótulo do escopo "todos", pelo tamanho da casa:
+ * Rótulo do escopo "todos":
+ *   casa do tipo empresa → "Empresa", sempre
  *   2 pessoas → "A + B" (o caso do casal, fica bonito)
  *   3 ou mais → "Todos" (seis nomes não cabem num toggle de celular)
  */
-export function labelTodos(members: { display_name: string }[]) {
+export function labelTodos(
+  members: { display_name: string }[],
+  household?: { kind?: HouseholdKind } | null
+) {
+  if (household?.kind === "empresa") return "Empresa";
   if (members.length === 2)
     return `${firstName(members[0].display_name)} + ${firstName(members[1].display_name)}`;
   return "Todos";
 }
 
 export function ScopeToggle() {
-  const { scope, setScope, me, members } = useScope();
+  const { scope, setScope, me, members, household } = useScope();
 
   // Sozinho na casa não existe escolha entre "eu" e "eu".
   if (members.length < 2) return null;
 
   const options: { value: "me" | "us"; label: string }[] = [
     { value: "me", label: firstName(me.display_name) },
-    { value: "us", label: labelTodos(members) },
+    { value: "us", label: labelTodos(members, household) },
   ];
 
   return (

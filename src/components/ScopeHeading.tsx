@@ -12,10 +12,10 @@ function listar(nomes: string[]) {
 }
 
 export function ScopeHeading() {
-  const { scope, me, members } = useScope();
+  const { scope, me, members, household } = useScope();
 
   const todos = scope === "us";
-  const title = todos ? labelTodos(members) : firstName(me.display_name);
+  const title = todos ? labelTodos(members, household) : firstName(me.display_name);
 
   const subtitle = todos
     ? `${listar(members.map((m) => firstName(m.display_name)))} — somados.`

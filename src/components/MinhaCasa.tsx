@@ -4,10 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "./ScopeProvider";
-import { TextField } from "./form/Field";
+import { SegmentedField, TextField } from "./form/Field";
 import { Button, ColorPicker, DeleteButton, Dot, ErrorNote, Field } from "./ui";
 import { formatDate } from "@/lib/format";
-import type { Household, HouseholdInvite } from "@/lib/types";
+import {
+  HOUSEHOLD_KIND_LABEL,
+  type Household,
+  type HouseholdInvite,
+  type HouseholdKind,
+} from "@/lib/types";
 
 const LIMITE = 6;
 
@@ -29,6 +34,7 @@ export function MinhaCasa() {
   const [casa, setCasa] = useState<Household | null>(null);
   const [nome, setNome] = useState("");
   const [cor, setCor] = useState("#C77DFF");
+  const [tipo, setTipo] = useState<HouseholdKind>("familia");
   const [convites, setConvites] = useState<HouseholdInvite[]>([]);
   const [emailConvite, setEmailConvite] = useState("");
   const [link, setLink] = useState<string | null>(null);
@@ -40,7 +46,7 @@ export function MinhaCasa() {
   const load = useCallback(async () => {
     // A RLS devolve só a minha casa e só os convites dela.
     const [casaResult, convitesResult] = await Promise.all([
-      supabase.from("households").select("id, name, color").limit(1).maybeSingle(),
+      supabase.from("households").select("id, name, color, kind").limit(1).maybeSingle(),
       supabase
         .from("household_invites")
         .select("*")
@@ -53,6 +59,7 @@ export function MinhaCasa() {
     setCasa(c);
     setNome(c?.name ?? "");
     if (c?.color) setCor(c.color);
+    if (c?.kind) setTipo(c.kind);
     // Tabela ausente = migração 005 não rodou. Não é motivo pra quebrar
     // a tela de ajustes inteira; a seção só fica sem convites.
     setConvites((convitesResult.data ?? []) as HouseholdInvite[]);
@@ -65,7 +72,8 @@ export function MinhaCasa() {
   const vagas = LIMITE - members.length - convites.length;
 
   const mudouCasa =
-    Boolean(casa) && (nome.trim() !== casa!.name || cor !== casa!.color);
+    Boolean(casa) &&
+    (nome.trim() !== casa!.name || cor !== casa!.color || tipo !== casa!.kind);
 
   async function salvarCasa() {
     const name = nome.trim();
@@ -74,11 +82,11 @@ export function MinhaCasa() {
     setError(null);
     const { error: e } = await supabase
       .from("households")
-      .update({ name, color: cor })
+      .update({ name, color: cor, kind: tipo })
       .eq("id", casa.id);
     setSaving(false);
     if (e) return setError("Não deu para salvar. Tente de novo.");
-    setCasa({ ...casa, name, color: cor });
+    setCasa({ ...casa, name, color: cor, kind: tipo });
     // O layout lê a casa no servidor: sem isso a cor nova só apareceria
     // na próxima abertura do app.
     router.refresh();
@@ -184,6 +192,16 @@ export function MinhaCasa() {
           >
             <ColorPicker value={cor} onChange={setCor} />
           </Field>
+
+          <SegmentedField
+            label="Tipo de casa"
+            value={tipo}
+            onChange={setTipo}
+            options={Object.entries(HOUSEHOLD_KIND_LABEL).map(([value, label]) => ({
+              value: value as HouseholdKind,
+              label,
+            }))}
+          />
 
           <div>
             <Button

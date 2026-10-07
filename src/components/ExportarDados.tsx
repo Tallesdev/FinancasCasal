@@ -38,8 +38,8 @@ const RECORRENCIA: Record<string, string> = {
  */
 export function ExportarDados() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, household } = useScope();
-  const [baixando, setBaixando] = useState<"json" | "csv" | null>(null);
+  const { me, household, recursos } = useScope();
+  const [baixando, setBaixando] = useState<"json" | "csv" | "recibos" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function coletar() {
@@ -104,7 +104,7 @@ export function ExportarDados() {
         contas_bancarias: d.contas,
         importacoes: d.importacoes,
         recibos: {
-          observacao: "Registro de cada recibo. As fotos se baixam na tela Recibos.",
+          observacao: 'Registro de cada recibo. As fotos saem no botão "Fotos dos recibos", aqui mesmo.',
           itens: d.recibos,
         },
       };
@@ -191,6 +191,24 @@ export function ExportarDados() {
     }
   }
 
+  async function recibosZip() {
+    setBaixando("recibos");
+    setError(null);
+    try {
+      const resposta = await fetch("/api/recibos/exportar");
+      if (resposta.status === 404) {
+        setError("Nenhum recibo para exportar ainda.");
+        return;
+      }
+      if (!resposta.ok) throw new Error();
+      baixar(`rumofacil-recibos-${toISODate(new Date())}.zip`, await resposta.blob());
+    } catch {
+      setError("Não deu para baixar as fotos. Tente de novo.");
+    } finally {
+      setBaixando(null);
+    }
+  }
+
   return (
     <section className="card flex flex-col gap-4 px-4 py-5">
       <div>
@@ -210,6 +228,11 @@ export function ExportarDados() {
         <Button variant="ghost" onClick={json} disabled={baixando !== null}>
           {baixando === "json" ? "Gerando…" : "Tudo (JSON)"}
         </Button>
+        {recursos.recibos && (
+          <Button variant="ghost" onClick={recibosZip} disabled={baixando !== null}>
+            {baixando === "recibos" ? "Baixando…" : "Fotos dos recibos (.zip)"}
+          </Button>
+        )}
       </div>
       <p className="-mt-2 text-xs text-[var(--color-text-faint)]">
         A planilha abre no Excel e pode ser importada de volta. O JSON tem tudo, inclusive
@@ -219,8 +242,10 @@ export function ExportarDados() {
   );
 }
 
-function baixar(nome: string, conteudo: string, tipo: string) {
-  const url = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+function baixar(nome: string, conteudo: string | Blob, tipo?: string) {
+  const url = URL.createObjectURL(
+    conteudo instanceof Blob ? conteudo : new Blob([conteudo], { type: tipo })
+  );
   const a = document.createElement("a");
   a.href = url;
   a.download = nome;
