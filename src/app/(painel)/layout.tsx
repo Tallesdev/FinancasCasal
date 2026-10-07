@@ -33,7 +33,7 @@ export default async function PainelLayout({
   const [{ data: profiles }, { data: casa }] = await Promise.all([
     supabase.from("profiles").select("*"),
     // A RLS devolve só a casa de quem está logado.
-    supabase.from("households").select("id, name, color").maybeSingle(),
+    supabase.from("households").select("id, name, color, kind").maybeSingle(),
   ]);
 
   const me = (profiles ?? []).find((p) => p.id === user.id) as Profile | undefined;

@@ -1628,6 +1628,23 @@ exception when duplicate_object then null; end $$;
 
 commit;
 
+-- =====================================================================
+-- Tipo de casa (família ou empresa)
+-- Idêntico a supabase/migrations/010_tipo_de_casa.sql.
+-- =====================================================================
+begin;
+
+do $$ begin
+  create type public.household_kind as enum ('familia', 'empresa');
+exception when duplicate_object then null; end $$;
+
+alter table public.households
+  add column if not exists kind public.household_kind not null default 'familia';
+
+grant update (kind) on public.households to authenticated;
+
+commit;
+
 
 -- =====================================================================
 -- LGPD, importação de planilha e correção de segurança
@@ -1772,9 +1789,11 @@ revoke update on public.profiles from anon, authenticated;
 grant update (display_name, color, anchor_card_id, receipts_consent_at)
   on public.profiles to authenticated;
 
--- households: nome e cor. (id nunca, mesmo que a FK já barrasse.)
+-- households: nome, cor e tipo. (id nunca, mesmo que a FK já barrasse.)
+-- kind entrou na migração 010; esta lista é editada no lugar a cada
+-- coluna nova, não duplicada — é ela quem diz o que pode ser atualizado.
 revoke update on public.households from anon, authenticated;
-grant update (name, color) on public.households to authenticated;
+grant update (name, color, kind) on public.households to authenticated;
 
 -- household_invites: só revogar. Sem isto um membro podia trocar o código
 -- por um previsível ou esticar a validade pra sempre.

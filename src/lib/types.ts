@@ -264,12 +264,21 @@ export type InvestmentInWindowRow = {
   asset_type: string;
 };
 
-/** A casa. Nome e cor são editáveis; qualquer membro muda. */
+export type HouseholdKind = "familia" | "empresa";
+
+export const HOUSEHOLD_KIND_LABEL: Record<HouseholdKind, string> = {
+  familia: "Família",
+  empresa: "Empresa",
+};
+
+/** A casa. Nome, cor e tipo são editáveis; qualquer membro muda. */
 export type Household = {
   id: string;
   name: string;
   /** Cor do escopo "todos" — identidade da casa, como a pessoa tem a dela. */
   color: string;
+  /** "empresa" troca o rótulo do escopo "todos" por "Empresa". */
+  kind: HouseholdKind;
 };
 
 /** Convite por link (household_invites). O token é o que vai na URL. */
