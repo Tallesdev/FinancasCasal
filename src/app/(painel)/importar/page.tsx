@@ -10,6 +10,7 @@ import {
   DeleteButton,
   ErrorNote,
   PageTitle,
+  VOLTAR_AJUSTES,
   inputClass,
 } from "@/components/ui";
 import { formatDate, money } from "@/lib/format";
@@ -439,6 +440,7 @@ export default function ImportarPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle
+        voltar={VOLTAR_AJUSTES}
         title="Importar planilha"
         description="Traga os lançamentos de uma planilha. Você confere tudo antes de entrar, e dá pra desfazer depois."
       />
