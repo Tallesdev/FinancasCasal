@@ -17,8 +17,8 @@ export const runtime = "nodejs";
  * Passo 3 do envio: o navegador diz "subi", e o servidor confere no R2 em
  * vez de acreditar. Só então marca uploaded_at.
  *
- * O link assinado não limita tamanho nem tipo — quem limita é esta
- * conferência. Arquivo fora da regra é apagado na hora.
+ * O passo 2 já limita tamanho e tipo; esta conferência fica como segunda
+ * trava. Arquivo fora da regra é apagado na hora.
  *
  * Pode ser chamada de novo pra um envio que ficou "não concluído".
  */

@@ -43,15 +43,14 @@ function urlDoObjeto(chave: string) {
   return new URL(`${base()}/${chave.split("/").map(encodeURIComponent).join("/")}`);
 }
 
-/** Link pro navegador fazer o PUT do arquivo direto no R2. */
-export async function assinarEnvio(chave: string, tipo: string) {
-  const url = urlDoObjeto(chave);
-  url.searchParams.set("X-Amz-Expires", String(VALIDADE_SEGUNDOS));
-  const assinado = await cliente().sign(
-    new Request(url, { method: "PUT", headers: { "Content-Type": tipo } }),
-    { aws: { signQuery: true } }
-  );
-  return assinado.url;
+/** Grava o arquivo. Quem chama já conferiu sessão, tipo e tamanho. */
+export async function enviarObjeto(chave: string, tipo: string, dados: ArrayBuffer) {
+  const r = await cliente().fetch(urlDoObjeto(chave), {
+    method: "PUT",
+    headers: { "Content-Type": tipo },
+    body: dados,
+  });
+  if (!r.ok) throw new Error(`R2 PUT ${r.status}`);
 }
 
 /**

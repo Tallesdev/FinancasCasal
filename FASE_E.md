@@ -86,6 +86,13 @@ resto do app segue igual.
 
 ### 3.1 Por que o upload não passa pelo servidor
 
+> **Revisto em 14/10/2026: agora passa.** O `PUT` direto do celular no R2
+> falhava com "Failed to fetch" mesmo com o CORS do bucket certo, e o
+> navegador não diz o motivo. Como a foto já sai do aparelho comprimida
+> (§3.4, algumas centenas de KB), o limite de corpo da Vercel deixou de
+> pesar: o navegador manda a foto para `/api/recibos/[id]/enviar`, e o
+> servidor grava no R2. O texto abaixo é a decisão original.
+
 O caminho óbvio (navegador → Vercel → R2) esbarra em dois limites reais da
 Vercel: tamanho de corpo na função serverless e tempo de execução. Foto de
 celular tem 3–8 MB; alguns recibos são fotografados de perto, em sequência.
@@ -329,7 +336,8 @@ o caminho é limite por conta, não desligar a feature.
 | `src/lib/r2.ts` | assinar envio/leitura, conferir, apagar, apagar por prefixo |
 | `src/lib/recibos-servidor.ts` | sessão, cliente admin, `recibosAtivos()` |
 | `src/lib/recibos.ts` | navegador: comprimir, enviar em 3 passos, apagar, ler |
-| `src/app/api/recibos/assinar` | cria a linha e assina o PUT (confere consentimento) |
+| `src/app/api/recibos/assinar` | confere tipo, tamanho e consentimento e cria a linha |
+| `src/app/api/recibos/[id]/enviar` | recebe a foto comprimida e grava no R2 (desde 14/10) |
 | `src/app/api/recibos/[id]/confirmar` | HEAD no R2, marca `uploaded_at` |
 | `src/app/api/recibos/[id]/arquivo` | 302 pra link de leitura de 5 min (`?baixar=1`) |
 | `src/app/api/recibos/[id]` | DELETE: arquivo primeiro, linha depois |
