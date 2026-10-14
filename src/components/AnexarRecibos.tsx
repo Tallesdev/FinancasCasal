@@ -286,10 +286,8 @@ function Anexo({
         // Precisa listar heic/heif também: sem eles aqui, o seletor de
         // galeria do Android ESCONDE as fotos tiradas em "Alta eficiência"
         // (o padrão de câmera em vários aparelhos) — elas continuam na
-        // galeria, só não aparecem pra escolher. Se o navegador não
-        // conseguir abrir o arquivo depois (Chrome/Android às vezes não
-        // abrem HEIC), abrirImagem() em recibos.ts já dá o aviso específico
-        // de HEIC — a pessoa não fica sem explicação.
+        // galeria, só não aparecem pra escolher. O Chrome não decodifica
+        // HEIC; abrirImagem() em recibos.ts converte nesse caso.
         accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
         // "environment" é a câmera de trás — a que fotografa papel.
         {...(camera ? { capture: "environment" as const } : { multiple: true })}

@@ -112,19 +112,38 @@ async function abrirImagem(arquivo: File, ficha: string): Promise<{
   } catch (e) {
     URL.revokeObjectURL(url);
     falhas.push(`img: ${curto(e)}`);
+  }
 
-    // HEIC é o formato padrão do iPhone ("Alta eficiência"). O Safari abre;
-    // Chrome e Android, quase nunca — e o arquivo chega com o tipo vazio ou
-    // image/heic, que o canvas não decodifica.
-    const pareceHeic =
-      /heic|heif/i.test(arquivo.type) || /\.(heic|heif)$/i.test(arquivo.name);
+  // HEIC ("Alta eficiência") é o padrão do iPhone e de vários Android, como
+  // os Samsung. O Safari abre sozinho; o Chrome não abre nem no Android. Aí
+  // o decodificador vem junto do app — só neste caso, porque pesa uns 3 MB.
+  const heic = await ehHeic(arquivo);
+  if (heic) {
+    try {
+      const { heicTo } = await import("heic-to");
+      const b = await heicTo({ blob: arquivo, type: "bitmap" });
+      return { fonte: b, width: b.width, height: b.height, liberar: () => b.close() };
+    } catch (e) {
+      falhas.push(`heic: ${curto(e)}`);
+    }
+  }
 
-    throw new ErroRecibo(
-      pareceHeic
-        ? "Este navegador não abre fotos HEIC (o formato padrão do iPhone). Tire a foto pelo próprio app, ou mude em Ajustes → Câmera → Formatos para “Mais compatível”."
-        : "Não deu para abrir essa foto neste aparelho. Tente tirar a foto de novo ou escolher outra.",
-      `${ficha} · ${falhas.join(" | ")}`
-    );
+  throw new ErroRecibo(
+    heic
+      ? "Não deu para abrir essa foto HEIC neste aparelho. Tente de novo; se continuar, mude a câmera para salvar em JPEG (no Samsung: Câmera → Configurações → Formatos → desligue “Fotos de alta eficiência”)."
+      : "Não deu para abrir essa foto neste aparelho. Tente tirar a foto de novo ou escolher outra.",
+    `${ficha} · ${falhas.join(" | ")}`
+  );
+}
+
+/** O tipo às vezes chega vazio: na dúvida, confere a assinatura do arquivo. */
+async function ehHeic(arquivo: File) {
+  if (/heic|heif/i.test(arquivo.type) || /\.(heic|heif)$/i.test(arquivo.name)) return true;
+  try {
+    const marca = new TextDecoder().decode(await arquivo.slice(8, 12).arrayBuffer());
+    return ["heic", "heix", "hevc", "hevx", "mif1", "msf1"].includes(marca);
+  } catch {
+    return false;
   }
 }
 
