@@ -13,6 +13,7 @@ import {
   Field,
   Loading,
   PageTitle,
+  VOLTAR_AJUSTES,
   Sheet,
   Tag,
   inputClass,
@@ -159,6 +160,7 @@ export default function CartoesPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle
+        voltar={VOLTAR_AJUSTES}
         title="Cartões"
         description="Seus cartões, só seus. A outra conta não enxerga esta lista."
         action={<Button onClick={() => setDraft(EMPTY)}>Novo cartão</Button>}

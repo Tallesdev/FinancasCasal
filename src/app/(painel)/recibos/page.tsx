@@ -12,6 +12,7 @@ import {
   ErrorNote,
   Loading,
   PageTitle,
+  VOLTAR_AJUSTES,
   Tag,
   inputClass,
 } from "@/components/ui";
@@ -170,7 +171,7 @@ export default function RecibosPage() {
   if (!recursos.recibos) {
     return (
       <div className="flex flex-col gap-6">
-        <PageTitle title="Recibos" />
+        <PageTitle voltar={VOLTAR_AJUSTES} title="Recibos" />
         <EmptyState
           title="Recibos ainda não estão ligados"
           description="Guardar fotos de recibos depende de um armazenamento que ainda não foi configurado neste app."
@@ -182,6 +183,7 @@ export default function RecibosPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle
+        voltar={VOLTAR_AJUSTES}
         title="Recibos"
         description="Suas fotos de recibo por ano — pra ter o comprovante na hora do imposto de renda. Só você vê."
       />

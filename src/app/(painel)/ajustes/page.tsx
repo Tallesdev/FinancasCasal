@@ -4,6 +4,7 @@ import { MinhaCasa } from "@/components/MinhaCasa";
 import { ConsentimentoRecibos } from "@/components/ConsentimentoRecibos";
 import { ExportarDados } from "@/components/ExportarDados";
 import { ExcluirConta } from "@/components/ExcluirConta";
+import { LinkVoltar } from "@/components/ui";
 
 /* No desktop os ajustes ficam na coluna lateral. No celular a barra de baixo
    é só para o dia a dia, então eles ganham esta página de entrada. */
@@ -41,6 +42,10 @@ export default function AjustesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
+        {/* No celular nenhuma aba de baixo fica marcada aqui. */}
+        <div>
+          <LinkVoltar href="/" rotulo="Início" soCelular />
+        </div>
         <span className="scope-rule mb-3 block h-1 w-10 rounded-full" />
         <h1 className="text-2xl font-bold">Ajustes</h1>
         <p className="mt-1 text-sm text-[var(--color-text-dim)]">

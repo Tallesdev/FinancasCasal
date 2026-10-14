@@ -169,6 +169,7 @@ export default function CicloPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle
+        voltar={{ href: "/relatorios", rotulo: "Relatórios" }}
         title="Pelo cartão"
         description="Quando o seu mês é definido pelo fechamento da fatura, não pelo calendário."
       />

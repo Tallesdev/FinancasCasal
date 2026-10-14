@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PALETTE } from "@/lib/palette";
 import { monthLabel } from "@/lib/format";
 
@@ -64,18 +65,69 @@ export function Button({
   return <button className={`${base} ${look} ${className}`} {...props} />;
 }
 
+export type Voltar = {
+  href: string;
+  rotulo: string;
+  /** No desktop a coluna lateral já leva a qualquer tela de ajustes. */
+  soCelular?: boolean;
+};
+
+/** As telas que no celular só se alcançam pela página de Ajustes. */
+export const VOLTAR_AJUSTES: Voltar = {
+  href: "/ajustes",
+  rotulo: "Ajustes",
+  soCelular: true,
+};
+
+/**
+ * Link pra tela de cima, não `router.back()`: quem abre o app direto numa
+ * tela (atalho, link, PWA) não tem histórico pra onde voltar.
+ */
+export function LinkVoltar({ href, rotulo, soCelular }: Voltar) {
+  return (
+    <Link
+      href={href}
+      className={[
+        "-ml-2 mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]",
+        soCelular ? "md:hidden" : "",
+      ].join(" ")}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+        aria-hidden="true"
+      >
+        <path d="m15 18-6-6 6-6" />
+      </svg>
+      {rotulo}
+    </Link>
+  );
+}
+
 export function PageTitle({
   title,
   description,
   action,
+  voltar,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  voltar?: Voltar;
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
+        {voltar && (
+          <div>
+            <LinkVoltar {...voltar} />
+          </div>
+        )}
         <span className="scope-rule mb-3 block h-1 w-10 rounded-full" />
         <h1 className="text-2xl font-bold">{title}</h1>
         {description && (

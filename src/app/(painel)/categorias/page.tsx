@@ -13,6 +13,7 @@ import {
   Field,
   Loading,
   PageTitle,
+  VOLTAR_AJUSTES,
   Sheet,
   Tag,
   inputClass,
@@ -130,6 +131,7 @@ export default function CategoriasPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle
+        voltar={VOLTAR_AJUSTES}
         title="Categorias"
         description="Sua lista. No relatório do casal, categorias de mesmo nome somam."
         action={<Button onClick={openNew}>Nova categoria</Button>}

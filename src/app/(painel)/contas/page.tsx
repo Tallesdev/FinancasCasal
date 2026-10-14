@@ -14,6 +14,7 @@ import {
   Field,
   Loading,
   PageTitle,
+  VOLTAR_AJUSTES,
   Sheet,
   Tag,
 } from "@/components/ui";
@@ -142,6 +143,7 @@ export default function ContasPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle
+        voltar={VOLTAR_AJUSTES}
         title="Contas"
         description="De onde o dinheiro sai. É o que liga um Pix à fatura do cartão."
         action={<Button onClick={openNew}>Nova conta</Button>}
