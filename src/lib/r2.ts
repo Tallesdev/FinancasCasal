@@ -43,11 +43,22 @@ function urlDoObjeto(chave: string) {
   return new URL(`${base()}/${chave.split("/").map(encodeURIComponent).join("/")}`);
 }
 
-/** Grava o arquivo. Quem chama já conferiu sessão, tipo e tamanho. */
+/**
+ * Grava o arquivo. Quem chama já conferiu sessão, tipo e tamanho.
+ *
+ * Assina e depois faz o fetch com o ArrayBuffer, em vez de `cliente().fetch`:
+ * dentro do Next, o Request que o aws4fetch monta sai como `chunked`, sem
+ * Content-Length, e o R2 recusa com 411.
+ */
 export async function enviarObjeto(chave: string, tipo: string, dados: ArrayBuffer) {
-  const r = await cliente().fetch(urlDoObjeto(chave), {
+  const assinado = await cliente().sign(urlDoObjeto(chave).toString(), {
     method: "PUT",
     headers: { "Content-Type": tipo },
+    body: dados,
+  });
+  const r = await fetch(assinado.url, {
+    method: "PUT",
+    headers: assinado.headers,
     body: dados,
   });
   if (!r.ok) throw new Error(`R2 PUT ${r.status}`);
