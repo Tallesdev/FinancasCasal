@@ -167,8 +167,8 @@ async function lerErro(r: Response, padrao: string): Promise<ErroRecibo> {
 
 /**
  * Os três passos do envio (FASE_E.md §3.1):
- *   1. o servidor cria a linha e assina um link de envio;
- *   2. o navegador sobe o arquivo direto no R2;
+ *   1. o servidor confere e cria a linha;
+ *   2. o navegador manda a foto ao servidor, que grava no R2;
  *   3. o servidor confere que chegou.
  */
 export async function enviarRecibo({
@@ -193,21 +193,20 @@ export async function enviarRecibo({
     }),
   });
   if (!r1.ok) throw await lerErro(r1, "Não deu para preparar o envio.");
-  const { recibo, url } = (await r1.json()) as { recibo: Receipt; url: string };
+  const { recibo } = (await r1.json()) as { recibo: Receipt };
 
   try {
-    const r2 = await fetch(url, {
+    const r2 = await fetch(`/api/recibos/${recibo.id}/enviar`, {
       method: "PUT",
       headers: { "Content-Type": foto.type || "image/jpeg" },
       body: foto,
     });
-    if (!r2.ok) throw new ErroRecibo("Não deu para enviar a foto.", `R2 ${r2.status}`);
+    if (!r2.ok) throw await lerErro(r2, "Não deu para enviar a foto.");
   } catch (e) {
     // Envio não chegou: apaga a linha pra não ficar "não concluído" à toa.
     await apagarRecibo(recibo.id).catch(() => {});
     if (e instanceof ErroRecibo) throw e;
-    // TypeError aqui é quase sempre CORS do bucket (FASE_E.md §2, item 4)
-    // ou falta de sinal — o navegador não diferencia os dois.
+    // TypeError aqui é falta de sinal: o pedido nem chegou ao app.
     throw new ErroRecibo(
       "Não deu para enviar a foto. Confira a conexão e tente de novo.",
       e instanceof Error ? e.message : String(e)

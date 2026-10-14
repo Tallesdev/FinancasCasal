@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { assinarEnvio } from "@/lib/r2";
 import {
   COLUNAS_PUBLICAS,
   DESLIGADO,
@@ -14,9 +13,8 @@ import {
 export const runtime = "nodejs";
 
 /**
- * Passo 1 do envio: cria a linha do recibo e devolve um link pro navegador
- * subir o arquivo DIRETO no R2 (FASE_E.md §3.1). O arquivo nunca passa pela
- * Vercel — o servidor só decide se pode.
+ * Passo 1 do envio: confere tipo, tamanho e consentimento e cria a linha do
+ * recibo. A foto vem no passo 2, por /api/recibos/[id]/enviar.
  *
  * Corpo: { tipo, tamanho, data (AAAA-MM-DD), expense_id? }
  */
@@ -77,5 +75,5 @@ export async function POST(request: Request) {
     return erro("Não deu para preparar o envio.", 500, falha?.message);
   }
 
-  return NextResponse.json({ recibo, url: await assinarEnvio(chave, tipo) });
+  return NextResponse.json({ recibo });
 }
