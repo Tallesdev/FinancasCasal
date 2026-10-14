@@ -219,6 +219,10 @@ relatório adicional; o mensal continua existindo do jeito que está.
 - **RF33** — A sobra da janela desconta **tudo** que saiu no período: fatura,
   Pix e aportes. A fatura aparece destacada à parte por ser o compromisso do
   vencimento, mas não é a única saída.
+- **RF34** `[DEFINIDO em 24/09/2026]` — O dashboard mostra, na visão por mês, o
+  **saldo acumulado**: a soma do que sobrou (ou faltou) desde o primeiro
+  lançamento até o mês visto. É o que deixa o app substituir a conferência no
+  banco para quem usa Pix — ver regra 11.
 
 ### P2 — Depois
 
@@ -260,6 +264,14 @@ relatório adicional; o mensal continua existindo do jeito que está.
    semana lança o que recebeu, no fim de semana em que recebeu. Não existe
    projeção de renda futura no app — um fim de semana sem trabalho é
    simplesmente um lançamento que não aconteceu.
+11. **O saldo acumulado é competência, não extrato bancário.** Ele soma renda
+   menos gastos menos aportes de todos os meses lançados, não o saldo real da
+   conta. No cartão isso já batia; no Pix, o saldo real depende de quando o
+   dinheiro de fato sai, que o app não acompanha. A premissa é: se os
+   lançamentos estão completos e corretos, este número **é** o dinheiro
+   livre — a divergência que sobrar é lançamento faltando, não erro de conta.
+   Não existe "saldo inicial" configurável: quem já tinha dinheiro guardado
+   antes de usar o app lança isso como uma renda avulsa na data em que começou.
 
 ### Estados que precisam existir
 
@@ -393,5 +405,6 @@ calendário.
 | Versão | Data | O que mudou |
 | --- | --- | --- |
 | v1.0 | 27/08/2026 | Versão inicial, escrita depois da Fase 1 |
+| v1.3 | 24/09/2026 | RF34 e regra 11: o dashboard ganha o saldo acumulado, soma de tudo que sobrou desde o primeiro lançamento — pensado para substituir a conferência no banco quando o gasto é no Pix. |
 | v1.2 | 04/09/2026 | RF32 e RF33: o dashboard ganha a régua do cartão, e a sobra da janela passa a descontar Pix e aportes além da fatura — antes era só renda menos fatura, um número que parecia saldo e não era. |
 | v1.1 | 03/09/2026 | Ciclo de fatura passa a ser só gasto de cartão (regra 7 reescrita); fatura vira dívida no fechamento (regra 9); renda semanal é lançamento avulso (regra 10); RF31, o cartão que define o mês. Contas bancárias sobrevivem com outro propósito: separar origem do gasto, já que a Duda usa duas. |

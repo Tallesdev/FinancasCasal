@@ -105,9 +105,11 @@ export default function DashboardPage() {
   const carregarMes = useCallback(async () => {
     setLoading(true);
 
-    // Seis meses até o mês visto, para o gráfico e o número do mês saírem
-    // da mesma consulta.
-    const from = addMonths(month, -5);
+    // Desde uma época bem antiga até o mês visto: o gráfico só usa os
+    // últimos 6 meses, mas o saldo acumulado precisa de tudo que já foi
+    // lançado. Cada linha é limitada pela própria data do lançamento, então
+    // isso não pesa a consulta.
+    const from = "2000-01-01";
 
     const [summaryResult, occurrencesResult] = await Promise.all([
       supabase.rpc("monthly_summary", { p_from: from, p_to: month }),
@@ -205,6 +207,23 @@ export default function DashboardPage() {
     expense: 0,
     investment: 0,
   };
+
+  /**
+   * Saldo acumulado: soma tudo que sobrou (ou faltou) desde o primeiro
+   * lançamento até o mês visto. É o que substitui olhar o banco — se os
+   * lançamentos estão certos, este número é o dinheiro livre de verdade.
+   */
+  const saldoAcumulado = useMemo(
+    () =>
+      summary
+        .filter((row) => userIds.includes(row.user_id))
+        .reduce(
+          (total, row) =>
+            total + Number(row.income) - Number(row.expense) - Number(row.investment),
+          0
+        ),
+    [summary, userIds]
+  );
 
   /**
    * Os quatro números e as duas listas saem daqui, venham do mês ou da
@@ -403,6 +422,31 @@ export default function DashboardPage() {
         <Loading />
       ) : (
         <>
+          {/* O saldo acumulado é mês a mês por natureza: não existe "saldo
+              acumulado da fatura". Só aparece na visão por mês. */}
+          {periodo === "mes" && (
+            <div className="card flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-4">
+              <div>
+                <p className="text-sm text-[var(--color-text-dim)]">
+                  Saldo acumulado
+                </p>
+                <p className="text-xs text-[var(--color-text-faint)]">
+                  Tudo que sobrou (ou faltou) desde o primeiro lançamento, até{" "}
+                  {monthLabel(month)}.
+                </p>
+              </div>
+              <strong
+                className="money text-2xl font-semibold sm:text-3xl"
+                style={{
+                  color:
+                    saldoAcumulado < 0 ? "var(--color-out)" : "var(--scope)",
+                }}
+              >
+                {money(saldoAcumulado)}
+              </strong>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label="Entrou" value={vista.income} tone="var(--color-in)" />
             <Stat
