@@ -44,7 +44,7 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [ ] F1.3 Trocar o tipo depois de criado: decidir regra e aplicar (hoje qualquer membro troca em Ajustes)
 - [ ] F1.4 Navegação da empresa: sem Investir, sem "Pelo cartão", sem relatório de ciclo, sem "cartão que define o mês"
 - [ ] F1.5 Textos da empresa: Renda → Recebimentos; Início → Faturou / Gastou / Lucro
-- [ ] F1.6 Categorias iniciais de empresa: Materiais, Alimentação, Combustível, Manutenção de máquinas, Manutenção de veículos, Ferramentas, Impostos, Outros
+- [x] F1.6 Categorias iniciais de empresa: Materiais, Alimentação, Combustível, Manutenção de máquinas, Manutenção de veículos, Ferramentas, Impostos, Outros
 - [ ] F1.7 Contas bancárias e cartões compartilhados entre os sócios (só em empresa; na família continuam privados)
 - [ ] F1.8 Nome de usuário: coluna única no perfil, definido no cadastro e em Ajustes
 - [ ] F1.9 Login com usuário ou e-mail (resolvido no servidor, sem expor e-mail de ninguém)

@@ -42,7 +42,9 @@ const EMPTY: Draft = {
 
 export default function RendaPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, members, userIds, scope } = useScope();
+  const { me, members, userIds, scope, empresa } = useScope();
+  // Empresa não tem "renda": recebe de cliente (FASE_F.md, F1.5).
+  const novo = empresa ? "Novo recebimento" : "Nova renda";
 
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,11 +167,13 @@ export default function RendaPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle
-        title="Renda"
+        title={empresa ? "Recebimentos" : "Renda"}
         description={
-          scope === "us"
-            ? "O que entra para a casa."
-            : "O que entra na sua conta."
+          empresa
+            ? "O que os clientes pagam para a empresa."
+            : scope === "us"
+              ? "O que entra para a casa."
+              : "O que entra na sua conta."
         }
         action={
           <div className="flex flex-wrap gap-2">
@@ -178,7 +182,7 @@ export default function RendaPage() {
                 Repetir &ldquo;{ultimaAvulsa.source}&rdquo;
               </Button>
             )}
-            <Button onClick={() => setDraft({ ...EMPTY })}>Nova renda</Button>
+            <Button onClick={() => setDraft({ ...EMPTY })}>{novo}</Button>
           </div>
         }
       />
@@ -198,10 +202,14 @@ export default function RendaPage() {
         <Loading />
       ) : visible.length === 0 ? (
         <EmptyState
-          title="Nenhuma renda cadastrada"
-          description="Cadastre o salário e o que mais entra para o saldo fechar."
+          title={empresa ? "Nenhum recebimento ainda" : "Nenhuma renda cadastrada"}
+          description={
+            empresa
+              ? "Cadastre o que os clientes pagam para o lucro do mês fechar."
+              : "Cadastre o salário e o que mais entra para o saldo fechar."
+          }
           action={
-            <Button onClick={() => setDraft({ ...EMPTY })}>Nova renda</Button>
+            <Button onClick={() => setDraft({ ...EMPTY })}>{novo}</Button>
           }
         />
       ) : (
@@ -279,7 +287,7 @@ export default function RendaPage() {
 
       {draft && (
         <Sheet
-          title={draft.id ? "Editar renda" : "Nova renda"}
+          title={draft.id ? (empresa ? "Editar recebimento" : "Editar renda") : novo}
           onClose={() => setDraft(null)}
         >
           <div className="flex flex-col gap-4">

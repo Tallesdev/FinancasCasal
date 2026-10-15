@@ -34,6 +34,8 @@ type ScopeContextValue = {
   others: Profile[];
   /** A casa. Nulo só se a leitura falhar — o gatilho garante que existe. */
   household: Household | null;
+  /** Casa do tipo empresa: troca as telas pelo modo Empresa (FASE_F.md). */
+  empresa: boolean;
   /** Os user_ids que o escopo atual cobre — use para filtrar toda consulta. */
   userIds: string[];
   /** Fallback de tema quando a cor ainda não carregou. */
@@ -101,6 +103,7 @@ export function ScopeProvider({
       members: ordenados,
       others,
       household,
+      empresa: household?.kind === "empresa",
       userIds,
       scopeClass,
       scopeStyle,

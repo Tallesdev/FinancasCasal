@@ -44,7 +44,7 @@ function shiftDay(iso: string, days: number) {
 
 export default function DashboardPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, userIds, scope } = useScope();
+  const { me, userIds, scope, empresa } = useScope();
 
   const [periodo, setPeriodo] = useState<Periodo>("mes");
 
@@ -305,7 +305,8 @@ export default function DashboardPage() {
 
       {/* Quem tem cartão com fechamento pode ler o mesmo dinheiro por duas
           réguas: o calendário ou o ciclo da fatura. */}
-      {cartaoDoMes && (
+      {/* Empresa é sempre pelo mês (FASE_F.md, decisão 8). */}
+      {cartaoDoMes && !empresa && (
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex items-center gap-1 rounded-full border border-[var(--color-line)] bg-[var(--color-surface-2)] p-1">
             {(
@@ -447,36 +448,53 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat label="Entrou" value={vista.income} tone="var(--color-in)" />
-            <Stat
-              label="Saiu"
-              value={vista.expense}
-              tone="var(--color-out)"
-              hint={
-                periodo === "cartao"
-                  ? `cartão ${money(janela.card)} · fora ${money(janela.other)}`
-                  : undefined
-              }
-            />
-            <Stat
-              label="Investiu"
-              value={vista.investment}
-              tone="var(--color-invest)"
-            />
-            <Stat
-              label="Sobrou"
-              value={vista.leftover}
-              tone={
-                vista.leftover < 0 ? "var(--color-out)" : "var(--color-text)"
-              }
-              hint={
-                vista.leftover < 0
-                  ? "Gastou mais do que entrou."
-                  : "Depois de gastos e aportes."
-              }
-            />
-          </div>
+          {empresa ? (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <Stat label="Faturou" value={vista.income} tone="var(--color-in)" />
+              <Stat label="Gastou" value={vista.expense} tone="var(--color-out)" />
+              <Stat
+                label={vista.leftover < 0 ? "Prejuízo" : "Lucro"}
+                value={vista.leftover}
+                tone={vista.leftover < 0 ? "var(--color-out)" : "var(--color-text)"}
+                hint={
+                  vista.leftover < 0
+                    ? "Gastou mais do que recebeu no mês."
+                    : "Recebido menos todos os gastos."
+                }
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Stat label="Entrou" value={vista.income} tone="var(--color-in)" />
+              <Stat
+                label="Saiu"
+                value={vista.expense}
+                tone="var(--color-out)"
+                hint={
+                  periodo === "cartao"
+                    ? `cartão ${money(janela.card)} · fora ${money(janela.other)}`
+                    : undefined
+                }
+              />
+              <Stat
+                label="Investiu"
+                value={vista.investment}
+                tone="var(--color-invest)"
+              />
+              <Stat
+                label="Sobrou"
+                value={vista.leftover}
+                tone={
+                  vista.leftover < 0 ? "var(--color-out)" : "var(--color-text)"
+                }
+                hint={
+                  vista.leftover < 0
+                    ? "Gastou mais do que entrou."
+                    : "Depois de gastos e aportes."
+                }
+              />
+            </div>
+          )}
 
           {/* O gráfico é mês a mês por natureza: não faz sentido em janela. */}
           {periodo === "mes" && (

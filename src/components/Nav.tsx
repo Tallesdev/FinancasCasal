@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useScope } from "./ScopeProvider";
 
 const LINKS = [
   { href: "/", label: "Início" },
@@ -22,8 +23,17 @@ const SETTINGS = [
   { href: "/ajustes", label: "Perfil e casa" },
 ];
 
+/** Empresa não investe nem tem "renda": recebe de cliente (FASE_F.md, F1.4). */
+function linksDaEmpresa() {
+  return LINKS.filter((link) => link.href !== "/investimentos").map((link) =>
+    link.href === "/renda" ? { ...link, label: "Recebidos" } : link
+  );
+}
+
 export function Nav() {
   const pathname = usePathname();
+  const { empresa } = useScope();
+  const links = empresa ? linksDaEmpresa() : LINKS;
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -32,7 +42,7 @@ export function Nav() {
       {/* Celular: barra fixa embaixo, ao alcance do polegar */}
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--color-line)] bg-[var(--color-surface)]/95 backdrop-blur md:hidden">
         <ul className="mx-auto flex max-w-lg items-stretch justify-between px-2 pb-[env(safe-area-inset-bottom)]">
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <li key={link.href} className="flex-1">
               <Link
                 href={link.href}
@@ -60,7 +70,7 @@ export function Nav() {
       {/* Desktop: coluna lateral */}
       <nav className="hidden w-56 shrink-0 flex-col gap-8 border-r border-[var(--color-line)] px-5 py-8 md:flex">
         <ul className="flex flex-col gap-1">
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <li key={link.href}>
               <Link
                 href={link.href}
