@@ -134,4 +134,4 @@ tela em paralelo.
 - [ ] C11 "A receber" e "Todos os recebimentos" com setinha pra recolher (pedido do Talles, 15/10)
 - [ ] C12 À vista marcado como recebido não voltava pra "a receber": agora dá pelo toque no status da lista e pelo "Já caiu na conta?" na edição (pedido do Talles, 15/10)
 - [x] C13 Migração 015 (divisão, reserva, retiradas) — aplicada pelo Talles e conferida no banco em 15/10 (2 tabelas, reserve_pct, definir_divisao, 5 políticas); teste no app ok ("funcionou tudo", 15/10)
-- [ ] C14 Migração 016 (quem pagou, onde caiu, acertos) — Talles roda no SQL Editor; eu confiro no banco
+- [ ] C14 Migração 016 (quem pagou, onde caiu, acertos) — aplicada pelo Talles e conferida no banco em 15/10 (2 colunas, 2 gatilhos, tabela, 3 políticas); falta o teste no app
