@@ -173,8 +173,10 @@ export function AnexarRecibos({
           <p className="font-medium text-[var(--color-text)]">Antes de guardar o primeiro recibo</p>
           <ul className="flex list-disc flex-col gap-1 pl-5">
             <li>
-              A foto fica guardada na sua conta, e só você vê — nem{" "}
-              {empresa ? "os sócios" : "as pessoas da casa"}.
+              {/* Empresa: o recibo é da empresa, os sócios veem (migração 018). */}
+              {empresa
+                ? "A foto é guardada como recibo da empresa: você e os sócios veem e baixam. Só você apaga."
+                : "A foto fica guardada na sua conta, e só você vê — nem as pessoas da casa."}
             </li>
             <li>Recibo pode conter dado de saúde, como o de uma farmácia.</li>
             <li>

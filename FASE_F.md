@@ -47,6 +47,11 @@ virar item. Um item só é marcado quando está feito **e conferido**.
     ano (cada parcela no seu mês) − gastos marcados com o mesmo cliente.
     Nome sem acento/maiúscula/espaço sobrando junta ("João" = "joao").
     Gasto sem cliente (combustível do mês etc.) fica fora, mostrado à parte.
+14. **Recibos da empresa** (definido na F6, 15/10). Na empresa o recibo é
+    da empresa: os sócios veem e baixam os de todos (só os com envio
+    concluído); apagar e ligar a gasto, só quem enviou. Na família nada muda.
+    "Baixar meus dados" continua só com os recibos da própria pessoa; o zip
+    do mês (pro contador) leva os da empresa e um resumo.csv.
 10. **Faturou × Caixa** (definido na F2, 15/10). "Faturou" é o que foi
     cobrado no mês (cada parcela no seu mês) e é dele que sai o lucro do mês.
     "Caixa da empresa" conta só o que caiu na conta, pelo dia em que caiu,
@@ -101,9 +106,9 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [ ] F5.1 Relatório: por cliente/serviço, recebido − gasto = lucro do trabalho — código no PR da F5 (Relatórios → "Lucro por cliente"); sem migração; falta conferir no app
 
 ### F6 — Recibos e impostos
-- [ ] F6.1 Recibos da empresa visíveis aos dois sócios (hoje só quem enviou vê)
-- [ ] F6.2 Exportar em zip as notas de um mês, para o contador
-- [ ] F6.3 Impostos (DAS/MEI) como gasto fixo mensal na categoria Impostos
+- [ ] F6.1 Recibos da empresa visíveis aos dois sócios (hoje só quem enviou vê) — código no PR da F6 + migração 018; falta rodar e conferir
+- [ ] F6.2 Exportar em zip as notas de um mês, para o contador — código no PR da F6 (Recibos → escolher mês → "Baixar notas do mês"); falta conferir
+- [ ] F6.3 Impostos (DAS/MEI) como gasto fixo mensal na categoria Impostos — código no PR da F6 (Gastos → "Imposto (DAS)"); falta conferir
 
 ### F7 — Fechamento
 - [ ] F7.1 PRD atualizado (requisitos e regras da empresa)
@@ -140,3 +145,4 @@ tela em paralelo.
 - [x] C13 Migração 015 (divisão, reserva, retiradas) — aplicada pelo Talles e conferida no banco em 15/10 (2 tabelas, reserve_pct, definir_divisao, 5 políticas); teste no app ok ("funcionou tudo", 15/10)
 - [ ] C14 Migração 016 (quem pagou, onde caiu, acertos) — aplicada pelo Talles e conferida no banco em 15/10 (2 colunas, 2 gatilhos, tabela, 3 políticas); falta o teste no app
 - [x] C15 A 016 travou TODO gasto e recebimento novo (de qualquer conta): a trava de sócio lia um campo que só existe na outra tabela ("Não deu para salvar o gasto"). Corrigida pela 017, aplicada direto em produção em 15/10 e conferida no banco. Lição: testar gatilho na tabela real (ou réplica com as MESMAS colunas), não numa réplica com só a coluna testada
+- [ ] C16 Migração 018 (recibos da empresa visíveis aos sócios) — Talles roda no SQL Editor; eu confiro no banco

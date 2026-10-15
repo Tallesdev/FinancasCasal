@@ -163,19 +163,22 @@ export default function GastosPage() {
     setLoading(false);
 
     if (recursos.recibos) {
-      const { data: recibos } = await supabase
+      let consulta = supabase
         .from("receipts")
         .select("id, expense_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at")
-        .eq("user_id", me.id)
         .not("expense_id", "is", null)
         .not("uploaded_at", "is", null);
+      // Família: só os meus. Empresa: os dos sócios também (migração 018),
+      // pra o clipe aparecer no gasto de quem quer que tenha lançado.
+      if (!empresa) consulta = consulta.eq("user_id", me.id);
+      const { data: recibos } = await consulta;
       const porGasto: Record<string, Receipt[]> = {};
       for (const r of (recibos ?? []) as Receipt[]) {
         (porGasto[r.expense_id!] ??= []).push(r);
       }
       setRecibosPorGasto(porGasto);
     }
-  }, [supabase, month, me.id, recursos.recibos]);
+  }, [supabase, month, me.id, recursos.recibos, empresa]);
 
   useEffect(() => {
     load();
@@ -312,6 +315,40 @@ export default function GastosPage() {
 
   function abrirNovo() {
     setDraft(emptyDraft(month));
+    setRecibosDoForm([]);
+    setFormError(null);
+  }
+
+  /**
+   * Empresa (FASE_F.md, F6.3): o DAS é um gasto fixo todo mês na categoria
+   * Impostos. Já existe um ativo? O atalho some.
+   */
+  const temImpostoFixo = useMemo(() => {
+    const impostos = new Set(
+      categories.filter((c) => c.name.trim().toLowerCase() === "impostos").map((c) => c.id)
+    );
+    const hoje = toISODate(new Date());
+    return Object.values(expenses).some(
+      (e) =>
+        e.kind === "fixed_recurring" &&
+        e.category_id !== null &&
+        impostos.has(e.category_id) &&
+        (!e.end_date || e.end_date >= hoje)
+    );
+  }, [categories, expenses]);
+
+  function abrirImposto() {
+    const impostos = myCategories.find((c) => c.name.trim().toLowerCase() === "impostos");
+    // O DAS vence dia 20: o gasto nasce no dia 20 do mês que está na tela.
+    setDraft({
+      ...emptyDraft(month),
+      description: "DAS (imposto do mês)",
+      kind: "fixed_recurring",
+      payment_method: "pix",
+      category_id: impostos?.id ?? "",
+      start_date: `${month.slice(0, 7)}-20`,
+      notes: "Vence todo dia 20.",
+    });
     setRecibosDoForm([]);
     setFormError(null);
   }
@@ -519,6 +556,11 @@ export default function GastosPage() {
               cartoes={myCards.map((c) => c.name)}
               onDraft={abrirPorAudio}
             />
+            {empresa && !loading && !temImpostoFixo && (
+              <Button variant="ghost" onClick={abrirImposto}>
+                Imposto (DAS)
+              </Button>
+            )}
             <Button onClick={abrirNovo}>Novo gasto</Button>
           </div>
         }
@@ -688,7 +730,7 @@ export default function GastosPage() {
                       {occurrence.kind === "variable" && expense && (
                         <span>{formatDate(expense.start_date)}</span>
                       )}
-                      {mine && recibosPorGasto[occurrence.expense_id]?.length ? (
+                      {(mine || empresa) && recibosPorGasto[occurrence.expense_id]?.length ? (
                         <span
                           className="inline-flex items-center text-[var(--color-text-dim)]"
                           title="Tem recibo"
