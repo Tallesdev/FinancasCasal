@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
 import { MonthlyBars } from "@/components/MonthlyBarsLazy";
 import { RankBar } from "@/components/RankBar";
+import { LucroPorCliente } from "@/components/LucroPorCliente";
 import { Dot, ErrorNote, Loading, PageTitle } from "@/components/ui";
 import { money, monthName, percent, yearRange } from "@/lib/format";
 import type { CategoryRankingRow, MonthlySummaryRow } from "@/lib/types";
@@ -208,6 +209,9 @@ export default function RelatoriosPage() {
               height={300}
             />
           </section>
+
+          {/* Empresa: quanto cada cliente deu de lucro (FASE_F.md, F5.1). */}
+          {empresa && <LucroPorCliente ano={year} />}
 
           <section className="card px-4 py-5">
             <h2 className="mb-3 text-sm font-semibold">Gasto por categoria</h2>
