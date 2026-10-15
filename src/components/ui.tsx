@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PALETTE } from "@/lib/palette";
 import { monthLabel } from "@/lib/format";
+import { carregandoApareceu, carregandoSumiu } from "@/lib/medidor";
 
 /* =====================================================================
    Peças de interface reaproveitadas por todas as telas.
@@ -210,6 +211,13 @@ export function EmptyState({
 }
 
 export function Loading({ label = "Carregando…" }: { label?: string }) {
+  // O medidor de velocidade (lib/medidor.ts) sabe quando a tela ficou
+  // pronta por aqui: quando o último "Carregando…" some.
+  useEffect(() => {
+    carregandoApareceu();
+    return carregandoSumiu;
+  }, []);
+
   return (
     <div className="card px-6 py-14 text-center text-sm text-[var(--color-text-dim)]">
       {label}

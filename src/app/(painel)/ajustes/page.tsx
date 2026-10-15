@@ -6,6 +6,7 @@ import { ExcluirConta } from "@/components/ExcluirConta";
 import { LinkVoltar } from "@/components/ui";
 import { AjustesAtalhos } from "@/components/AjustesAtalhos";
 import { DivisaoLucro } from "@/components/DivisaoLucro";
+import { MedidorAjustes } from "@/components/Medidor";
 
 export default function AjustesPage() {
   return (
@@ -35,6 +36,8 @@ export default function AjustesPage() {
       <ConsentimentoRecibos />
 
       <ExportarDados />
+
+      <MedidorAjustes />
 
       {/* Por último de propósito: irreversível não fica no caminho de nada. */}
       <ExcluirConta />
