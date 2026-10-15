@@ -119,7 +119,9 @@ export default function RelatoriosPage() {
         title="Relatórios"
         description={
           scope === "us"
-            ? "O ano da casa, com os números somados."
+            ? empresa
+              ? "O ano da empresa, com os números somados."
+              : "O ano da casa, com os números somados."
             : "O seu ano, mês a mês."
         }
         action={

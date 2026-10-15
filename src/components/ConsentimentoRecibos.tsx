@@ -22,7 +22,7 @@ import { formatDate } from "@/lib/format";
 export function ConsentimentoRecibos() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const { me, recursos } = useScope();
+  const { me, recursos, empresa } = useScope();
 
   const [valor, setValor] = useState<string | null>(me.receipts_consent_at ?? null);
   const [guardados, setGuardados] = useState(0);
@@ -82,7 +82,9 @@ export function ConsentimentoRecibos() {
       <div>
         <h2 className="text-sm font-semibold">Recibos</h2>
         <p className="mt-0.5 text-xs text-[var(--color-text-faint)]">
-          Guardar fotos de recibos — por exemplo pra declaração de imposto de renda.
+          {empresa
+            ? "Guardar fotos de recibos e notas — por exemplo pra mandar ao contador."
+            : "Guardar fotos de recibos — por exemplo pra declaração de imposto de renda."}
           {recursos.recibos ? (
             <>
               {" "}

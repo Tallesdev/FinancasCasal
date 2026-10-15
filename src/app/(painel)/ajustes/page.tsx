@@ -1,42 +1,10 @@
-import Link from "next/link";
 import { MeuPerfil } from "@/components/MeuPerfil";
 import { MinhaCasa } from "@/components/MinhaCasa";
 import { ConsentimentoRecibos } from "@/components/ConsentimentoRecibos";
 import { ExportarDados } from "@/components/ExportarDados";
 import { ExcluirConta } from "@/components/ExcluirConta";
 import { LinkVoltar } from "@/components/ui";
-
-/* No desktop os ajustes ficam na coluna lateral. No celular a barra de baixo
-   é só para o dia a dia, então eles ganham esta página de entrada. */
-
-const LINKS = [
-  {
-    href: "/contas",
-    title: "Contas",
-    description:
-      "De onde o dinheiro sai. É o que liga um Pix à fatura do cartão.",
-  },
-  {
-    href: "/cartoes",
-    title: "Cartões",
-    description: "Seus cartões, com fechamento e vencimento. Só você vê.",
-  },
-  {
-    href: "/categorias",
-    title: "Categorias",
-    description: "Sua lista de categorias e as cores de cada uma.",
-  },
-  {
-    href: "/recibos",
-    title: "Recibos",
-    description: "Fotos dos comprovantes por ano, pra hora do imposto. Só você vê.",
-  },
-  {
-    href: "/importar",
-    title: "Importar planilha",
-    description: "Traga lançamentos de um CSV do Excel ou do Google Planilhas.",
-  },
-];
+import { AjustesAtalhos } from "@/components/AjustesAtalhos";
 
 export default function AjustesPage() {
   return (
@@ -58,21 +26,7 @@ export default function AjustesPage() {
       <MinhaCasa />
 
       {/* No desktop estes já estão na coluna lateral. */}
-      <ul className="grid gap-3 sm:grid-cols-2 md:hidden">
-        {LINKS.map((link) => (
-          <li key={link.href}>
-            <Link
-              href={link.href}
-              className="card block px-4 py-4 transition-colors hover:border-[var(--scope)]"
-            >
-              <p className="font-semibold">{link.title}</p>
-              <p className="mt-1 text-sm text-[var(--color-text-dim)]">
-                {link.description}
-              </p>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <AjustesAtalhos />
 
       <ConsentimentoRecibos />
 

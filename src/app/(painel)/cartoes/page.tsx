@@ -42,7 +42,7 @@ const EMPTY: Draft = {
 
 export default function CartoesPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me } = useScope();
+  const { me, empresa } = useScope();
 
   const [cards, setCards] = useState<Card[]>([]);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
@@ -162,7 +162,11 @@ export default function CartoesPage() {
       <PageTitle
         voltar={VOLTAR_AJUSTES}
         title="Cartões"
-        description="Seus cartões, só seus. A outra conta não enxerga esta lista."
+        description={
+          empresa
+            ? "Os cartões que você cadastrou. Os sócios também os veem ao lançar um gasto."
+            : "Seus cartões, só seus. A outra conta não enxerga esta lista."
+        }
         action={<Button onClick={() => setDraft(EMPTY)}>Novo cartão</Button>}
       />
 

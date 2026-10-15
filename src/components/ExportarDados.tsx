@@ -38,7 +38,7 @@ const RECORRENCIA: Record<string, string> = {
  */
 export function ExportarDados() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, household, recursos } = useScope();
+  const { me, household, recursos, empresa } = useScope();
   const [baixando, setBaixando] = useState<"json" | "csv" | "recibos" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -214,8 +214,9 @@ export function ExportarDados() {
       <div>
         <h2 className="text-sm font-semibold">Baixar meus dados</h2>
         <p className="mt-0.5 text-xs text-[var(--color-text-faint)]">
-          Tudo o que é seu, num arquivo. Os lançamentos das outras pessoas da casa não entram —
-          são delas.
+          Tudo o que é seu, num arquivo. Os lançamentos{" "}
+          {empresa ? "dos sócios" : "das outras pessoas da casa"} não entram —
+          são {empresa ? "deles" : "delas"}.
         </p>
       </div>
 

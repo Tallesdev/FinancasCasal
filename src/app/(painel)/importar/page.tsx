@@ -86,7 +86,9 @@ const TIPO_ROTULO: Record<TipoLancamento, string> = {
  */
 export default function ImportarPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me } = useScope();
+  const { me, empresa } = useScope();
+  // Na empresa, "renda" é recebimento de cliente (FASE_F.md, C7).
+  const rotuloRenda = empresa ? "Recebimento" : "Renda";
 
   const [etapa, setEtapa] = useState<Etapa>("arquivo");
   const [nomeArquivo, setNomeArquivo] = useState("");
@@ -569,18 +571,18 @@ export default function ImportarPage() {
                 onChange={setModo}
                 options={[
                   { value: "gasto", label: "Gastos" },
-                  { value: "renda", label: "Renda" },
+                  { value: "renda", label: empresa ? "Recebimentos" : "Renda" },
                   { value: "sinal", label: "Pelo sinal" },
                 ]}
               />
             ) : (
               <p className="text-xs text-[var(--color-text-faint)]">
-                A coluna de tipo decide, linha por linha, se é gasto, renda ou investimento.
+                A coluna de tipo decide, linha por linha, se é gasto, {rotuloRenda.toLowerCase()} ou investimento.
               </p>
             )}
             {mapa.tipo === undefined && modo === "sinal" && (
               <p className="-mt-2 text-xs text-[var(--color-text-faint)]">
-                Valor negativo vira gasto; positivo vira renda — como num extrato de banco.
+                Valor negativo vira gasto; positivo vira {rotuloRenda.toLowerCase()} — como num extrato de banco.
               </p>
             )}
 
@@ -690,7 +692,7 @@ export default function ImportarPage() {
                             )}
                           </td>
                           <td className="py-2 pr-2 text-[var(--color-text-dim)]">
-                            {l.tipo ? TIPO_ROTULO[l.tipo] : "—"}
+                            {l.tipo ? (l.tipo === "renda" ? rotuloRenda : TIPO_ROTULO[l.tipo]) : "—"}
                           </td>
                           <td className="money py-2 pr-2 text-right">
                             {l.valor !== null ? money(l.valor) : "—"}
@@ -739,7 +741,7 @@ export default function ImportarPage() {
             <h2 className="font-semibold">Importação concluída</h2>
             <ul className="mt-2 flex flex-col gap-0.5 text-sm text-[var(--color-text-dim)]">
               {resultado.gastos > 0 && <li><strong className="money">{resultado.gastos}</strong> gastos</li>}
-              {resultado.rendas > 0 && <li><strong className="money">{resultado.rendas}</strong> rendas</li>}
+              {resultado.rendas > 0 && <li><strong className="money">{resultado.rendas}</strong> {empresa ? "recebimentos" : "rendas"}</li>}
               {resultado.investimentos > 0 && <li><strong className="money">{resultado.investimentos}</strong> investimentos</li>}
               {resultado.categorias > 0 && <li><strong className="money">{resultado.categorias}</strong> categorias criadas</li>}
             </ul>

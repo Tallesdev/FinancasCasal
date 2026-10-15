@@ -60,7 +60,8 @@ export default function RendaPage() {
       .select("*")
       .order("start_date", { ascending: false });
 
-    if (readError) setError("Não deu para carregar a renda.");
+    if (readError)
+      setError(empresa ? "Não deu para carregar os recebimentos." : "Não deu para carregar a renda.");
     else {
       setError(null);
       setIncomes(data as Income[]);
@@ -120,7 +121,10 @@ export default function RendaPage() {
     const source = draft.source.trim();
     const amount = Number(draft.amount.replace(",", "."));
 
-    if (!source) return setFormError("Diga de onde vem essa renda.");
+    if (!source)
+      return setFormError(
+        empresa ? "Diga de quem é esse recebimento." : "Diga de onde vem essa renda."
+      );
     if (!Number.isFinite(amount) || amount <= 0)
       return setFormError("Informe um valor maior que zero.");
     if (!draft.start_date) return setFormError("Escolha a data de início.");
@@ -376,7 +380,7 @@ export default function RendaPage() {
 
             <div className="mt-2 flex gap-2">
               <Button onClick={save} disabled={saving} className="flex-1">
-                {saving ? "Salvando…" : "Salvar renda"}
+                {saving ? "Salvando…" : empresa ? "Salvar recebimento" : "Salvar renda"}
               </Button>
               <Button variant="ghost" onClick={() => setDraft(null)}>
                 Cancelar

@@ -46,7 +46,7 @@ export function AnexarRecibos({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const { me, recursos } = useScope();
+  const { me, recursos, empresa } = useScope();
   const inputId = useId();
 
   const [consentido, setConsentido] = useState(Boolean(me.receipts_consent_at));
@@ -172,7 +172,10 @@ export function AnexarRecibos({
         <div className="flex flex-col gap-3 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)] px-3.5 py-3 text-sm text-[var(--color-text-dim)]">
           <p className="font-medium text-[var(--color-text)]">Antes de guardar o primeiro recibo</p>
           <ul className="flex list-disc flex-col gap-1 pl-5">
-            <li>A foto fica guardada na sua conta, e só você vê — nem as pessoas da casa.</li>
+            <li>
+              A foto fica guardada na sua conta, e só você vê — nem{" "}
+              {empresa ? "os sócios" : "as pessoas da casa"}.
+            </li>
             <li>Recibo pode conter dado de saúde, como o de uma farmácia.</li>
             <li>
               A câmera só abre quando você toca em &ldquo;Tirar foto&rdquo;, e quem tira é o

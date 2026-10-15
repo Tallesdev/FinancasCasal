@@ -25,7 +25,7 @@ type Draft = { id: string | null; name: string; color: string };
 
 export default function CategoriasPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me } = useScope();
+  const { me, empresa } = useScope();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [usage, setUsage] = useState<Record<string, number>>({});
@@ -133,7 +133,11 @@ export default function CategoriasPage() {
       <PageTitle
         voltar={VOLTAR_AJUSTES}
         title="Categorias"
-        description="Sua lista. No relatório do casal, categorias de mesmo nome somam."
+        description={
+          empresa
+            ? "Sua lista. No relatório da empresa, categorias de mesmo nome somam."
+            : "Sua lista. No relatório do casal, categorias de mesmo nome somam."
+        }
         action={<Button onClick={openNew}>Nova categoria</Button>}
       />
 

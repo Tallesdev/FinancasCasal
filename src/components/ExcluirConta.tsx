@@ -16,7 +16,7 @@ const PALAVRA = "EXCLUIR";
  * se repete, pra pessoa não chegar lá sem entender.
  */
 export function ExcluirConta() {
-  const { members } = useScope();
+  const { members, empresa } = useScope();
   const divideCasa = members.length > 1;
 
   const [aberto, setAberto] = useState(false);
@@ -76,13 +76,18 @@ export function ExcluirConta() {
             <p className="font-medium text-[var(--color-text)]">O que é apagado:</p>
             <ul className="mt-2 ml-5 list-disc space-y-1 text-[var(--color-text-dim)]">
               <li>seu perfil e seu login;</li>
-              <li>todos os seus gastos, rendas e investimentos;</li>
+              <li>
+                todos os seus gastos,{" "}
+                {empresa ? "recebimentos" : "rendas e investimentos"};
+              </li>
               <li>seus cartões, categorias, contas bancárias e recibos;</li>
               <li>os convites que você criou.</li>
             </ul>
             {divideCasa && (
               <p className="mt-3 text-[var(--color-text-dim)]">
-                <strong className="text-[var(--color-text)]">Sua casa continua</strong>{" "}
+                <strong className="text-[var(--color-text)]">
+                  {empresa ? "A empresa continua" : "Sua casa continua"}
+                </strong>{" "}
                 para as outras pessoas, mas seus lançamentos somem da visão de
                 todos também.
               </p>

@@ -12,7 +12,7 @@ function listar(nomes: string[]) {
 }
 
 export function ScopeHeading() {
-  const { scope, me, members, household } = useScope();
+  const { scope, me, members, household, empresa } = useScope();
 
   const todos = scope === "us";
   const title = todos ? labelTodos(members, household) : firstName(me.display_name);
@@ -20,7 +20,9 @@ export function ScopeHeading() {
   const subtitle = todos
     ? `${listar(members.map((m) => firstName(m.display_name)))} — somados.`
     : members.length < 2
-      ? "Sua casa, só você por enquanto."
+      ? empresa
+        ? "Sua empresa, só você por enquanto."
+        : "Sua casa, só você por enquanto."
       : "Só o que passa pela sua conta.";
 
   return (
