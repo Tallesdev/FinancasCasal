@@ -178,7 +178,7 @@ export default function CategoriasPage() {
                   >
                     Editar
                   </Button>
-                  {usage[category.id] > 0 ? (
+                  {usage[category.id] > 0 && (
                     <Button
                       variant="quiet"
                       className="px-2 py-1 text-xs"
@@ -186,13 +186,21 @@ export default function CategoriasPage() {
                     >
                       Arquivar
                     </Button>
-                  ) : (
-                    <DeleteButton onConfirm={() => remove(category)} />
                   )}
+                  {/* Em uso também exclui: o banco só tira a ligação
+                      (on delete set null), nenhum lançamento some. */}
+                  <DeleteButton onConfirm={() => remove(category)} />
                 </span>
               </li>
             ))}
           </ul>
+
+          {active.some((item) => usage[item.id] > 0) && (
+            <p className="-mt-3 text-xs text-[var(--color-text-faint)]">
+              O número ao lado do nome é quantos lançamentos usam. Excluir não apaga nenhum
+              deles: só ficam "Sem categoria". Arquivar esconde da lista e mantém tudo como está.
+            </p>
+          )}
 
           {archived.length > 0 && (
             <div className="flex flex-col gap-2">
@@ -209,13 +217,16 @@ export default function CategoriasPage() {
                       <Dot color={category.color} />
                       <span className="truncate">{category.name}</span>
                     </span>
-                    <Button
-                      variant="quiet"
-                      className="px-2 py-1 text-xs"
-                      onClick={() => setArchived(category, false)}
-                    >
-                      Reativar
-                    </Button>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="quiet"
+                        className="px-2 py-1 text-xs"
+                        onClick={() => setArchived(category, false)}
+                      >
+                        Reativar
+                      </Button>
+                      <DeleteButton onConfirm={() => remove(category)} />
+                    </span>
                   </li>
                 ))}
               </ul>
