@@ -43,6 +43,10 @@ virar item. Um item só é marcado quando está feito **e conferido**.
     Retirada de lucro não entra no acerto (fica na tela Lucro). O Caixa passa
     a ser só a conta da empresa. Limite: "onde cai" vale pro recebimento
     inteiro — parcela que caiu em outra conta se lança separado.
+13. **Lucro por cliente** (definido na F5, 15/10). Faturado do cliente no
+    ano (cada parcela no seu mês) − gastos marcados com o mesmo cliente.
+    Nome sem acento/maiúscula/espaço sobrando junta ("João" = "joao").
+    Gasto sem cliente (combustível do mês etc.) fica fora, mostrado à parte.
 10. **Faturou × Caixa** (definido na F2, 15/10). "Faturou" é o que foi
     cobrado no mês (cada parcela no seu mês) e é dele que sai o lucro do mês.
     "Caixa da empresa" conta só o que caiu na conta, pelo dia em que caiu,
@@ -94,7 +98,7 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [ ] F4.3 Tela Acerto: quem deve transferir quanto a quem ("Joaquim te deve R$ 340") — código no PR da F4; falta rodar a 016 e conferir no app
 
 ### F5 — Lucro por cliente ou serviço
-- [ ] F5.1 Relatório: por cliente/serviço, recebido − gasto = lucro do trabalho
+- [ ] F5.1 Relatório: por cliente/serviço, recebido − gasto = lucro do trabalho — código no PR da F5 (Relatórios → "Lucro por cliente"); sem migração; falta conferir no app
 
 ### F6 — Recibos e impostos
 - [ ] F6.1 Recibos da empresa visíveis aos dois sócios (hoje só quem enviou vê)
