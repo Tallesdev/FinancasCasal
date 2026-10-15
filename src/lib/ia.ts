@@ -37,9 +37,24 @@ export const MODELOS_TEXTO = [
  * erro e o anexo continua funcionando — as duas coisas são independentes.
  */
 export const MODELOS_VISAO = [
+  // O Groq desligou o Llama 4 Scout em 17/07/2026 (C21); os Qwen novos
+  // são a troca que eles indicam. Os Llama 4 ficam no fim pra conta que
+  // ainda tiver acesso.
+  "qwen/qwen3.6-27b",
+  "qwen/qwen3.8-27b",
   "meta-llama/llama-4-scout-17b-16e-instruct",
   "meta-llama/llama-4-maverick-17b-128e-instruct",
 ];
+
+/**
+ * Modelo escolhido na Vercel passa na frente da lista. Assim, quando o
+ * Groq aposentar um modelo de novo, troca-se a variável sem deploy:
+ * GROQ_MODELO_VISAO, GROQ_MODELO_TEXTO, GROQ_MODELO_TRANSCRICAO.
+ */
+function comPreferido(lista: string[], variavel: string) {
+  const escolhido = process.env[variavel]?.trim();
+  return escolhido ? [escolhido, ...lista.filter((m) => m !== escolhido)] : lista;
+}
 
 /**
  * Qual modelo funcionou nesta instância. Serverless recicla, então isto
@@ -66,6 +81,8 @@ function chave() {
 function modeloInexistente(status: number, corpo: string) {
   if (status === 404 && corpo.includes("model_not_found")) return true;
   const c = corpo.toLowerCase();
+  // Modelo aposentado responde 400 com model_decommissioned.
+  if (c.includes("decommissioned")) return true;
   return status === 400 && c.includes("image") && (c.includes("not support") || c.includes("does not"));
 }
 
@@ -100,13 +117,42 @@ async function comFallback<T>(
   }
 
   throw new Error(
-    `${tipo}: nenhum modelo disponível para esta chave (tentados: ${ordem.join(", ")}). Último: ${ultimoErro}`
+    `${tipo}: nenhum modelo disponível para esta chave (tentados: ${ordem.join(", ")}). ` +
+      `Modelos que a chave tem: ${await modelosDaChave()}. Último: ${ultimoErro}`
   );
+}
+
+/**
+ * O JSON da resposta. Modelos que "pensam" (os Qwen 3) podem mandar o
+ * raciocínio em <think>…</think> antes; e às vezes vem texto em volta.
+ */
+export function jsonDaResposta(bruto: string): unknown {
+  const limpo = bruto.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  try {
+    return JSON.parse(limpo);
+  } catch {
+    const ini = limpo.indexOf("{");
+    const fim = limpo.lastIndexOf("}");
+    if (ini >= 0 && fim > ini) return JSON.parse(limpo.slice(ini, fim + 1));
+    throw new Error("resposta sem JSON");
+  }
+}
+
+/** Pro erro dizer o que existe, em vez de só o que falhou. */
+async function modelosDaChave() {
+  try {
+    const r = await fetch(`${GROQ}/models`, { headers: { Authorization: `Bearer ${chave()}` } });
+    if (!r.ok) return `(não deu pra listar: ${r.status})`;
+    const { data } = (await r.json()) as { data?: { id: string }[] };
+    return (data ?? []).map((m) => m.id).sort().join(", ") || "(nenhum)";
+  } catch {
+    return "(não deu pra listar)";
+  }
 }
 
 /** Áudio → texto em português. */
 export async function transcrever(audio: Blob, nome: string): Promise<string> {
-  return comFallback("transcrição", MODELOS_TRANSCRICAO, async (modelo) => {
+  return comFallback("transcrição", comPreferido(MODELOS_TRANSCRICAO, "GROQ_MODELO_TRANSCRICAO"), async (modelo) => {
     const form = new FormData();
     form.append("file", audio, nome);
     form.append("model", modelo);
@@ -173,7 +219,7 @@ export async function interpretarGasto(
     `Cartões da pessoa: ${cartoes.length ? cartoes.join(", ") : "(nenhum)"}`,
   ].join("\n");
 
-  const bruto = await comFallback("interpretação", MODELOS_TEXTO, async (modelo) => {
+  const bruto = await comFallback("interpretação", comPreferido(MODELOS_TEXTO, "GROQ_MODELO_TEXTO"), async (modelo) => {
     const r = await fetch(`${GROQ}/chat/completions`, {
       method: "POST",
       headers: {
@@ -206,7 +252,7 @@ export async function interpretarGasto(
 
   let parsed: Partial<GastoInterpretado> = {};
   try {
-    parsed = JSON.parse(bruto);
+    parsed = jsonDaResposta(bruto) as Partial<GastoInterpretado>;
   } catch {
     parsed = {};
   }
@@ -289,7 +335,7 @@ export async function lerRecibo(
 
   const dataUrl = `data:${tipo};base64,${Buffer.from(imagem).toString("base64")}`;
 
-  const bruto = await comFallback("leitura de recibo", MODELOS_VISAO, async (modelo) => {
+  const bruto = await comFallback("leitura de recibo", comPreferido(MODELOS_VISAO, "GROQ_MODELO_VISAO"), async (modelo) => {
     const r = await fetch(`${GROQ}/chat/completions`, {
       method: "POST",
       headers: {
@@ -315,7 +361,9 @@ export async function lerRecibo(
 
     if (!r.ok) {
       const corpo = (await r.text()).slice(0, 300);
-      if (modeloInexistente(r.status, corpo))
+      // Na visão, qualquer 400 é do modelo (não lê imagem, não aceita modo
+      // JSON…): o próximo da lista pode servir.
+      if (modeloInexistente(r.status, corpo) || r.status === 400)
         throw new Error(`MODELO_INEXISTENTE: ${modelo} → ${corpo}`);
       throw new Error(`leitura de recibo ${r.status}: ${corpo}`);
     }
@@ -337,7 +385,7 @@ export function sanitizarRecibo(
 ): ReciboLido {
   let p: Record<string, unknown> = {};
   try {
-    const v = JSON.parse(bruto);
+    const v = jsonDaResposta(bruto);
     if (v && typeof v === "object") p = v as Record<string, unknown>;
   } catch {
     p = {};
