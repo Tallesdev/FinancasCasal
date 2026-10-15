@@ -5,6 +5,7 @@ import { ExportarDados } from "@/components/ExportarDados";
 import { ExcluirConta } from "@/components/ExcluirConta";
 import { LinkVoltar } from "@/components/ui";
 import { AjustesAtalhos } from "@/components/AjustesAtalhos";
+import { DivisaoLucro } from "@/components/DivisaoLucro";
 
 export default function AjustesPage() {
   return (
@@ -24,6 +25,9 @@ export default function AjustesPage() {
       <MeuPerfil />
 
       <MinhaCasa />
+
+      {/* Só aparece na empresa com 2 ou mais sócios. */}
+      <DivisaoLucro />
 
       {/* No desktop estes já estão na coluna lateral. */}
       <AjustesAtalhos />

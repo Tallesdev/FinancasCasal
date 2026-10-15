@@ -35,6 +35,7 @@ import {
   type Income,
   type IncomeReceived,
   type MonthlySummaryRow,
+  type Withdrawal,
 } from "@/lib/types";
 
 type Periodo = "mes" | "cartao";
@@ -47,7 +48,7 @@ function shiftDay(iso: string, days: number) {
 
 export default function DashboardPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, userIds, scope, empresa } = useScope();
+  const { me, members, userIds, scope, empresa } = useScope();
 
   const [periodo, setPeriodo] = useState<Periodo>("mes");
 
@@ -60,6 +61,7 @@ export default function DashboardPage() {
   // --- empresa: recebimentos e o que já entrou (FASE_F.md, F2.5/F2.6) ---
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [recebidos, setRecebidos] = useState<IncomeReceived[] | null>(null);
+  const [retiradas, setRetiradas] = useState<Withdrawal[]>([]);
 
   // --- janela do cartão ---
   const [cards, setCards] = useState<Card[]>([]);
@@ -117,12 +119,18 @@ export default function DashboardPage() {
     // isso não pesa a consulta.
     const from = "2000-01-01";
 
-    const [summaryResult, occurrencesResult, incomesResult, recebidosResult] = await Promise.all([
-      supabase.rpc("monthly_summary", { p_from: from, p_to: month }),
-      supabase.rpc("expense_occurrences", { p_from: month, p_to: month }),
-      empresa ? supabase.from("incomes").select("*") : null,
-      empresa ? supabase.from("income_received").select("*") : null,
-    ]);
+    const [summaryResult, occurrencesResult, incomesResult, recebidosResult, retiradasResult] =
+      await Promise.all([
+        supabase.rpc("monthly_summary", { p_from: from, p_to: month }),
+        supabase.rpc("expense_occurrences", { p_from: month, p_to: month }),
+        empresa ? supabase.from("incomes").select("*") : null,
+        empresa ? supabase.from("income_received").select("*") : null,
+        // Retiradas saem do caixa (migração 015; sem ela, fica zero).
+        empresa ? supabase.from("withdrawals").select("amount, taken_on") : null,
+      ]);
+    setRetiradas(
+      retiradasResult && !retiradasResult.error ? ((retiradasResult.data ?? []) as Withdrawal[]) : []
+    );
     setIncomes((incomesResult?.data ?? []) as Income[]);
     // Nulo = migração 014 não rodou (ou não é empresa): volta o saldo acumulado.
     setRecebidos(
@@ -247,19 +255,26 @@ export default function DashboardPage() {
    */
   const empresaNumeros = useMemo(() => {
     if (!empresa || recebidos === null) return null;
-    const meus = incomes.filter((i) => userIds.includes(i.user_id));
+    // Caixa e "a receber" são da empresa inteira: não mudam com o seletor
+    // Talles/Joaquim/Empresa, como a conta do banco também não muda.
+    const todos = members.map((m) => m.id);
+    const meus = incomes.filter((i) => todos.includes(i.user_id));
     const fimDoMes = shiftDay(addMonths(month, 1), -1);
     const saiu = summary
-      .filter((row) => userIds.includes(row.user_id))
+      .filter((row) => todos.includes(row.user_id))
       .reduce((t, row) => t + Number(row.expense) + Number(row.investment), 0);
     const pendencias = aReceber(meus, recebidos, toISODate(new Date()));
+    // Retirada é da empresa inteira, não de um escopo: sai sempre do caixa.
+    const retirado = retiradas
+      .filter((r) => r.taken_on.slice(0, 10) <= fimDoMes)
+      .reduce((t, r) => t + Number(r.amount), 0);
     return {
-      caixa: recebidoAte(meus, recebidos, fimDoMes) - saiu,
+      caixa: recebidoAte(meus, recebidos, fimDoMes) - saiu - retirado,
       entrouDoMes: recebidoDoMes(meus, recebidos, month),
       aReceber: pendencias.reduce((t, p) => t + p.valor, 0),
       atrasado: pendencias.filter((p) => p.atrasado).reduce((t, p) => t + p.valor, 0),
     };
-  }, [empresa, recebidos, incomes, userIds, summary, month]);
+  }, [empresa, recebidos, incomes, members, summary, month, retiradas]);
 
   /**
    * Os quatro números e as duas listas saem daqui, venham do mês ou da
@@ -468,7 +483,7 @@ export default function DashboardPage() {
                   Caixa da empresa
                 </p>
                 <p className="text-xs text-[var(--color-text-faint)]">
-                  O que caiu na conta menos o que saiu, desde o começo, até o fim de{" "}
+                  O que caiu na conta menos gastos e retiradas, desde o começo, até o fim de{" "}
                   {monthLabel(month)}.
                 </p>
               </div>
@@ -512,7 +527,8 @@ export default function DashboardPage() {
                 value={vista.income}
                 tone="var(--color-in)"
                 hint={
-                  empresaNumeros && vista.income > 0
+                  // Só na visão da empresa toda: o "entrou" é da empresa inteira.
+                  empresaNumeros && vista.income > 0 && (scope === "us" || members.length < 2)
                     ? empresaNumeros.entrouDoMes >= vista.income
                       ? "Já entrou tudo."
                       : `Já entrou ${money(empresaNumeros.entrouDoMes)}.`

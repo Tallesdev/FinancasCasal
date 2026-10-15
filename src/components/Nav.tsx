@@ -23,10 +23,12 @@ const SETTINGS = [
   { href: "/ajustes", label: "Perfil e casa" },
 ];
 
-/** Empresa não investe nem tem "renda": recebe de cliente (FASE_F.md, F1.4). */
+/** Empresa não investe nem tem "renda": recebe de cliente (F1.4) e divide o lucro (F3.3). */
 function linksDaEmpresa() {
-  return LINKS.filter((link) => link.href !== "/investimentos").map((link) =>
-    link.href === "/renda" ? { ...link, label: "Recebidos" } : link
+  return LINKS.filter((link) => link.href !== "/investimentos").flatMap((link) =>
+    link.href === "/renda"
+      ? [{ ...link, label: "Recebidos" }, { href: "/lucro", label: "Lucro" }]
+      : [link]
   );
 }
 

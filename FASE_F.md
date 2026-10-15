@@ -29,6 +29,12 @@ virar item. Um item só é marcado quando está feito **e conferido**.
    teste). Empresa continua empresa, família continua família; convite só
    entre contas do mesmo tipo; quem sai de uma empresa vai para outra empresa.
 
+11. **Lucro e divisão** (definido na F3, 15/10). Lucro do mês = faturado −
+    gastos. Mês com lucro: sai a reserva, o resto divide pela % de cada sócio.
+    Mês com prejuízo: não divide e não desconta dos outros meses. "Coube no
+    ano" soma só os meses com lucro; "falta retirar" = coube − retiradas.
+    Sem divisão salva, divide igual. Retirada sai do Caixa da empresa.
+    Caixa e "a receber" são da empresa inteira (não mudam com o seletor).
 10. **Faturou × Caixa** (definido na F2, 15/10). "Faturou" é o que foi
     cobrado no mês (cada parcela no seu mês) e é dele que sai o lucro do mês.
     "Caixa da empresa" conta só o que caiu na conta, pelo dia em que caiu,
@@ -68,11 +74,11 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [x] F2.6 Saldo acumulado vira "Caixa da empresa" (recebido − gasto − retiradas) — conferido 15/10: "o caixa mudou no início"
 
 ### F3 — Lucro e divisão
-- [ ] F3.1 Ajustes da empresa: % de cada sócio (soma obrigatória de 100%)
-- [ ] F3.2 Ajustes da empresa: % de reserva (padrão 0%)
-- [ ] F3.3 Tela Lucro e divisão: mês a mês e acumulado do ano, quanto coube a cada um
-- [ ] F3.4 Mês com prejuízo: mostra o prejuízo, não divide, não abate do seguinte
-- [ ] F3.5 Retiradas: registrar "Talles retirou R$ X" e ver retirado × falta, por sócio
+- [ ] F3.1 Ajustes da empresa: % de cada sócio (soma obrigatória de 100%) — código no PR da F3; falta rodar a 015 e conferir no app
+- [ ] F3.2 Ajustes da empresa: % de reserva (padrão 0%) — código no PR da F3; falta rodar a 015 e conferir no app
+- [ ] F3.3 Tela Lucro e divisão: mês a mês e acumulado do ano, quanto coube a cada um — código no PR da F3; falta rodar a 015 e conferir no app
+- [ ] F3.4 Mês com prejuízo: mostra o prejuízo, não divide, não abate do seguinte — código no PR da F3; falta rodar a 015 e conferir no app
+- [ ] F3.5 Retiradas: registrar "Talles retirou R$ X" e ver retirado × falta, por sócio — código no PR da F3; falta rodar a 015 e conferir no app
 
 ### F4 — Acerto entre sócios
 - [ ] F4.1 Gasto: "Pago por" — conta da empresa ou do bolso de um sócio
@@ -119,3 +125,4 @@ tela em paralelo.
 - [x] C10 Migração 014 (recebimentos) — aplicada pelo Talles e conferida no banco em 15/10 (tabela, 3 colunas, 3 políticas, regra do parcelado); teste no app ok (parcelado, Recebi, caixa)
 - [ ] C11 "A receber" e "Todos os recebimentos" com setinha pra recolher (pedido do Talles, 15/10)
 - [ ] C12 À vista marcado como recebido não voltava pra "a receber": agora dá pelo toque no status da lista e pelo "Já caiu na conta?" na edição (pedido do Talles, 15/10)
+- [ ] C13 Migração 015 (divisão, reserva, retiradas) — Talles roda no SQL Editor; eu confiro no banco
