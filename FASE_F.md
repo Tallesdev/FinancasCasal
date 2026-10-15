@@ -125,4 +125,4 @@ tela em paralelo.
 - [x] C10 Migração 014 (recebimentos) — aplicada pelo Talles e conferida no banco em 15/10 (tabela, 3 colunas, 3 políticas, regra do parcelado); teste no app ok (parcelado, Recebi, caixa)
 - [ ] C11 "A receber" e "Todos os recebimentos" com setinha pra recolher (pedido do Talles, 15/10)
 - [ ] C12 À vista marcado como recebido não voltava pra "a receber": agora dá pelo toque no status da lista e pelo "Já caiu na conta?" na edição (pedido do Talles, 15/10)
-- [ ] C13 Migração 015 (divisão, reserva, retiradas) — Talles roda no SQL Editor; eu confiro no banco
+- [ ] C13 Migração 015 (divisão, reserva, retiradas) — aplicada pelo Talles e conferida no banco em 15/10 (2 tabelas, reserve_pct, definir_divisao, 5 políticas); falta o teste no app: 60/40, retirada, prejuízo
