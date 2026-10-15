@@ -81,7 +81,22 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [ ] F7.1 PRD atualizado (requisitos e regras da empresa)
 - [ ] F7.2 Teste completo com duas contas de empresa de teste
 
+### F8 — Velocidade (pedido do Talles, 15/10: "quero que o app seja rápido")
+Já está a favor: servidor da Vercel em São Paulo (gru1) e banco em São Paulo
+(sa-east-1), sessão conferida sem ir ao servidor de login, consultas de cada
+tela em paralelo.
+- [ ] F8.1 Medir antes de mexer: tempo de cada tela no celular (4G) e tamanho do JavaScript por tela — sem número, não dá pra saber se melhorou
+- [ ] F8.2 Banco: as regras de acesso (RLS) recalculam "quem está logado" linha por linha em 12 tabelas — trocar por `(select auth.uid())`, que calcula uma vez só
+- [ ] F8.3 Banco: juntar regras de leitura duplicadas (gastos, renda, investimentos, categorias, cartões, contas) — hoje o banco testa duas ou três regras por linha
+- [ ] F8.4 Banco: 3 índices que faltam (convites e cartão que define o mês)
+- [ ] F8.5 Gráficos (recharts, a biblioteca mais pesada) só carregam quando a tela tem gráfico
+- [ ] F8.6 Trocar de tela sem esperar: guardar o que já foi carregado (cartões, categorias, contas) em vez de buscar de novo a cada tela
+- [ ] F8.7 Telas novas da empresa nascem seguindo isso (consultas em paralelo, nada de buscar a mesma coisa duas vezes)
+- [ ] F8.8 Medir de novo e comparar com F8.1
+
 ---
 
 ## Correções encontradas no caminho
 - [x] C1 Migração 010 não estava aplicada em produção: a seção da casa em Ajustes sumia desde 06/10 — aplicada em 15/10 (ver F0.1)
+- [x] C2 Migração 011 aplicada pelo Talles no SQL Editor (o MCP do Supabase passou a cancelar mudanças de estrutura) — conferida em 15/10
+- [x] C3 Migração 012 (convite diz casa ou empresa) aplicada pelo Talles — conferida em 15/10: `get_invite` devolve `household_kind`
