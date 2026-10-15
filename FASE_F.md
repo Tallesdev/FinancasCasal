@@ -135,3 +135,4 @@ tela em paralelo.
 - [ ] C12 À vista marcado como recebido não voltava pra "a receber": agora dá pelo toque no status da lista e pelo "Já caiu na conta?" na edição (pedido do Talles, 15/10)
 - [x] C13 Migração 015 (divisão, reserva, retiradas) — aplicada pelo Talles e conferida no banco em 15/10 (2 tabelas, reserve_pct, definir_divisao, 5 políticas); teste no app ok ("funcionou tudo", 15/10)
 - [ ] C14 Migração 016 (quem pagou, onde caiu, acertos) — aplicada pelo Talles e conferida no banco em 15/10 (2 colunas, 2 gatilhos, tabela, 3 políticas); falta o teste no app
+- [x] C15 A 016 travou TODO gasto e recebimento novo (de qualquer conta): a trava de sócio lia um campo que só existe na outra tabela ("Não deu para salvar o gasto"). Corrigida pela 017, aplicada direto em produção em 15/10 e conferida no banco. Lição: testar gatilho na tabela real (ou réplica com as MESMAS colunas), não numa réplica com só a coluna testada
