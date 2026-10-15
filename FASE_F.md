@@ -39,6 +39,14 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [ ] F0.2 Conferir no app que a seção da casa em Ajustes voltou (nome, cor, tipo)
 
 ### F1 — Fundação do modo Empresa
+
+> Banco da F1 = `supabase/migrations/011_modo_empresa.sql`. **Testada em
+> 15/10** numa cópia temporária das tabelas (cadastro pessoal, cadastro de
+> empresa, usuário repetido/inválido, cadastro repetido, troca de tipo
+> sozinho × com 2 pessoas): tudo certo. **Ainda não aplicada**: a ferramenta
+> do Supabase cancelou a aplicação. Falta conferir a regra de contas e
+> cartões compartilhados (F1.7) depois de aplicar.
+
 - [ ] F1.1 Cadastro: escolher "Uso pessoal" ou "Empresa"; a casa criada nasce com esse tipo
 - [ ] F1.2 Convite: avisar quando o tipo de quem convida é diferente do de quem entra
 - [ ] F1.3 Trocar o tipo depois de criado: decidir regra e aplicar (hoje qualquer membro troca em Ajustes)
@@ -85,3 +93,4 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 
 ## Correções encontradas no caminho
 - [x] C1 Migração 010 não estava aplicada em produção: a seção da casa em Ajustes sumia desde 06/10 — aplicada em 15/10 (ver F0.1)
+- [ ] C2 Aplicar a migração 011 em produção — a ferramenta do Supabase cancela alterações no banco desde 15/10; aplicar pelo SQL Editor ou liberar a confirmação
