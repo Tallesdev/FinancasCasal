@@ -177,7 +177,7 @@ export default function ContasPage() {
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   <Dot color={account.color} />
-                  <span className="truncate font-medium">{account.name}</span>
+                  <span className="min-w-0 break-words font-medium">{account.name}</span>
                   {usage[account.id] > 0 && <Tag>{usage[account.id]}</Tag>}
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
