@@ -88,6 +88,20 @@ export type Income = {
   start_date: string;
   end_date: string | null;
   notes: string | null;
+  /** Migração 014. Preenchido = parcelado: amount é o valor da PARCELA. */
+  installments_total?: number | null;
+  /** Migração 014. Cliente do recebimento (empresa). */
+  client?: string | null;
+};
+
+/** Migração 014: parcela (ou mês) de um recebimento que já entrou. */
+export type IncomeReceived = {
+  income_id: string;
+  /** Mês da parcela, sempre dia 1. */
+  month: string;
+  /** Dia em que o dinheiro caiu: é o que conta pro caixa. */
+  received_on: string;
+  marked_by: string | null;
 };
 
 export type Expense = {
@@ -106,6 +120,8 @@ export type Expense = {
   /** Só no Pix: de qual conta o dinheiro saiu. É o que faz o Pix entrar
       no ciclo de fatura do cartão daquela conta. */
   bank_account_id: string | null;
+  /** Migração 014. Cliente/serviço a que o gasto pertence (empresa). */
+  client?: string | null;
 };
 
 export type Investment = {
