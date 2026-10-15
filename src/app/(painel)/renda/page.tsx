@@ -102,6 +102,9 @@ export default function RendaPage() {
   const [saving, setSaving] = useState(false);
   const [marcando, setMarcando] = useState<string | null>(null);
   const [desfazer, setDesfazer] = useState<{ income_id: string; month: string; rotulo: string } | null>(null);
+  // Seções recolhíveis da empresa. Lembra no navegador; é só conforto de quem olha.
+  const [abertoAReceber, setAbertoAReceber] = useLembrado("rumofacil:a-receber-aberto", true);
+  const [abertoTodos, setAbertoTodos] = useLembrado("rumofacil:recebimentos-aberto", true);
 
   const carregarRecebidos = useCallback(async () => {
     if (!empresa) return;
@@ -206,7 +209,8 @@ export default function RendaPage() {
       modo,
       parcelas: income.installments_total?.toString() ?? "",
       client: income.client ?? "",
-      jaRecebido: false,
+      jaRecebido:
+        modo === "avista" && recebido.has(`${income.id}|${firstDayOfMonth(income.start_date)}`),
     });
     setFormError(null);
   }
@@ -265,13 +269,28 @@ export default function RendaPage() {
       return;
     }
 
-    // Recebimento novo que já caiu: marca o 1º mês (ou a 1ª parcela).
+    const mesInicial = firstDayOfMonth(draft.start_date);
+    const caiuEm = draft.start_date <= hoje ? draft.start_date : hoje;
+
     if (empresa && recebidosOk && !draft.id && draft.modo !== "mensal" && draft.jaRecebido) {
-      await supabase.from("income_received").insert({
-        income_id: salvo.id,
-        month: firstDayOfMonth(draft.start_date),
-        received_on: draft.start_date <= hoje ? draft.start_date : hoje,
-      });
+      // Recebimento novo que já caiu: marca o 1º mês (ou a 1ª parcela).
+      await supabase
+        .from("income_received")
+        .insert({ income_id: salvo.id, month: mesInicial, received_on: caiuEm });
+    } else if (empresa && recebidosOk && draft.id && draft.modo === "avista") {
+      // À vista editado: o "Já caiu na conta?" manda. À vista tem um mês só,
+      // então limpa o que houver (até de uma data antiga) e marca de novo.
+      const antes = recebidos.find((r) => r.income_id === draft.id);
+      const jaEstava = antes && firstDayOfMonth(antes.month) === mesInicial;
+      if (!draft.jaRecebido || !jaEstava) {
+        await supabase.from("income_received").delete().eq("income_id", draft.id);
+        if (draft.jaRecebido)
+          await supabase.from("income_received").insert({
+            income_id: draft.id,
+            month: mesInicial,
+            received_on: antes?.received_on ?? caiuEm,
+          });
+      }
     }
 
     setSaving(false);
@@ -414,9 +433,13 @@ export default function RendaPage() {
       {/* A receber (FASE_F.md, F2.4): atrasados primeiro, depois o mês e os próximos. */}
       {!loading && pendencias.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">
-            A receber
-          </h2>
+          <TituloRecolhivel
+            titulo="A receber"
+            detalhe={`${pendencias.length} ${pendencias.length === 1 ? "item" : "itens"}`}
+            aberto={abertoAReceber}
+            onToggle={() => setAbertoAReceber(!abertoAReceber)}
+          />
+          {abertoAReceber && (
           <ul className="flex flex-col gap-2">
             {pendencias.map((p) => {
               const k = `${p.income.id}|${p.mes}`;
@@ -428,8 +451,9 @@ export default function RendaPage() {
                       {p.income.source}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
-                      <span>{rotuloPendencia(p)}</span>
-                      <span>· {monthLabel(p.mes)}</span>
+                      <span>
+                        {rotuloPendencia(p)} · {monthLabel(p.mes, true)}
+                      </span>
                       {p.atrasado && (
                         <span className="font-semibold text-[var(--color-out)]">· atrasado</span>
                       )}
@@ -450,6 +474,7 @@ export default function RendaPage() {
               );
             })}
           </ul>
+          )}
         </section>
       )}
 
@@ -469,11 +494,15 @@ export default function RendaPage() {
         />
       ) : (
         <section className="flex flex-col gap-2">
-          {empresa && pendencias.length > 0 && (
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">
-              Todos os recebimentos
-            </h2>
+          {empresa && (
+            <TituloRecolhivel
+              titulo="Todos os recebimentos"
+              detalhe={String(visible.length)}
+              aberto={abertoTodos}
+              onToggle={() => setAbertoTodos(!abertoTodos)}
+            />
           )}
+          {(!empresa || abertoTodos) && (
           <ul className="flex flex-col gap-2">
             {visible.map((income) => {
               const mine = income.user_id === me.id;
@@ -516,9 +545,24 @@ export default function RendaPage() {
                         </span>
                       )}
                       {empresa && modo === "avista" && recebidosOk && (
-                        <span className={avistaRecebido ? "text-[var(--color-in)]" : ""}>
-                          · {avistaRecebido ? "recebido" : "a receber"}
-                        </span>
+                        <button
+                          type="button"
+                          title={avistaRecebido ? "Tocar para voltar a \u201ca receber\u201d" : "Tocar para marcar como recebido"}
+                          onClick={() => {
+                            const mes = firstDayOfMonth(income.start_date);
+                            if (!avistaRecebido) marcar(income, mes, income.source);
+                            else if (window.confirm(`Voltar \u201c${income.source}\u201d para a receber?`))
+                              desmarcar(income.id, mes);
+                          }}
+                          className={[
+                            "rounded-full border px-2 py-0.5 font-medium transition-colors",
+                            avistaRecebido
+                              ? "border-transparent bg-[var(--color-in)]/15 text-[var(--color-in)]"
+                              : "border-[var(--color-line)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]",
+                          ].join(" ")}
+                        >
+                          {avistaRecebido ? "✓ recebido" : "a receber"}
+                        </button>
                       )}
                       {scope === "us" && owner && (
                         <OwnerTag name={owner.name} color={owner.color} />
@@ -558,6 +602,7 @@ export default function RendaPage() {
               );
             })}
           </ul>
+          )}
         </section>
       )}
 
@@ -798,8 +843,8 @@ function FormEmpresa({
         )}
       </div>
 
-      {/* Só no novo: na edição, o que já entrou se marca pelas parcelas ou em "A receber". */}
-      {!draft.id && podeMarcar && draft.modo !== "mensal" && (
+      {/* Na edição só no à vista: parcelado se marca pelas bolinhas, "todo mês" em "A receber". */}
+      {podeMarcar && (draft.id ? draft.modo === "avista" : draft.modo !== "mensal") && (
         <SegmentedField
           label={draft.modo === "parcelado" ? "A 1ª parcela já caiu na conta?" : "Já caiu na conta?"}
           value={draft.jaRecebido ? "sim" : "nao"}
@@ -819,5 +864,64 @@ function FormEmpresa({
         />
       </Field>
     </div>
+  );
+}
+
+/** Estado lembrado no navegador. Sem acesso ao armazenamento, só não lembra. */
+function useLembrado(chave: string, inicial: boolean): [boolean, (v: boolean) => void] {
+  const [valor, setValor] = useState(inicial);
+  useEffect(() => {
+    try {
+      const salvo = window.localStorage.getItem(chave);
+      if (salvo !== null) setValor(salvo === "1");
+    } catch {}
+  }, [chave]);
+  const mudar = (v: boolean) => {
+    setValor(v);
+    try {
+      window.localStorage.setItem(chave, v ? "1" : "0");
+    } catch {}
+  };
+  return [valor, mudar];
+}
+
+/** Título de seção que abre e fecha, com a setinha. */
+function TituloRecolhivel({
+  titulo,
+  detalhe,
+  aberto,
+  onToggle,
+}: {
+  titulo: string;
+  detalhe?: string;
+  aberto: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={aberto}
+      className="flex min-h-9 w-full items-center justify-between gap-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)] transition-colors hover:text-[var(--color-text)]"
+    >
+      <span>
+        {titulo}
+        {detalhe && <span className="ml-2 font-normal normal-case tracking-normal">{detalhe}</span>}
+      </span>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className={`shrink-0 transition-transform ${aberto ? "rotate-180" : ""}`}
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </button>
   );
 }

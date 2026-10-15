@@ -60,12 +60,12 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [ ] F1.9 Login com usuário ou e-mail (resolvido no servidor, sem expor e-mail de ninguém)
 
 ### F2 — Recebimentos
-- [ ] F2.1 Recebimento parcelado: valor total ÷ parcelas, cada parcela no seu mês — código no PR da F2; falta rodar a 014 e conferir no app
-- [ ] F2.2 Campo opcional "Cliente/Serviço" no recebimento e no gasto — código no PR da F2; falta rodar a 014 e conferir no app
-- [ ] F2.3 Marcar parcela como recebida — código no PR da F2; falta rodar a 014 e conferir no app
-- [ ] F2.4 Tela "A receber": parcelas futuras e atrasadas (não recebidas com mês já passado) — código no PR da F2; falta rodar a 014 e conferir no app
-- [ ] F2.5 Início da empresa: Faturou / Gastou / Lucro; prejuízo em vermelho — código no PR da F2; falta rodar a 014 e conferir no app
-- [ ] F2.6 Saldo acumulado vira "Caixa da empresa" (recebido − gasto − retiradas) — código no PR da F2; falta rodar a 014 e conferir no app
+- [x] F2.1 Recebimento parcelado: valor total ÷ parcelas, cada parcela no seu mês — conferido 15/10 no print: Beli · Instalação 5x de R$ 300, parcela 1 recebida
+- [ ] F2.2 Campo opcional "Cliente/Serviço" no recebimento e no gasto — recebimento conferido (cliente Beli); falta ver no gasto
+- [x] F2.3 Marcar parcela como recebida — conferido 15/10
+- [x] F2.4 Tela "A receber": parcelas futuras e atrasadas (não recebidas com mês já passado) — conferido 15/10 no print
+- [ ] F2.5 Início da empresa: Faturou / Gastou / Lucro; prejuízo em vermelho — caixa conferido; falta olhar o card A receber no Início
+- [x] F2.6 Saldo acumulado vira "Caixa da empresa" (recebido − gasto − retiradas) — conferido 15/10: "o caixa mudou no início"
 
 ### F3 — Lucro e divisão
 - [ ] F3.1 Ajustes da empresa: % de cada sócio (soma obrigatória de 100%)
@@ -116,4 +116,6 @@ tela em paralelo.
 - [ ] C7 Textos de casa aparecendo na empresa: "Sua casa, só você por enquanto", gastos, relatórios, recebimentos, categorias, cartões ("só seus" — na empresa os sócios veem), contas, recibos, Ajustes, sair da empresa, convite, exportar, excluir conta, importar planilha
 - [x] C8 Sair de uma empresa criava uma casa de família; convite deixava conta pessoal entrar em empresa — corrigido na 013 (testado com as contas da Solaris, tudo desfeito no fim; 013 aplicada e conferida em 15/10)
 - [ ] C9 Na visão da empresa, o título do Início diz "Empresa"; deve mostrar o nome da empresa (o seletor do topo continua "Empresa") — pedido do Talles, 15/10
-- [ ] C10 Migração 014 (recebimentos) — aplicada pelo Talles e conferida no banco em 15/10 (tabela, 3 colunas, 3 políticas, regra do parcelado); falta o teste no app: parcelado 5x, à vista "ainda não", Recebi e o Caixa
+- [x] C10 Migração 014 (recebimentos) — aplicada pelo Talles e conferida no banco em 15/10 (tabela, 3 colunas, 3 políticas, regra do parcelado); teste no app ok (parcelado, Recebi, caixa)
+- [ ] C11 "A receber" e "Todos os recebimentos" com setinha pra recolher (pedido do Talles, 15/10)
+- [ ] C12 À vista marcado como recebido não voltava pra "a receber": agora dá pelo toque no status da lista e pelo "Já caiu na conta?" na edição (pedido do Talles, 15/10)
