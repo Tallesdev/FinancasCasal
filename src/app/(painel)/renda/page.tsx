@@ -62,6 +62,8 @@ type Draft = {
   client: string;
   /** Só em recebimento novo: já marca o 1º mês como recebido. */
   jaRecebido: boolean;
+  /** Onde caiu: "" = conta da empresa; id = conta pessoal do sócio (migração 016). */
+  caiuEm: string;
 };
 
 const EMPTY: Draft = {
@@ -76,6 +78,7 @@ const EMPTY: Draft = {
   parcelas: "",
   client: "",
   jaRecebido: true,
+  caiuEm: "",
 };
 
 const arredondar = (v: number) => Math.round(v * 100) / 100;
@@ -185,6 +188,7 @@ export default function RendaPage() {
       ...EMPTY,
       source: ultimaAvulsa.source,
       client: ultimaAvulsa.client ?? "",
+      caiuEm: ultimaAvulsa.received_into ?? "",
       kind: "one_time",
       modo: "avista",
       start_date: toISODate(new Date()),
@@ -209,6 +213,7 @@ export default function RendaPage() {
       modo,
       parcelas: income.installments_total?.toString() ?? "",
       client: income.client ?? "",
+      caiuEm: income.received_into ?? "",
       jaRecebido:
         modo === "avista" && recebido.has(`${income.id}|${firstDayOfMonth(income.start_date)}`),
     });
@@ -254,6 +259,8 @@ export default function RendaPage() {
     if (empresa) {
       payload.installments_total = parcelado ? parcelas : null;
       payload.client = draft.client.trim() || null;
+      // Coluna da 016: só manda quando precisa, pra seguir salvando antes da migração.
+      if (draft.caiuEm || draft.id) payload.received_into = draft.caiuEm || null;
     }
 
     setSaving(true);
@@ -531,6 +538,9 @@ export default function RendaPage() {
                           : ENTRY_KIND_LABEL[income.kind]}
                       </Tag>
                       {empresa && income.client && <span>{income.client}</span>}
+                      {empresa && income.received_into && (
+                        <Tag>caiu na conta de {(profileById[income.received_into]?.name ?? "sócio").split(" ")[0]}</Tag>
+                      )}
                       <span>
                         {income.kind === "one_time"
                           ? formatDate(income.start_date)
@@ -617,6 +627,7 @@ export default function RendaPage() {
               setDraft={setDraft}
               clientes={clientes}
               podeMarcar={recebidosOk}
+              socios={members.length > 1 ? members : []}
             />
           ) : (
             <FormFamilia draft={draft} setDraft={setDraft} />
@@ -726,11 +737,13 @@ function FormEmpresa({
   setDraft,
   clientes,
   podeMarcar,
+  socios,
 }: {
   draft: Draft;
   setDraft: (d: Draft) => void;
   clientes: string[];
   podeMarcar: boolean;
+  socios: { id: string; display_name: string }[];
 }) {
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const amount = Number(draft.amount.replace(",", "."));
@@ -854,6 +867,26 @@ function FormEmpresa({
             { value: "nao", label: "Ainda não" },
           ]}
         />
+      )}
+
+      {socios.length > 0 && (
+        <Field
+          label="Onde o dinheiro cai"
+          hint="Na conta de um sócio = ele fica devendo à empresa (aparece no Acerto)."
+        >
+          <select
+            className={inputClass}
+            value={draft.caiuEm}
+            onChange={(event) => set({ caiuEm: event.target.value })}
+          >
+            <option value="">Conta da empresa</option>
+            {socios.map((s) => (
+              <option key={s.id} value={s.id}>
+                Conta de {s.display_name.split(" ")[0]}
+              </option>
+            ))}
+          </select>
+        </Field>
       )}
 
       <Field label="Observação" hint="Opcional">

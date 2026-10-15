@@ -189,6 +189,21 @@ export default function LucroPage() {
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
+      {members.length > 1 && (
+        <Link
+          href="/acerto"
+          className="card flex items-center justify-between gap-3 px-4 py-3 text-sm transition-colors hover:border-[var(--scope)]"
+        >
+          <span>
+            <span className="font-medium">Acerto entre sócios</span>
+            <span className="block text-xs text-[var(--color-text-faint)]">
+              Gasto pago do bolso e cliente que pagou na conta de um sócio.
+            </span>
+          </span>
+          <span aria-hidden="true" className="text-[var(--color-text-faint)]">&rsaquo;</span>
+        </Link>
+      )}
+
       {!pronto && (
         <ErrorNote>
           A divisão e as retiradas ainda não estão ligadas no banco (migração 015). O lucro do
