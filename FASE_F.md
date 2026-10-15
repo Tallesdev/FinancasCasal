@@ -116,3 +116,4 @@ tela em paralelo.
 - [ ] C7 Textos de casa aparecendo na empresa: "Sua casa, só você por enquanto", gastos, relatórios, recebimentos, categorias, cartões ("só seus" — na empresa os sócios veem), contas, recibos, Ajustes, sair da empresa, convite, exportar, excluir conta, importar planilha
 - [x] C8 Sair de uma empresa criava uma casa de família; convite deixava conta pessoal entrar em empresa — corrigido na 013 (testado com as contas da Solaris, tudo desfeito no fim; 013 aplicada e conferida em 15/10)
 - [ ] C9 Na visão da empresa, o título do Início diz "Empresa"; deve mostrar o nome da empresa (o seletor do topo continua "Empresa") — pedido do Talles, 15/10
+- [ ] C10 Migração 014 (recebimentos) — aplicada pelo Talles e conferida no banco em 15/10 (tabela, 3 colunas, 3 políticas, regra do parcelado); falta o teste no app: parcelado 5x, à vista "ainda não", Recebi e o Caixa
