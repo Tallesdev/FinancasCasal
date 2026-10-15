@@ -75,7 +75,7 @@ export type Voltar = {
 /** As telas que no celular só se alcançam pela página de Ajustes. */
 export const VOLTAR_AJUSTES: Voltar = {
   href: "/ajustes",
-  rotulo: "Ajustes",
+  rotulo: "Configurações",
   soCelular: true,
 };
 

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ScopeProvider } from "@/components/ScopeProvider";
@@ -8,6 +7,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { AceiteTermos } from "@/components/AceiteTermos";
+import { MenuAjustes } from "@/components/MenuAjustes";
 import { iaConfigurada } from "@/lib/ia";
 import { recibosAtivos } from "@/lib/recibos-servidor";
 import type { Household, Profile } from "@/lib/types";
@@ -79,14 +79,9 @@ export default async function PainelLayout({
                 botões escorregavam pra esquerda. */}
             <div className="ml-auto flex items-center gap-2 sm:gap-4">
               <PrivacyToggle />
-              {/* No celular a barra de baixo não cabe os ajustes. */}
-              <Link
-                href="/ajustes"
-                className="flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-[15px] text-[var(--color-text-faint)] transition-colors hover:text-[var(--color-text)] md:hidden"
-              >
-                <Engrenagem />
-                Ajustes
-              </Link>
+              {/* No celular a barra de baixo não cabe os ajustes: o botão abre
+                  um menu com os atalhos e "Configurações" (MenuAjustes). */}
+              <MenuAjustes />
               <SignOutButton />
             </div>
           </header>
@@ -97,24 +92,5 @@ export default async function PainelLayout({
         </div>
       </div>
     </ScopeProvider>
-  );
-}
-
-function Engrenagem() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
   );
 }
