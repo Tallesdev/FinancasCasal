@@ -80,12 +80,17 @@ export function MinhaCasa() {
     if (!casa || !name || !mudouCasa) return;
     setSaving(true);
     setError(null);
+    // kind só vai quando mudou: o banco recusa trocar o tipo com mais de
+    // uma pessoa na casa (migração 011), e isso não pode travar o nome/cor.
     const { error: e } = await supabase
       .from("households")
-      .update({ name, color: cor, kind: tipo })
+      .update({ name, color: cor, ...(tipo !== casa.kind ? { kind: tipo } : {}) })
       .eq("id", casa.id);
     setSaving(false);
-    if (e) return setError("Não deu para salvar. Tente de novo.");
+    if (e)
+      return setError(
+        e.code === "42501" ? e.message : "Não deu para salvar. Tente de novo."
+      );
     setCasa({ ...casa, name, color: cor, kind: tipo });
     // O layout lê a casa no servidor: sem isso a cor nova só apareceria
     // na próxima abertura do app.
@@ -167,48 +172,63 @@ export function MinhaCasa() {
     router.refresh();
   }
 
+  // Rótulos seguem o tipo SALVO, não o que está sendo escolhido agora.
+  const empresa = casa?.kind === "empresa";
+  const sozinho = members.length <= 1;
+
   return (
     <section className="card flex flex-col gap-5 px-4 py-5">
       <div>
-        <h2 className="text-sm font-semibold">Minha casa</h2>
+        <h2 className="text-sm font-semibold">{empresa ? "Minha empresa" : "Minha casa"}</h2>
         <p className="mt-0.5 text-xs text-[var(--color-text-faint)]">
-          Quem divide as finanças com você. Até {LIMITE} pessoas.
+          {empresa
+            ? `Os sócios, cada um com a sua conta. Até ${LIMITE} pessoas.`
+            : `Quem divide as finanças com você. Até ${LIMITE} pessoas.`}
         </p>
       </div>
 
       {casa && (
         <div className="flex flex-col gap-4">
           <TextField
-            label="Nome da casa"
+            label={empresa ? "Nome da empresa" : "Nome da casa"}
             value={nome}
-            placeholder="Família Silva, Nossa casa…"
+            placeholder={empresa ? "Solaris…" : "Família Silva, Nossa casa…"}
             onChange={(event) => setNome(event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && salvarCasa()}
           />
 
           <Field
-            label="Cor da casa"
+            label={empresa ? "Cor da empresa" : "Cor da casa"}
             hint="Pinta a interface quando você olha os números de todos."
           >
             <ColorPicker value={cor} onChange={setCor} />
           </Field>
 
-          <SegmentedField
-            label="Tipo de casa"
-            value={tipo}
-            onChange={setTipo}
-            options={Object.entries(HOUSEHOLD_KIND_LABEL).map(([value, label]) => ({
-              value: value as HouseholdKind,
-              label,
-            }))}
-          />
+          {/* Virar empresa abre contas e cartões aos outros membros: por isso o
+              tipo só muda com a pessoa sozinha (o banco também confere). */}
+          {sozinho ? (
+            <SegmentedField
+              label="Tipo"
+              value={tipo}
+              onChange={setTipo}
+              options={Object.entries(HOUSEHOLD_KIND_LABEL).map(([value, label]) => ({
+                value: value as HouseholdKind,
+                label,
+              }))}
+            />
+          ) : (
+            <p className="text-xs text-[var(--color-text-faint)]">
+              Tipo: <strong className="text-[var(--color-text-dim)]">{HOUSEHOLD_KIND_LABEL[casa.kind ?? "familia"]}</strong>.
+              Só dá pra trocar enquanto você está sozinho aqui.
+            </p>
+          )}
 
           <div>
             <Button
               onClick={salvarCasa}
               disabled={saving || !nome.trim() || !mudouCasa}
             >
-              {saving ? "Salvando…" : "Salvar casa"}
+              {saving ? "Salvando…" : empresa ? "Salvar empresa" : "Salvar casa"}
             </Button>
           </div>
         </div>

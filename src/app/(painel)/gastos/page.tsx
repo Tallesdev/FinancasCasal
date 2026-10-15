@@ -127,13 +127,13 @@ export default function GastosPage() {
         supabase.rpc("expense_occurrences", { p_from: month, p_to: month }),
         supabase.from("expenses").select("*"),
         supabase.from("categories").select("*"),
-        // Cartão é privado, então só os meus voltam de qualquer jeito.
-        supabase.from("cards").select("*").eq("user_id", me.id),
-        // Conta bancária também é privada.
+        // Sem filtro de dono: quem decide é a RLS. Na família cartão e conta
+        // são privados (voltam só os meus); na empresa voltam os dos sócios,
+        // porque a conta da empresa está no nome de um deles (migração 011).
+        supabase.from("cards").select("*"),
         supabase
           .from("bank_accounts")
           .select("*")
-          .eq("user_id", me.id)
           .eq("archived", false)
           .order("name"),
       ]);

@@ -6,6 +6,10 @@ import Link from "next/link";
 import { DateField, PasswordField, TextField } from "@/components/form/Field";
 import { IDADE_MINIMA, TERMOS_VERSAO, idadeEm } from "@/lib/legal";
 import { toISODate } from "@/lib/format";
+import type { HouseholdKind } from "@/lib/types";
+
+/** Mesma regra do banco (migração 011). */
+const USUARIO_VALIDO = /^[a-z0-9._]{3,30}$/;
 
 /**
  * O cliente do Supabase é a maior parte do JavaScript desta tela, e ela só
@@ -51,7 +55,10 @@ export default function LoginPage() {
   const [modo, setModo] = useState<Modo>("entrar");
   const [motivo, setMotivo] = useState<Motivo>("cadastro");
   const [nome, setNome] = useState("");
+  /** No modo "entrar" guarda e-mail OU nome de usuário. */
   const [email, setEmail] = useState("");
+  const [usuario, setUsuario] = useState("");
+  const [tipo, setTipo] = useState<HouseholdKind>("familia");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -109,16 +116,35 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const supabase = await carregarCliente();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    const login = email.trim();
 
-    if (signInError) {
-      setLoading(false);
-      setError(traduzir(signInError.message));
-      return;
+    if (login.includes("@")) {
+      const supabase = await carregarCliente();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: login,
+        password,
+      });
+
+      if (signInError) {
+        setLoading(false);
+        setError(traduzir(signInError.message));
+        return;
+      }
+    } else {
+      // Sem "@" é nome de usuário: quem acha o e-mail é o servidor, que já
+      // devolve a sessão nos cookies (api/entrar).
+      const resposta = await fetch("/api/entrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario: login, senha: password }),
+      }).catch(() => null);
+
+      if (!resposta?.ok) {
+        setLoading(false);
+        const corpo = (await resposta?.json().catch(() => null)) as { error?: string } | null;
+        setError(corpo?.error ?? "Não deu certo agora. Tente de novo em instantes.");
+        return;
+      }
     }
 
     // Sem router.refresh() aqui: ele disparava uma segunda renderização no
@@ -150,9 +176,28 @@ export default function LoginPage() {
     if (password.length < 6)
       return setError("A senha precisa ter pelo menos 6 caracteres.");
 
+    const usuarioLimpo = usuario.trim().toLowerCase();
+    if (usuarioLimpo && !USUARIO_VALIDO.test(usuarioLimpo))
+      return setError(
+        "O usuário precisa ter de 3 a 30 caracteres: letras, números, ponto ou sublinhado, sem espaço."
+      );
+
     setLoading(true);
 
     const supabase = await carregarCliente();
+
+    if (usuarioLimpo) {
+      // Se a função ainda não existe no banco, segue: o cadastro nasce sem
+      // usuário e a pessoa escolhe em Ajustes.
+      const { data: livre, error: falhaUsuario } = await supabase.rpc("usuario_disponivel", {
+        p_usuario: usuarioLimpo,
+      });
+      if (!falhaUsuario && livre === false) {
+        setLoading(false);
+        return setError("Esse nome de usuário já está em uso. Escolha outro.");
+      }
+    }
+
     const { error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -164,6 +209,8 @@ export default function LoginPage() {
           terms_version: TERMOS_VERSAO,
           adult_declared: true,
           receipts_consent: consenteRecibos,
+          household_kind: tipo,
+          username: usuarioLimpo || undefined,
         },
         emailRedirectTo: destinoConfirmar(),
       },
@@ -372,6 +419,40 @@ export default function LoginPage() {
               />
             )}
 
+            {/* Decide o app inteiro: a conta pessoal é a de sempre; a de
+                empresa troca as telas (FASE_F.md). */}
+            {modo === "criar" && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-[var(--color-text-dim)]">
+                  Para que vai usar
+                </span>
+                <div role="group" aria-label="Tipo de conta" className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { value: "familia" as HouseholdKind, label: "Uso pessoal", dica: "Você e sua casa" },
+                      { value: "empresa" as HouseholdKind, label: "Empresa", dica: "Sócios e lucro" },
+                    ]
+                  ).map((opcao) => (
+                    <button
+                      key={opcao.value}
+                      type="button"
+                      aria-pressed={tipo === opcao.value}
+                      onClick={() => setTipo(opcao.value)}
+                      className={[
+                        "flex min-h-11 flex-col items-start rounded-lg border px-3.5 py-2.5 text-left transition-colors",
+                        tipo === opcao.value
+                          ? "border-[var(--color-couple)] bg-[var(--color-couple)]/10"
+                          : "border-[var(--color-line)] hover:border-[var(--color-text-faint)]",
+                      ].join(" ")}
+                    >
+                      <span className="text-sm font-semibold">{opcao.label}</span>
+                      <span className="text-xs text-[var(--color-text-faint)]">{opcao.dica}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {modo === "criar" && (
               <div className="flex flex-col gap-1.5">
                 <DateField
@@ -387,15 +468,47 @@ export default function LoginPage() {
               </div>
             )}
 
-            <TextField
-              label="E-mail"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && enviar()}
-            />
+            {modo === "entrar" ? (
+              <TextField
+                label="E-mail ou usuário"
+                type="text"
+                inputMode="email"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && enviar()}
+              />
+            ) : (
+              <TextField
+                label="E-mail"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && enviar()}
+              />
+            )}
+
+            {modo === "criar" && (
+              <div className="flex flex-col gap-1.5">
+                <TextField
+                  label="Nome de usuário (opcional)"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={usuario}
+                  placeholder={tipo === "empresa" ? "ex: solaris.talles" : "ex: talles"}
+                  onChange={(event) => setUsuario(event.target.value.toLowerCase())}
+                  onKeyDown={(event) => event.key === "Enter" && enviar()}
+                />
+                <span className="text-xs text-[var(--color-text-faint)]">
+                  Pra entrar sem digitar o e-mail. Letras, números, ponto ou sublinhado.
+                </span>
+              </div>
+            )}
 
             <PasswordField
               label="Senha"

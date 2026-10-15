@@ -22,6 +22,7 @@ export function MeuPerfil() {
 
   const [nome, setNome] = useState(me.display_name);
   const [cor, setCor] = useState(me.color);
+  const [usuario, setUsuario] = useState(me.username ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
@@ -34,7 +35,9 @@ export function MeuPerfil() {
   const [senhaErro, setSenhaErro] = useState<string | null>(null);
   const [salvandoSenha, setSalvandoSenha] = useState(false);
 
-  const mudou = nome.trim() !== me.display_name || cor !== me.color;
+  const usuarioLimpo = usuario.trim().toLowerCase();
+  const mudouUsuario = usuarioLimpo !== (me.username ?? "");
+  const mudou = nome.trim() !== me.display_name || cor !== me.color || mudouUsuario;
 
   async function salvar() {
     const display_name = nome.trim();
@@ -43,19 +46,36 @@ export function MeuPerfil() {
       return;
     }
 
+    if (usuarioLimpo && !/^[a-z0-9._]{3,30}$/.test(usuarioLimpo)) {
+      setError(
+        "O usuário precisa ter de 3 a 30 caracteres: letras, números, ponto ou sublinhado, sem espaço."
+      );
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSalvo(false);
 
+    // username só vai quando mudou: assim o resto do perfil salva mesmo
+    // num banco que ainda não tem a coluna (migração 011).
     const { error: writeError } = await supabase
       .from("profiles")
-      .update({ display_name, color: cor })
+      .update({
+        display_name,
+        color: cor,
+        ...(mudouUsuario ? { username: usuarioLimpo || null } : {}),
+      })
       .eq("id", me.id);
 
     setSaving(false);
 
     if (writeError) {
-      setError("Não deu para salvar. Tente de novo.");
+      setError(
+        writeError.code === "23505"
+          ? "Esse nome de usuário já está em uso. Escolha outro."
+          : "Não deu para salvar. Tente de novo."
+      );
       return;
     }
 
@@ -111,6 +131,24 @@ export function MeuPerfil() {
           setSalvo(false);
         }}
       />
+
+      <div className="flex flex-col gap-1.5">
+        <TextField
+          label="Nome de usuário"
+          value={usuario}
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          placeholder="ex: talles"
+          onChange={(event) => {
+            setUsuario(event.target.value.toLowerCase());
+            setSalvo(false);
+          }}
+        />
+        <span className="text-xs text-[var(--color-text-faint)]">
+          Pra entrar sem digitar o e-mail. Deixe vazio pra usar só o e-mail.
+        </span>
+      </div>
 
       <Field label="Sua cor">
         <ColorPicker

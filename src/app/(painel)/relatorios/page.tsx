@@ -12,7 +12,7 @@ import type { CategoryRankingRow, MonthlySummaryRow } from "@/lib/types";
 
 export default function RelatoriosPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { userIds, scope } = useScope();
+  const { userIds, scope, empresa } = useScope();
 
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [summary, setSummary] = useState<MonthlySummaryRow[]>([]);
@@ -144,20 +144,23 @@ export default function RelatoriosPage() {
         }
       />
 
-      <nav className="flex gap-2" aria-label="Tipo de relatório">
-        <span
-          aria-current="page"
-          className="rounded-full bg-[var(--scope)] px-3.5 py-1.5 text-sm font-medium text-[var(--color-ink)]"
-        >
-          Mês a mês
-        </span>
-        <Link
-          href="/relatorios/ciclo"
-          className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-sm text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
-        >
-          Por ciclo
-        </Link>
-      </nav>
+      {/* Empresa é sempre pelo mês: sem relatório de ciclo (FASE_F.md). */}
+      {!empresa && (
+        <nav className="flex gap-2" aria-label="Tipo de relatório">
+          <span
+            aria-current="page"
+            className="rounded-full bg-[var(--scope)] px-3.5 py-1.5 text-sm font-medium text-[var(--color-ink)]"
+          >
+            Mês a mês
+          </span>
+          <Link
+            href="/relatorios/ciclo"
+            className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-sm text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
+          >
+            Por ciclo
+          </Link>
+        </nav>
+      )}
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -193,11 +196,13 @@ export default function RelatoriosPage() {
           <section className="card px-4 py-5">
             <h2 className="mb-1 text-sm font-semibold">{year} mês a mês</h2>
             <p className="mb-3 text-xs text-[var(--color-text-faint)]">
-              Entrada, saída e investimento na mesma escala.
+              {empresa
+                ? "Recebido e gasto na mesma escala."
+                : "Entrada, saída e investimento na mesma escala."}
             </p>
             <MonthlyBars
               data={series}
-              series={["income", "expense", "investment"]}
+              series={empresa ? ["income", "expense"] : ["income", "expense", "investment"]}
               height={300}
             />
           </section>

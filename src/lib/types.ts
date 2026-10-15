@@ -20,6 +20,8 @@ export type Profile = {
   adult_declared_at?: string | null;
   /** Consentimento específico para guardar recibos (dado sensível). Nulo = não deu. */
   receipts_consent_at?: string | null;
+  /** Nome de usuário pra entrar sem o e-mail (migração 011). Nulo = só e-mail. */
+  username?: string | null;
 };
 
 /**
@@ -303,4 +305,6 @@ export type InviteInfo = {
   member_count: number;
   expires_at: string;
   email_locked: boolean;
+  /** Migração 012. Indefinido enquanto ela não roda: trata como família. */
+  household_kind?: HouseholdKind;
 };
