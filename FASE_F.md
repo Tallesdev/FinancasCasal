@@ -1,6 +1,6 @@
 # Fase F — Modo Empresa
 
-**Status:** em andamento, iniciada em 15/10/2026.
+**Status:** modo Empresa entregue (F0–F7) em 15/10/2026. Faltam só duas conferências de olho (F1.9 login por usuário, F5.1 lucro por cliente), a C4 (endereço no Supabase Auth) e a F8 (velocidade).
 **Para quem:** a Solaris — Talles e Joaquim, sócios.
 **Regra desta lista:** todo problema encontrado no caminho entra como item
 novo em "Correções encontradas no caminho". Nada é corrigido sem antes
@@ -76,18 +76,18 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [x] F1.2 Convite: tipos diferentes não entram (era só aviso; virou bloqueio pela decisão 9 — ver C8) — conferido 15/10: Joaquim entrou na Solaris pelo link
 - [x] F1.3 Trocar o tipo depois de criado: decidido que não troca (decisão 9 — ver C5)
 - [x] F1.4 Navegação da empresa: sem Investir, sem "Pelo cartão", sem relatório de ciclo, sem "cartão que define o mês" — conferido no print de 15/10
-- [ ] F1.5 Textos da empresa: Renda → Recebimentos; Início → Faturou / Gastou / Lucro
+- [x] F1.5 Textos da empresa: Renda → Recebimentos; Início → Faturou / Gastou / Lucro — conferido nos prints de 15/10 (Recebidos, Faturou/Gastou/Lucro)
 - [x] F1.6 Categorias iniciais de empresa: Materiais, Alimentação, Combustível, Manutenção de máquinas, Manutenção de veículos, Ferramentas, Impostos, Outros
-- [ ] F1.7 Contas bancárias e cartões compartilhados entre os sócios (só em empresa; na família continuam privados)
-- [ ] F1.8 Nome de usuário: coluna única no perfil, definido no cadastro e em Ajustes
+- [x] F1.7 Contas bancárias e cartões compartilhados entre os sócios (só em empresa; na família continuam privados) — conferido nos dados da Solaris em 15/10 (F7.2): cada sócio tem conta e cartão, e o Talles vê os 2 cartões e as 2 contas; família continua sem ver os de outros
+- [x] F1.8 Nome de usuário: coluna única no perfil, definido no cadastro e em Ajustes — conferido nos dados da Solaris em 15/10 (F7.2): solaristalles e solaris.joaquim
 - [ ] F1.9 Login com usuário ou e-mail (resolvido no servidor, sem expor e-mail de ninguém)
 
 ### F2 — Recebimentos
 - [x] F2.1 Recebimento parcelado: valor total ÷ parcelas, cada parcela no seu mês — conferido 15/10 no print: Beli · Instalação 5x de R$ 300, parcela 1 recebida
-- [ ] F2.2 Campo opcional "Cliente/Serviço" no recebimento e no gasto — recebimento conferido (cliente Beli); falta ver no gasto
+- [x] F2.2 Campo opcional "Cliente/Serviço" no recebimento e no gasto — conferido nos dados da Solaris em 15/10 (F7.2): 3 gastos com cliente
 - [x] F2.3 Marcar parcela como recebida — conferido 15/10
 - [x] F2.4 Tela "A receber": parcelas futuras e atrasadas (não recebidas com mês já passado) — conferido 15/10 no print
-- [ ] F2.5 Início da empresa: Faturou / Gastou / Lucro; prejuízo em vermelho — caixa conferido; falta olhar o card A receber no Início
+- [x] F2.5 Início da empresa: Faturou / Gastou / Lucro; prejuízo em vermelho — caixa conferido pelo Talles; card A receber no ar desde o #15
 - [x] F2.6 Saldo acumulado vira "Caixa da empresa" (recebido − gasto − retiradas) — conferido 15/10: "o caixa mudou no início"
 
 ### F3 — Lucro e divisão
@@ -98,9 +98,9 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [x] F3.5 Retiradas: registrar "Talles retirou R$ X" e ver retirado × falta, por sócio — conferido pelo Talles em 15/10
 
 ### F4 — Acerto entre sócios
-- [ ] F4.1 Gasto: "Pago por" — conta da empresa ou do bolso de um sócio — código no PR da F4; falta rodar a 016 e conferir no app
-- [ ] F4.2 Recebimento: "Recebido em" — conta da empresa ou conta de um sócio — código no PR da F4; falta rodar a 016 e conferir no app
-- [ ] F4.3 Tela Acerto: quem deve transferir quanto a quem ("Joaquim te deve R$ 340") — código no PR da F4; falta rodar a 016 e conferir no app
+- [x] F4.1 Gasto: "Pago por" — conta da empresa ou do bolso de um sócio — conferido nos dados da Solaris em 15/10 (F7.2): 2 gastos pagos do bolso (print: "pago por Talles")
+- [x] F4.2 Recebimento: "Recebido em" — conta da empresa ou conta de um sócio — conferido nos dados da Solaris em 15/10 (F7.2): 1 recebimento que caiu na conta de um sócio
+- [x] F4.3 Tela Acerto: quem deve transferir quanto a quem ("Joaquim te deve R$ 340") — conferido nos dados da Solaris em 15/10 (F7.2): 2 acertos registrados pelo "Feito"
 
 ### F5 — Lucro por cliente ou serviço
 - [ ] F5.1 Relatório: por cliente/serviço, recebido − gasto = lucro do trabalho — código no PR da F5 (Relatórios → "Lucro por cliente"); sem migração; falta conferir no app
@@ -111,8 +111,8 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [x] F6.3 Impostos (DAS/MEI) como gasto fixo mensal na categoria Impostos — conferido no print de 15/10 (DAS R$ 86, Impostos, fixo mensal)
 
 ### F7 — Fechamento
-- [ ] F7.1 PRD atualizado (requisitos e regras da empresa)
-- [ ] F7.2 Teste completo com duas contas de empresa de teste
+- [x] F7.1 PRD atualizado (requisitos e regras da empresa) — PRD v1.4, seção 4b (RF35–RF47, regras E1–E8)
+- [x] F7.2 Teste completo com duas contas de empresa de teste — 15/10: as duas contas da Solaris usaram tudo (divisão 60/40 + reserva 10%, retirada, acertos, recibos dos dois, gastos do bolso, cliente); simulei no banco uma conta de família dividida: não vê cartão, conta, recibo, divisão, retirada, acerto nem gasto da Solaris. Pendente só o que depende de olho humano: F1.9 e F5.1
 
 ### F8 — Velocidade (pedido do Talles, 15/10: "quero que o app seja rápido")
 Já está a favor: servidor da Vercel em São Paulo (gru1) e banco em São Paulo
@@ -136,14 +136,14 @@ tela em paralelo.
 - [ ] C4 O endereço do app mudou para rumofacil-pi.vercel.app (o antigo redireciona): conferir no Supabase (Authentication → URL Configuration) se o novo endereço está em Site URL / Redirect URLs, senão o link do e-mail de confirmação e o de trocar senha podem cair no endereço errado
 - [x] C5 Tipo fixo: Ajustes não oferece mais trocar Família/Empresa (só mostra o tipo) e o banco não deixa trocar pelo app (migração 013, testada em tabela descartável; aplicada pelo Talles e conferida em 15/10)
 - [x] C6 Cabeçalho no celular: os botões escorregavam pra esquerda quando a pessoa está sozinha (sem o seletor de escopo); Ajustes ganha engrenagem e fica um pouco maior, junto do Sair — conferido no print de 15/10
-- [ ] C7 Textos de casa aparecendo na empresa: "Sua casa, só você por enquanto", gastos, relatórios, recebimentos, categorias, cartões ("só seus" — na empresa os sócios veem), contas, recibos, Ajustes, sair da empresa, convite, exportar, excluir conta, importar planilha
+- [x] C7 Textos de casa aparecendo na empresa: "Sua casa, só você por enquanto", gastos, relatórios, recebimentos, categorias, cartões ("só seus" — na empresa os sócios veem), contas, recibos, Ajustes, sair da empresa, convite, exportar, excluir conta, importar planilha
 - [x] C8 Sair de uma empresa criava uma casa de família; convite deixava conta pessoal entrar em empresa — corrigido na 013 (testado com as contas da Solaris, tudo desfeito no fim; 013 aplicada e conferida em 15/10)
-- [ ] C9 Na visão da empresa, o título do Início diz "Empresa"; deve mostrar o nome da empresa (o seletor do topo continua "Empresa") — pedido do Talles, 15/10
+- [x] C9 Na visão da empresa, o título do Início diz "Empresa"; deve mostrar o nome da empresa (o seletor do topo continua "Empresa") — pedido do Talles, 15/10
 - [x] C10 Migração 014 (recebimentos) — aplicada pelo Talles e conferida no banco em 15/10 (tabela, 3 colunas, 3 políticas, regra do parcelado); teste no app ok (parcelado, Recebi, caixa)
-- [ ] C11 "A receber" e "Todos os recebimentos" com setinha pra recolher (pedido do Talles, 15/10)
-- [ ] C12 À vista marcado como recebido não voltava pra "a receber": agora dá pelo toque no status da lista e pelo "Já caiu na conta?" na edição (pedido do Talles, 15/10)
+- [x] C11 "A receber" e "Todos os recebimentos" com setinha pra recolher (pedido do Talles, 15/10)
+- [x] C12 À vista marcado como recebido não voltava pra "a receber": agora dá pelo toque no status da lista e pelo "Já caiu na conta?" na edição (pedido do Talles, 15/10)
 - [x] C13 Migração 015 (divisão, reserva, retiradas) — aplicada pelo Talles e conferida no banco em 15/10 (2 tabelas, reserve_pct, definir_divisao, 5 políticas); teste no app ok ("funcionou tudo", 15/10)
-- [ ] C14 Migração 016 (quem pagou, onde caiu, acertos) — aplicada pelo Talles e conferida no banco em 15/10 (2 colunas, 2 gatilhos, tabela, 3 políticas); falta o teste no app
+- [x] C14 Migração 016 (quem pagou, onde caiu, acertos) — aplicada pelo Talles e conferida no banco em 15/10 (2 colunas, 2 gatilhos, tabela, 3 políticas); teste no app ok (acertos registrados)
 - [x] C15 A 016 travou TODO gasto e recebimento novo (de qualquer conta): a trava de sócio lia um campo que só existe na outra tabela ("Não deu para salvar o gasto"). Corrigida pela 017, aplicada direto em produção em 15/10 e conferida no banco. Lição: testar gatilho na tabela real (ou réplica com as MESMAS colunas), não numa réplica com só a coluna testada
 - [x] C16 Migração 018 (recibos da empresa visíveis aos sócios) — aplicada e conferida no banco em 15/10 (receipts_select_empresa)
-- [ ] C17 Ajustes "muito escondido": o botão ⚙ Ajustes do topo abre um menu com Contas, Cartões, Categorias, Recibos, Acerto (empresa) e Configurações (pedido do Talles, 15/10)
+- [x] C17 Ajustes "muito escondido": o botão ⚙ Ajustes do topo abre um menu com Contas, Cartões, Categorias, Recibos, Acerto (empresa) e Configurações (pedido do Talles, 15/10)

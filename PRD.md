@@ -1,9 +1,9 @@
 # PRD: Finanças do casal
 
-**Versão:** v1.1
+**Versão:** v1.4
 **Status:** Aprovado
 **Autor:** Talles
-**Última atualização:** 03/09/2026
+**Última atualização:** 15/10/2026
 **Escopo desta versão:** MVP utilizável pelos dois no dia a dia
 
 ---
@@ -14,6 +14,12 @@ PWA de controle financeiro para um casal que mistura a vida mas não a conta
 bancária. Cada um lança a própria renda, os próprios gastos e os próprios
 aportes, e tem o próprio relatório. Uma segunda visão soma os dois e mostra o
 retrato da casa. Duas pessoas usam, sem hierarquia entre elas.
+
+**Desde a v1.4 o app também atende pequena empresa** (seção 4b): no cadastro
+a pessoa escolhe "Uso pessoal" ou "Empresa". A conta de empresa vê só telas
+de empresa — recebimentos de cliente, a receber, caixa, lucro do mês dividido
+entre os sócios, retiradas e acerto entre sócios. A conta pessoal continua
+exatamente como era.
 
 ---
 
@@ -288,6 +294,75 @@ erro, é convite.
 
 ---
 
+## 4b. Modo Empresa `[DEFINIDO em 15/10/2026]`
+
+Feito para a Solaris (Talles e Joaquim, sócios). Plano, decisões e checklist
+em `FASE_F.md`. Migrações 010 a 018.
+
+### Requisitos
+
+- **RF35** — No cadastro a pessoa escolhe **Uso pessoal** ou **Empresa**. O tipo
+  vale para a casa inteira e não muda depois (regra E1).
+- **RF36** — Entrar com **nome de usuário ou e-mail**. Cada conta continua com
+  e-mail próprio; o usuário é opcional e único. O servidor acha o e-mail pelo
+  usuário sem nunca devolvê-lo ao navegador.
+- **RF37** — A empresa tem navegação própria: Início, Gastos, Recebidos, Lucro,
+  Relatórios. Sem investimentos, sem "pelo cartão" e sem relatório de ciclo:
+  empresa é sempre pelo mês. Textos falam de empresa e sócios, não de casa.
+- **RF38** — Na empresa, contas bancárias, cartões e recibos são da empresa:
+  todo sócio vê e usa. Editar e apagar continua só com quem cadastrou.
+- **RF39** — Recebimento à vista, **parcelado** (valor total ÷ parcelas, cada
+  parcela no seu mês) ou todo mês, com **cliente** opcional. Cada parcela/mês é
+  marcada como recebida ("Recebi", com desfazer); a lista **A receber** mostra
+  o que falta, com os atrasados em vermelho.
+- **RF40** — Início da empresa: Faturou, Gastou, Lucro (Prejuízo em vermelho),
+  **Caixa da empresa** e A receber.
+- **RF41** — Ajustes da empresa: **% de cada sócio** (soma 100%) e **% de
+  reserva** antes de dividir (começa em 0%).
+- **RF42** — Tela **Lucro**: o ano mês a mês com a parte de cada sócio; por
+  sócio, quanto coube no ano, quanto **retirou** e quanto falta; registro de
+  retiradas.
+- **RF43** — **Acerto entre sócios**: cada gasto diz quem pagou (conta da
+  empresa ou bolso de um sócio) e cada recebimento onde caiu (conta da empresa
+  ou de um sócio). A tela mostra as transferências que zeram tudo, com "Feito"
+  para registrar.
+- **RF44** — Relatórios da empresa: **lucro por cliente** no ano.
+- **RF45** — Recibos: escolhido um mês, baixar as notas num **.zip** com um
+  `resumo.csv` para o contador.
+- **RF46** — Atalho **Imposto (DAS)** em Gastos: cria o gasto fixo mensal na
+  categoria Impostos, vencendo dia 20.
+- **RF47** — Nas duas versões, o botão ⚙ Ajustes do topo abre um menu com os
+  atalhos mais usados (contas, cartões, categorias, recibos, acerto) e
+  **Configurações**, a tela completa.
+
+### Regras de negócio da empresa
+
+- **E1. O tipo não muda.** Empresa continua empresa e família continua família;
+  convite só entre contas do mesmo tipo; quem sai de uma empresa vai para uma
+  empresa nova. Trocar depois misturaria lançamentos e abriria contas e
+  cartões a quem não devia vê-los.
+- **E2. Faturou × Caixa.** Faturou é o cobrado no mês (cada parcela no seu
+  mês) e é dele que sai o lucro. O Caixa da empresa é o que passou pela conta
+  da empresa: recebimentos que caíram nela menos gastos pagos por ela, menos
+  retiradas, mais/menos acertos com ela. Caixa e A receber são sempre da
+  empresa inteira — não mudam com o seletor de sócio.
+- **E3. Lucro do mês = faturado − gastos.** Mês com lucro: sai a reserva e o
+  resto divide pela % de cada sócio. Sem divisão salva, divide igual.
+- **E4. Mês com prejuízo fecha com prejuízo.** Não divide e não desconta dos
+  meses seguintes; o que fazer é decidido por fora.
+- **E5. Retirada é da parte do lucro.** "Coube no ano" soma só os meses com
+  lucro; "falta retirar" = coube − retiradas. Retirada não entra no acerto.
+- **E6. Acerto é sobre dinheiro trocado de lugar.** Saldo do sócio = pagou do
+  bolso − recebeu na conta dele ± acertos. "Onde caiu" vale para o
+  recebimento inteiro; parcela que caiu em outra conta se lança separado.
+- **E7. Cliente é por nome.** "João", "joao" e "JOÃO " são o mesmo cliente.
+  Gasto sem cliente (combustível do mês) fica fora do lucro por cliente.
+- **E8. Recibo da empresa é da empresa.** Os sócios veem e baixam os de todos;
+  apagar e ligar a gasto, só quem enviou. "Baixar meus dados" continua levando
+  só os recibos da própria pessoa.
+
+---
+
 ## 5. Requisitos Não-Funcionais
 
 - **Mobile-first** — a tela pequena é o caso principal, não a adaptação. Ações
@@ -321,7 +396,8 @@ Coisas que vão dar vontade de pedir, e o motivo de ficarem de fora agora:
 - **Quem contribuiu quanto (% por pessoa)** — decisão explícita: a v1 mostra só
   os totais somados. Entra depois se a conversa pedir.
 - **Divisão de conta e acerto entre os dois** — o app registra, não faz
-  contabilidade entre as partes.
+  contabilidade entre as partes. *(Na conta pessoal continua assim; na empresa
+  existe desde a v1.4 — RF43.)*
 - **Metas e orçamento por categoria** — depende de ter histórico. Sem 3 meses de
   dado, meta é chute.
 - **Terceira pessoa, convite, papéis** — o produto assume duas pessoas na
@@ -405,6 +481,7 @@ calendário.
 | Versão | Data | O que mudou |
 | --- | --- | --- |
 | v1.0 | 27/08/2026 | Versão inicial, escrita depois da Fase 1 |
+| v1.4 | 15/10/2026 | Seção 4b, Modo Empresa: tipo de conta no cadastro (fixo), login por usuário, recebimento parcelado e a receber, caixa da empresa, lucro dividido entre sócios com reserva e retiradas, acerto entre sócios, lucro por cliente, recibos da empresa com zip do mês, atalho do DAS (RF35–RF46, regras E1–E8). RF47: menu do botão Ajustes, nas duas versões. |
 | v1.3 | 02/10/2026 | RF34 e regra 11: o dashboard ganha o saldo acumulado, soma de tudo que sobrou desde o primeiro lançamento — pensado para substituir a conferência no banco quando o gasto é no Pix. |
 | v1.2 | 04/09/2026 | RF32 e RF33: o dashboard ganha a régua do cartão, e a sobra da janela passa a descontar Pix e aportes além da fatura — antes era só renda menos fatura, um número que parecia saldo e não era. |
 | v1.1 | 03/09/2026 | Ciclo de fatura passa a ser só gasto de cartão (regra 7 reescrita); fatura vira dívida no fechamento (regra 9); renda semanal é lançamento avulso (regra 10); RF31, o cartão que define o mês. Contas bancárias sobrevivem com outro propósito: separar origem do gasto, já que a Duda usa duas. |
