@@ -56,6 +56,8 @@ type Draft = {
   installments_total: string;
   notes: string;
   bank_account_id: string;
+  /** Empresa: cliente/serviço do gasto (migração 014). */
+  client: string;
 };
 
 function emptyDraft(month: string): Draft {
@@ -76,6 +78,7 @@ function emptyDraft(month: string): Draft {
     installments_total: "",
     notes: "",
     bank_account_id: "",
+    client: "",
   };
 }
 
@@ -263,6 +266,19 @@ export default function GastosPage() {
     filterMethod || filterKind || filterCategory || filterCard || filterAccount
   );
 
+  /** Clientes já usados nos gastos, pra sugerir no formulário. */
+  const clientes = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          Object.values(expenses)
+            .map((e) => e.client?.trim())
+            .filter((c): c is string => Boolean(c))
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [expenses]
+  );
+
   function openEdit(occurrence: ExpenseOccurrence) {
     const expense = expenses[occurrence.expense_id];
     if (!expense) return;
@@ -284,6 +300,7 @@ export default function GastosPage() {
       installments_total: expense.installments_total?.toString() ?? "",
       notes: expense.notes ?? "",
       bank_account_id: expense.bank_account_id ?? "",
+      client: expense.client ?? "",
     });
     setRecibosDoForm(recibosPorGasto[expense.id] ?? []);
     setFormError(null);
@@ -436,6 +453,8 @@ export default function GastosPage() {
       // que sai da mesma conta. No cartão, a conta vem do próprio cartão.
       bank_account_id:
         draft.payment_method === "pix" ? draft.bank_account_id || null : null,
+      // Coluna da 014: só vai na empresa, a conta pessoal não depende dela.
+      ...(empresa ? { client: draft.client.trim() || null } : {}),
     };
 
     setSaving(true);
@@ -643,6 +662,7 @@ export default function GastosPage() {
                     </p>
                     <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
                       {category && <span>{category.name}</span>}
+                      {empresa && expense?.client && <span>{expense.client}</span>}
                       <Tag>
                         {occurrence.payment_method === "card"
                           ? card?.name ?? PAYMENT_METHOD_LABEL.card
@@ -711,6 +731,7 @@ export default function GastosPage() {
             categories={myCategories}
             cards={myCards}
             accounts={accounts}
+            clientes={empresa ? clientes : undefined}
             error={formError}
             saving={saving}
             onSave={save}
@@ -738,6 +759,7 @@ function ExpenseForm({
   categories,
   cards,
   accounts,
+  clientes,
   error,
   saving,
   onSave,
@@ -749,6 +771,8 @@ function ExpenseForm({
   categories: Category[];
   cards: Card[];
   accounts: BankAccount[];
+  /** Só na empresa: aparece o campo Cliente, com estes como sugestão. */
+  clientes?: string[];
   error: string | null;
   saving: boolean;
   onSave: () => void;
@@ -950,6 +974,24 @@ function ExpenseForm({
           ))}
         </select>
       </Field>
+
+      {clientes && (
+        <Field label="Cliente" hint="Opcional. De qual cliente ou serviço é este gasto.">
+          <input
+            className={inputClass}
+            value={draft.client}
+            list="clientes-gasto"
+            maxLength={80}
+            placeholder="Nome do cliente"
+            onChange={(event) => set({ client: event.target.value })}
+          />
+          <datalist id="clientes-gasto">
+            {clientes.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </Field>
+      )}
 
       {anexos}
 

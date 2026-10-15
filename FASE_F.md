@@ -29,6 +29,13 @@ virar item. Um item só é marcado quando está feito **e conferido**.
    teste). Empresa continua empresa, família continua família; convite só
    entre contas do mesmo tipo; quem sai de uma empresa vai para outra empresa.
 
+10. **Faturou × Caixa** (definido na F2, 15/10). "Faturou" é o que foi
+    cobrado no mês (cada parcela no seu mês) e é dele que sai o lucro do mês.
+    "Caixa da empresa" conta só o que caiu na conta, pelo dia em que caiu,
+    menos tudo que saiu. Recebimento à vista nasce como "já caiu" (dá pra
+    escolher "ainda não"); parcelado pergunta só da 1ª parcela; "todo mês"
+    se marca mês a mês em "A receber". Qualquer sócio marca o que recebeu.
+
 ### Fora desta fase (decidido deixar em aberto)
 - Retirada da empresa virar renda na conta pessoal automaticamente.
 - Mover lançamentos antigos da conta pessoal para a empresa.
@@ -53,12 +60,12 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [ ] F1.9 Login com usuário ou e-mail (resolvido no servidor, sem expor e-mail de ninguém)
 
 ### F2 — Recebimentos
-- [ ] F2.1 Recebimento parcelado: valor total ÷ parcelas, cada parcela no seu mês
-- [ ] F2.2 Campo opcional "Cliente/Serviço" no recebimento e no gasto
-- [ ] F2.3 Marcar parcela como recebida
-- [ ] F2.4 Tela "A receber": parcelas futuras e atrasadas (não recebidas com mês já passado)
-- [ ] F2.5 Início da empresa: Faturou / Gastou / Lucro; prejuízo em vermelho
-- [ ] F2.6 Saldo acumulado vira "Caixa da empresa" (recebido − gasto − retiradas)
+- [ ] F2.1 Recebimento parcelado: valor total ÷ parcelas, cada parcela no seu mês — código no PR da F2; falta rodar a 014 e conferir no app
+- [ ] F2.2 Campo opcional "Cliente/Serviço" no recebimento e no gasto — código no PR da F2; falta rodar a 014 e conferir no app
+- [ ] F2.3 Marcar parcela como recebida — código no PR da F2; falta rodar a 014 e conferir no app
+- [ ] F2.4 Tela "A receber": parcelas futuras e atrasadas (não recebidas com mês já passado) — código no PR da F2; falta rodar a 014 e conferir no app
+- [ ] F2.5 Início da empresa: Faturou / Gastou / Lucro; prejuízo em vermelho — código no PR da F2; falta rodar a 014 e conferir no app
+- [ ] F2.6 Saldo acumulado vira "Caixa da empresa" (recebido − gasto − retiradas) — código no PR da F2; falta rodar a 014 e conferir no app
 
 ### F3 — Lucro e divisão
 - [ ] F3.1 Ajustes da empresa: % de cada sócio (soma obrigatória de 100%)

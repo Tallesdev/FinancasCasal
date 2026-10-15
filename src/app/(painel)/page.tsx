@@ -25,12 +25,15 @@ import {
   toISODate,
 } from "@/lib/format";
 import { carregarJanela, JANELA_VAZIA, type TotaisDaJanela } from "@/lib/janela";
+import { aReceber, recebidoAte, recebidoDoMes } from "@/lib/recebimentos";
 import {
   EXPENSE_KIND_LABEL,
   type Card,
   type Category,
   type CycleBounds,
   type ExpenseOccurrence,
+  type Income,
+  type IncomeReceived,
   type MonthlySummaryRow,
 } from "@/lib/types";
 
@@ -54,6 +57,9 @@ export default function DashboardPage() {
   );
   const [summary, setSummary] = useState<MonthlySummaryRow[]>([]);
   const [occurrences, setOccurrences] = useState<ExpenseOccurrence[]>([]);
+  // --- empresa: recebimentos e o que já entrou (FASE_F.md, F2.5/F2.6) ---
+  const [incomes, setIncomes] = useState<Income[]>([]);
+  const [recebidos, setRecebidos] = useState<IncomeReceived[] | null>(null);
 
   // --- janela do cartão ---
   const [cards, setCards] = useState<Card[]>([]);
@@ -111,10 +117,19 @@ export default function DashboardPage() {
     // isso não pesa a consulta.
     const from = "2000-01-01";
 
-    const [summaryResult, occurrencesResult] = await Promise.all([
+    const [summaryResult, occurrencesResult, incomesResult, recebidosResult] = await Promise.all([
       supabase.rpc("monthly_summary", { p_from: from, p_to: month }),
       supabase.rpc("expense_occurrences", { p_from: month, p_to: month }),
+      empresa ? supabase.from("incomes").select("*") : null,
+      empresa ? supabase.from("income_received").select("*") : null,
     ]);
+    setIncomes((incomesResult?.data ?? []) as Income[]);
+    // Nulo = migração 014 não rodou (ou não é empresa): volta o saldo acumulado.
+    setRecebidos(
+      recebidosResult && !recebidosResult.error
+        ? ((recebidosResult.data ?? []) as IncomeReceived[])
+        : null
+    );
 
     if (summaryResult.error || occurrencesResult.error) {
       setError("Não deu para carregar o resumo do mês.");
@@ -126,7 +141,7 @@ export default function DashboardPage() {
     setSummary(summaryResult.data as MonthlySummaryRow[]);
     setOccurrences(occurrencesResult.data as ExpenseOccurrence[]);
     setLoading(false);
-  }, [supabase, month]);
+  }, [supabase, month, empresa]);
 
   const carregarCartao = useCallback(async () => {
     if (!cartaoDoMes) return;
@@ -224,6 +239,27 @@ export default function DashboardPage() {
         ),
     [summary, userIds]
   );
+
+  /**
+   * Empresa (FASE_F.md, F2.5/F2.6). Caixa = o que caiu na conta até o fim
+   * do mês visto (pelo dia em que caiu) menos tudo que saiu até lá. O
+   * faturado do mês pode ainda não ter entrado; é a diferença pro lucro.
+   */
+  const empresaNumeros = useMemo(() => {
+    if (!empresa || recebidos === null) return null;
+    const meus = incomes.filter((i) => userIds.includes(i.user_id));
+    const fimDoMes = shiftDay(addMonths(month, 1), -1);
+    const saiu = summary
+      .filter((row) => userIds.includes(row.user_id))
+      .reduce((t, row) => t + Number(row.expense) + Number(row.investment), 0);
+    const pendencias = aReceber(meus, recebidos, toISODate(new Date()));
+    return {
+      caixa: recebidoAte(meus, recebidos, fimDoMes) - saiu,
+      entrouDoMes: recebidoDoMes(meus, recebidos, month),
+      aReceber: pendencias.reduce((t, p) => t + p.valor, 0),
+      atrasado: pendencias.filter((p) => p.atrasado).reduce((t, p) => t + p.valor, 0),
+    };
+  }, [empresa, recebidos, incomes, userIds, summary, month]);
 
   /**
    * Os quatro números e as duas listas saem daqui, venham do mês ou da
@@ -425,7 +461,28 @@ export default function DashboardPage() {
         <>
           {/* O saldo acumulado é mês a mês por natureza: não existe "saldo
               acumulado da fatura". Só aparece na visão por mês. */}
-          {periodo === "mes" && (
+          {periodo === "mes" && empresaNumeros ? (
+            <div className="card flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-4">
+              <div>
+                <p className="text-sm text-[var(--color-text-dim)]">
+                  Caixa da empresa
+                </p>
+                <p className="text-xs text-[var(--color-text-faint)]">
+                  O que caiu na conta menos o que saiu, desde o começo, até o fim de{" "}
+                  {monthLabel(month)}.
+                </p>
+              </div>
+              <strong
+                className="money text-2xl font-semibold sm:text-3xl"
+                style={{
+                  color:
+                    empresaNumeros.caixa < 0 ? "var(--color-out)" : "var(--scope)",
+                }}
+              >
+                {money(empresaNumeros.caixa)}
+              </strong>
+            </div>
+          ) : periodo === "mes" ? (
             <div className="card flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-4">
               <div>
                 <p className="text-sm text-[var(--color-text-dim)]">
@@ -446,11 +503,22 @@ export default function DashboardPage() {
                 {money(saldoAcumulado)}
               </strong>
             </div>
-          )}
+          ) : null}
 
           {empresa ? (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-              <Stat label="Faturou" value={vista.income} tone="var(--color-in)" />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Stat
+                label="Faturou"
+                value={vista.income}
+                tone="var(--color-in)"
+                hint={
+                  empresaNumeros && vista.income > 0
+                    ? empresaNumeros.entrouDoMes >= vista.income
+                      ? "Já entrou tudo."
+                      : `Já entrou ${money(empresaNumeros.entrouDoMes)}.`
+                    : undefined
+                }
+              />
               <Stat label="Gastou" value={vista.expense} tone="var(--color-out)" />
               <Stat
                 label={vista.leftover < 0 ? "Prejuízo" : "Lucro"}
@@ -462,6 +530,23 @@ export default function DashboardPage() {
                     : "Recebido menos todos os gastos."
                 }
               />
+              {empresaNumeros && (
+                <Link href="/renda" className="card flex flex-col gap-1 px-4 py-4 transition-colors hover:border-[var(--scope)]">
+                  <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-faint)]">
+                    A receber
+                  </span>
+                  <strong className="money text-xl font-semibold text-[var(--color-in)] sm:text-2xl">
+                    {money(empresaNumeros.aReceber)}
+                  </strong>
+                  <span
+                    className={`text-[11px] ${empresaNumeros.atrasado > 0 ? "text-[var(--color-out)]" : "text-[var(--color-text-faint)]"}`}
+                  >
+                    {empresaNumeros.atrasado > 0
+                      ? `${money(empresaNumeros.atrasado)} atrasado`
+                      : "Nada atrasado."}
+                  </span>
+                </Link>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

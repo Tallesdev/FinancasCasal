@@ -17,8 +17,36 @@ import {
   Tag,
   inputClass,
 } from "@/components/ui";
-import { formatDate, money, toISODate } from "@/lib/format";
-import { ENTRY_KIND_LABEL, type EntryKind, type Income } from "@/lib/types";
+import {
+  addMonths,
+  firstDayOfMonth,
+  formatDate,
+  money,
+  monthLabel,
+  toISODate,
+} from "@/lib/format";
+import {
+  aReceber,
+  conjuntoRecebido,
+  mesesDe,
+  parcelasRecebidas,
+  type Pendencia,
+} from "@/lib/recebimentos";
+import {
+  ENTRY_KIND_LABEL,
+  type EntryKind,
+  type Income,
+  type IncomeReceived,
+} from "@/lib/types";
+
+/** Como o cliente paga. Só na empresa; na família o tipo continua o de sempre. */
+type Modo = "avista" | "parcelado" | "mensal";
+
+const MODO_LABEL: Record<Modo, string> = {
+  avista: "À vista",
+  parcelado: "Parcelado",
+  mensal: "Todo mês",
+};
 
 type Draft = {
   id: string | null;
@@ -28,6 +56,12 @@ type Draft = {
   start_date: string;
   end_date: string;
   notes: string;
+  // Empresa (FASE_F.md, F2)
+  modo: Modo;
+  parcelas: string;
+  client: string;
+  /** Só em recebimento novo: já marca o 1º mês como recebido. */
+  jaRecebido: boolean;
 };
 
 const EMPTY: Draft = {
@@ -38,7 +72,18 @@ const EMPTY: Draft = {
   start_date: toISODate(new Date()),
   end_date: "",
   notes: "",
+  modo: "avista",
+  parcelas: "",
+  client: "",
+  jaRecebido: true,
 };
+
+const arredondar = (v: number) => Math.round(v * 100) / 100;
+
+function modoDe(income: Income): Modo {
+  if (income.installments_total) return "parcelado";
+  return income.kind === "one_time" ? "avista" : "mensal";
+}
 
 export default function RendaPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -47,18 +92,30 @@ export default function RendaPage() {
   const novo = empresa ? "Novo recebimento" : "Nova renda";
 
   const [incomes, setIncomes] = useState<Income[]>([]);
+  const [recebidos, setRecebidos] = useState<IncomeReceived[]>([]);
+  /** Falso enquanto a migração 014 não roda: some tudo que depende de "recebido". */
+  const [recebidosOk, setRecebidosOk] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [marcando, setMarcando] = useState<string | null>(null);
+  const [desfazer, setDesfazer] = useState<{ income_id: string; month: string; rotulo: string } | null>(null);
+
+  const carregarRecebidos = useCallback(async () => {
+    if (!empresa) return;
+    const { data, error: e } = await supabase.from("income_received").select("*");
+    setRecebidosOk(!e);
+    setRecebidos(e ? [] : ((data ?? []) as IncomeReceived[]));
+  }, [supabase, empresa]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error: readError } = await supabase
-      .from("incomes")
-      .select("*")
-      .order("start_date", { ascending: false });
+    const [{ data, error: readError }] = await Promise.all([
+      supabase.from("incomes").select("*").order("start_date", { ascending: false }),
+      carregarRecebidos(),
+    ]);
 
     if (readError)
       setError(empresa ? "Não deu para carregar os recebimentos." : "Não deu para carregar a renda.");
@@ -67,7 +124,7 @@ export default function RendaPage() {
       setIncomes(data as Income[]);
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, empresa, carregarRecebidos]);
 
   useEffect(() => {
     load();
@@ -81,16 +138,34 @@ export default function RendaPage() {
   }, [members]);
 
   // Nenhuma leitura ignora o escopo.
-  const visible = incomes.filter((income) => userIds.includes(income.user_id));
+  const visible = useMemo(
+    () => incomes.filter((income) => userIds.includes(income.user_id)),
+    [incomes, userIds]
+  );
+  const hoje = useMemo(() => toISODate(new Date()), []);
 
   /** Quanto entra por mês hoje: só o que é recorrente e ainda está valendo. */
   const monthly = visible
     .filter((income) => income.kind === "recurring")
-    .filter((income) => {
-      const today = toISODate(new Date());
-      return income.start_date <= today && (!income.end_date || income.end_date >= today);
-    })
+    .filter((income) => income.start_date <= hoje && (!income.end_date || income.end_date >= hoje))
     .reduce((sum, income) => sum + Number(income.amount), 0);
+
+  const pendencias = useMemo(
+    () => (empresa && recebidosOk ? aReceber(visible, recebidos, hoje) : []),
+    [empresa, recebidosOk, visible, recebidos, hoje]
+  );
+  const totalAReceber = pendencias.reduce((s, p) => s + p.valor, 0);
+  const totalAtrasado = pendencias.filter((p) => p.atrasado).reduce((s, p) => s + p.valor, 0);
+  const recebido = useMemo(() => conjuntoRecebido(recebidos), [recebidos]);
+
+  /** Clientes já usados, pra sugerir e não virar "Joao" e "João" no relatório. */
+  const clientes = useMemo(
+    () =>
+      Array.from(
+        new Set(incomes.map((i) => i.client?.trim()).filter((c): c is string => Boolean(c)))
+      ).sort((a, b) => a.localeCompare(b)),
+    [incomes]
+  );
 
   /** Repete a última renda avulsa, só pedindo o valor da vez. */
   const ultimaAvulsa = useMemo(
@@ -104,13 +179,34 @@ export default function RendaPage() {
   function lancarDaSemana() {
     if (!ultimaAvulsa) return;
     setDraft({
-      id: null,
+      ...EMPTY,
       source: ultimaAvulsa.source,
-      amount: "",
+      client: ultimaAvulsa.client ?? "",
       kind: "one_time",
+      modo: "avista",
       start_date: toISODate(new Date()),
-      end_date: "",
-      notes: "",
+    });
+    setFormError(null);
+  }
+
+  function abrirEdicao(income: Income) {
+    const modo = modoDe(income);
+    setDraft({
+      id: income.id,
+      source: income.source,
+      // Parcelado guarda o valor da parcela; o formulário mostra o total.
+      amount:
+        modo === "parcelado" && income.installments_total
+          ? String(arredondar(Number(income.amount) * income.installments_total))
+          : String(income.amount),
+      kind: income.kind,
+      start_date: income.start_date.slice(0, 10),
+      end_date: modo === "parcelado" ? "" : (income.end_date?.slice(0, 10) ?? ""),
+      notes: income.notes ?? "",
+      modo,
+      parcelas: income.installments_total?.toString() ?? "",
+      client: income.client ?? "",
+      jaRecebido: false,
     });
     setFormError(null);
   }
@@ -120,45 +216,65 @@ export default function RendaPage() {
 
     const source = draft.source.trim();
     const amount = Number(draft.amount.replace(",", "."));
+    const parcelas = Number(draft.parcelas);
+    const parcelado = empresa && draft.modo === "parcelado";
+    const kind: EntryKind = empresa ? (draft.modo === "avista" ? "one_time" : "recurring") : draft.kind;
 
     if (!source)
       return setFormError(
-        empresa ? "Diga de quem é esse recebimento." : "Diga de onde vem essa renda."
+        empresa ? "Diga o que foi esse recebimento." : "Diga de onde vem essa renda."
       );
     if (!Number.isFinite(amount) || amount <= 0)
       return setFormError("Informe um valor maior que zero.");
-    if (!draft.start_date) return setFormError("Escolha a data de início.");
-    if (
-      draft.kind === "recurring" &&
-      draft.end_date &&
-      draft.end_date < draft.start_date
-    )
+    if (!draft.start_date) return setFormError("Escolha a data.");
+    if (parcelado && (!Number.isInteger(parcelas) || parcelas < 2 || parcelas > 120))
+      return setFormError("Parcelado precisa de 2 a 120 parcelas.");
+    if (kind === "recurring" && !parcelado && draft.end_date && draft.end_date < draft.start_date)
       return setFormError("O fim não pode ser antes do começo.");
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       source,
-      amount,
-      kind: draft.kind,
+      // No parcelado a pessoa digita o total; guardamos o valor de cada parcela.
+      amount: parcelado ? arredondar(amount / parcelas) : amount,
+      kind,
       start_date: draft.start_date,
-      // Renda avulsa não tem fim: acontece uma vez só.
-      end_date: draft.kind === "recurring" && draft.end_date ? draft.end_date : null,
+      // Parcelado = "todo mês" que termina na última parcela (migração 014).
+      end_date: parcelado
+        ? addMonths(firstDayOfMonth(draft.start_date), parcelas - 1)
+        : kind === "recurring" && draft.end_date
+          ? draft.end_date
+          : null,
       notes: draft.notes.trim() || null,
     };
+    // Colunas da 014 só vão na empresa: a conta pessoal não depende dela.
+    if (empresa) {
+      payload.installments_total = parcelado ? parcelas : null;
+      payload.client = draft.client.trim() || null;
+    }
 
     setSaving(true);
     setFormError(null);
 
-    const { error: writeError } = draft.id
-      ? await supabase.from("incomes").update(payload).eq("id", draft.id)
-      : await supabase.from("incomes").insert(payload);
+    const { data: salvo, error: writeError } = draft.id
+      ? await supabase.from("incomes").update(payload).eq("id", draft.id).select("id").single()
+      : await supabase.from("incomes").insert(payload).select("id").single();
 
-    setSaving(false);
-
-    if (writeError) {
+    if (writeError || !salvo) {
+      setSaving(false);
       setFormError("Não deu para salvar. Confira os campos.");
       return;
     }
 
+    // Recebimento novo que já caiu: marca o 1º mês (ou a 1ª parcela).
+    if (empresa && recebidosOk && !draft.id && draft.modo !== "mensal" && draft.jaRecebido) {
+      await supabase.from("income_received").insert({
+        income_id: salvo.id,
+        month: firstDayOfMonth(draft.start_date),
+        received_on: draft.start_date <= hoje ? draft.start_date : hoje,
+      });
+    }
+
+    setSaving(false);
     setDraft(null);
     load();
   }
@@ -166,6 +282,74 @@ export default function RendaPage() {
   async function remove(id: string) {
     await supabase.from("incomes").delete().eq("id", id);
     load();
+  }
+
+  async function marcar(income: Income, mes: string, rotulo: string) {
+    const k = `${income.id}|${mes}`;
+    setMarcando(k);
+    const { error: e } = await supabase
+      .from("income_received")
+      .insert({ income_id: income.id, month: mes, received_on: hoje });
+    setMarcando(null);
+    if (e) return setError("Não deu para marcar como recebido. Tente de novo.");
+    setError(null);
+    setDesfazer({ income_id: income.id, month: mes, rotulo });
+    carregarRecebidos();
+  }
+
+  async function desmarcar(incomeId: string, mes: string) {
+    const { error: e } = await supabase
+      .from("income_received")
+      .delete()
+      .eq("income_id", incomeId)
+      .eq("month", mes);
+    if (e) return setError("Não deu para desmarcar. Tente de novo.");
+    setError(null);
+    setDesfazer(null);
+    carregarRecebidos();
+  }
+
+  /** Bolinhas das parcelas: toca pra marcar; tocar numa recebida pergunta antes de desmarcar. */
+  function bolinhasDasParcelas(income: Income) {
+    const meses = mesesDe(income, addMonths(firstDayOfMonth(income.start_date), 120));
+    return (
+      <span className="mt-2 flex flex-wrap gap-1">
+        {meses.map((mes, i) => {
+          const ok = recebido.has(`${income.id}|${mes}`);
+          const rotulo = `parcela ${i + 1} de ${meses.length} (${monthLabel(mes, true)})`;
+          return (
+            <button
+              key={mes}
+              type="button"
+              disabled={marcando === `${income.id}|${mes}`}
+              title={`${rotulo}: ${ok ? "recebida" : "a receber"}`}
+              aria-label={`${rotulo}: ${ok ? "recebida, tocar para desmarcar" : "a receber, tocar para marcar"}`}
+              onClick={() =>
+                ok
+                  ? window.confirm(`Desmarcar a ${rotulo} como recebida?`) && desmarcar(income.id, mes)
+                  : marcar(income, mes, `${income.source} — ${rotulo}`)
+              }
+              className={[
+                "flex h-7 min-w-7 items-center justify-center rounded-full border px-1.5 text-[11px] font-semibold transition-colors",
+                ok
+                  ? "border-transparent bg-[var(--color-in)] text-[var(--color-ink)]"
+                  : mes < firstDayOfMonth(hoje)
+                    ? "border-[var(--color-out)] text-[var(--color-out)]"
+                    : "border-[var(--color-line)] text-[var(--color-text-faint)]",
+              ].join(" ")}
+            >
+              {ok ? "✓" : i + 1}
+            </button>
+          );
+        })}
+      </span>
+    );
+  }
+
+  function rotuloPendencia(p: Pendencia) {
+    if (p.parcela && p.income.installments_total)
+      return `parcela ${p.parcela} de ${p.income.installments_total}`;
+    return p.income.kind === "recurring" ? `mensalidade de ${monthLabel(p.mes, true)}` : formatDate(p.income.start_date);
   }
 
   return (
@@ -191,16 +375,83 @@ export default function RendaPage() {
         }
       />
 
-      <div className="card flex items-baseline justify-between gap-3 px-4 py-4">
-        <span className="text-sm text-[var(--color-text-dim)]">
-          Entra todo mês
-        </span>
-        <strong className="money text-xl text-[var(--color-in)]">
-          {money(monthly)}
-        </strong>
-      </div>
+      {empresa && recebidosOk ? (
+        <div className="card flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-4">
+          <div>
+            <span className="text-sm text-[var(--color-text-dim)]">A receber</span>
+            {totalAtrasado > 0 && (
+              <p className="text-xs text-[var(--color-out)]">
+                <span className="money">{money(totalAtrasado)}</span> atrasado
+              </p>
+            )}
+          </div>
+          <strong className="money text-xl text-[var(--color-in)]">{money(totalAReceber)}</strong>
+        </div>
+      ) : (
+        <div className="card flex items-baseline justify-between gap-3 px-4 py-4">
+          <span className="text-sm text-[var(--color-text-dim)]">Entra todo mês</span>
+          <strong className="money text-xl text-[var(--color-in)]">{money(monthly)}</strong>
+        </div>
+      )}
 
       {error && <ErrorNote>{error}</ErrorNote>}
+
+      {desfazer && (
+        <div className="card flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+          <span className="min-w-0 truncate text-[var(--color-text-dim)]">
+            Recebido: {desfazer.rotulo}
+          </span>
+          <Button
+            variant="quiet"
+            className="shrink-0 px-2 py-0.5 text-xs"
+            onClick={() => desmarcar(desfazer.income_id, desfazer.month)}
+          >
+            Desfazer
+          </Button>
+        </div>
+      )}
+
+      {/* A receber (FASE_F.md, F2.4): atrasados primeiro, depois o mês e os próximos. */}
+      {!loading && pendencias.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">
+            A receber
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {pendencias.map((p) => {
+              const k = `${p.income.id}|${p.mes}`;
+              return (
+                <li key={k} className="card flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {p.income.client ? `${p.income.client} · ` : ""}
+                      {p.income.source}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
+                      <span>{rotuloPendencia(p)}</span>
+                      <span>· {monthLabel(p.mes)}</span>
+                      {p.atrasado && (
+                        <span className="font-semibold text-[var(--color-out)]">· atrasado</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="money font-semibold text-[var(--color-in)]">{money(p.valor)}</span>
+                    <Button
+                      variant="ghost"
+                      className="px-2.5 py-1 text-xs"
+                      disabled={marcando === k}
+                      onClick={() => marcar(p.income, p.mes, `${p.income.source} — ${rotuloPendencia(p)}`)}
+                    >
+                      Recebi
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {loading ? (
         <Loading />
@@ -217,76 +468,97 @@ export default function RendaPage() {
           }
         />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {visible.map((income) => {
-            const mine = income.user_id === me.id;
-            const owner = profileById[income.user_id];
-            const ended =
-              income.end_date && income.end_date < toISODate(new Date());
+        <section className="flex flex-col gap-2">
+          {empresa && pendencias.length > 0 && (
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">
+              Todos os recebimentos
+            </h2>
+          )}
+          <ul className="flex flex-col gap-2">
+            {visible.map((income) => {
+              const mine = income.user_id === me.id;
+              const owner = profileById[income.user_id];
+              const modo = modoDe(income);
+              const ended = income.end_date && income.end_date < hoje;
+              const avistaRecebido =
+                modo === "avista" && recebido.has(`${income.id}|${firstDayOfMonth(income.start_date)}`);
 
-            return (
-              <li
-                key={income.id}
-                className={[
-                  "card flex items-start justify-between gap-3 px-4 py-3",
-                  ended ? "opacity-60" : "",
-                ].join(" ")}
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{income.source}</p>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
-                    <Tag>{ENTRY_KIND_LABEL[income.kind]}</Tag>
-                    <span>
-                      {income.kind === "one_time"
-                        ? formatDate(income.start_date)
-                        : `desde ${formatDate(income.start_date)}`}
-                    </span>
-                    {income.end_date && (
-                      <span>até {formatDate(income.end_date)}</span>
-                    )}
-                    {scope === "us" && owner && (
-                      <OwnerTag name={owner.name} color={owner.color} />
-                    )}
-                  </p>
-                  {income.notes && (
-                    <p className="mt-1 text-xs text-[var(--color-text-faint)]">
-                      {income.notes}
+              return (
+                <li
+                  key={income.id}
+                  className={[
+                    "card flex items-start justify-between gap-3 px-4 py-3",
+                    ended && !empresa ? "opacity-60" : "",
+                  ].join(" ")}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{income.source}</p>
+                    <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
+                      <Tag>
+                        {empresa
+                          ? modo === "parcelado"
+                            ? `${income.installments_total}x`
+                            : MODO_LABEL[modo]
+                          : ENTRY_KIND_LABEL[income.kind]}
+                      </Tag>
+                      {empresa && income.client && <span>{income.client}</span>}
+                      <span>
+                        {income.kind === "one_time"
+                          ? formatDate(income.start_date)
+                          : `desde ${formatDate(income.start_date)}`}
+                      </span>
+                      {income.end_date && modo !== "parcelado" && (
+                        <span>até {formatDate(income.end_date)}</span>
+                      )}
+                      {modo === "parcelado" && recebidosOk && (
+                        <span>
+                          · {parcelasRecebidas(income, recebidos)} de {income.installments_total} recebidas
+                        </span>
+                      )}
+                      {empresa && modo === "avista" && recebidosOk && (
+                        <span className={avistaRecebido ? "text-[var(--color-in)]" : ""}>
+                          · {avistaRecebido ? "recebido" : "a receber"}
+                        </span>
+                      )}
+                      {scope === "us" && owner && (
+                        <OwnerTag name={owner.name} color={owner.color} />
+                      )}
                     </p>
-                  )}
-                </div>
+                    {income.notes && (
+                      <p className="mt-1 text-xs text-[var(--color-text-faint)]">
+                        {income.notes}
+                      </p>
+                    )}
+                    {empresa && modo === "parcelado" && recebidosOk && bolinhasDasParcelas(income)}
+                  </div>
 
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="money font-semibold text-[var(--color-in)]">
-                    {money(income.amount)}
-                  </span>
-                  {mine && (
-                    <span className="flex items-center gap-1">
-                      <Button
-                        variant="quiet"
-                        className="px-2 py-0.5 text-xs"
-                        onClick={() => {
-                          setDraft({
-                            id: income.id,
-                            source: income.source,
-                            amount: String(income.amount),
-                            kind: income.kind,
-                            start_date: income.start_date.slice(0, 10),
-                            end_date: income.end_date?.slice(0, 10) ?? "",
-                            notes: income.notes ?? "",
-                          });
-                          setFormError(null);
-                        }}
-                      >
-                        Editar
-                      </Button>
-                      <DeleteButton onConfirm={() => remove(income.id)} />
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="money font-semibold text-[var(--color-in)]">
+                      {money(income.amount)}
                     </span>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    {modo === "parcelado" && income.installments_total && (
+                      <span className="money text-[11px] text-[var(--color-text-faint)]">
+                        total {money(arredondar(Number(income.amount) * income.installments_total))}
+                      </span>
+                    )}
+                    {mine && (
+                      <span className="flex items-center gap-1">
+                        <Button
+                          variant="quiet"
+                          className="px-2 py-0.5 text-xs"
+                          onClick={() => abrirEdicao(income)}
+                        >
+                          Editar
+                        </Button>
+                        <DeleteButton onConfirm={() => remove(income.id)} />
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {draft && (
@@ -294,101 +566,258 @@ export default function RendaPage() {
           title={draft.id ? (empresa ? "Editar recebimento" : "Editar renda") : novo}
           onClose={() => setDraft(null)}
         >
-          <div className="flex flex-col gap-4">
-            <Field label="De onde vem">
-              <input
-                className={inputClass}
-                value={draft.source}
-                autoFocus
-                placeholder="Salário, freela, aluguel…"
-                onChange={(event) =>
-                  setDraft({ ...draft, source: event.target.value })
-                }
-              />
-            </Field>
-
-            <Field label="Valor">
-              <input
-                className={`${inputClass} money`}
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                placeholder="0,00"
-                value={draft.amount}
-                onChange={(event) =>
-                  setDraft({ ...draft, amount: event.target.value })
-                }
-              />
-            </Field>
-
-            <SegmentedField
-              label="Tipo"
-              value={draft.kind}
-              onChange={(kind) =>
-                setDraft({
-                  ...draft,
-                  kind,
-                  end_date: kind === "recurring" ? draft.end_date : "",
-                })
-              }
-              options={(["recurring", "one_time"] as EntryKind[]).map((kind) => ({
-                value: kind,
-                label: ENTRY_KIND_LABEL[kind],
-              }))}
+          {empresa ? (
+            <FormEmpresa
+              draft={draft}
+              setDraft={setDraft}
+              clientes={clientes}
+              podeMarcar={recebidosOk}
             />
+          ) : (
+            <FormFamilia draft={draft} setDraft={setDraft} />
+          )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field
-                label={draft.kind === "one_time" ? "Data" : "Começa em"}
-              >
-                <input
-                  className={inputClass}
-                  type="date"
-                  value={draft.start_date}
-                  onChange={(event) =>
-                    setDraft({ ...draft, start_date: event.target.value })
-                  }
-                />
-              </Field>
+          {formError && <div className="mt-4"><ErrorNote>{formError}</ErrorNote></div>}
 
-              {draft.kind === "recurring" && (
-                <Field label="Termina em" hint="Deixe vazio se não tem fim.">
-                  <input
-                    className={inputClass}
-                    type="date"
-                    value={draft.end_date}
-                    onChange={(event) =>
-                      setDraft({ ...draft, end_date: event.target.value })
-                    }
-                  />
-                </Field>
-              )}
-            </div>
-
-            <Field label="Observação" hint="Opcional">
-              <input
-                className={inputClass}
-                value={draft.notes}
-                onChange={(event) =>
-                  setDraft({ ...draft, notes: event.target.value })
-                }
-              />
-            </Field>
-
-            {formError && <ErrorNote>{formError}</ErrorNote>}
-
-            <div className="mt-2 flex gap-2">
-              <Button onClick={save} disabled={saving} className="flex-1">
-                {saving ? "Salvando…" : empresa ? "Salvar recebimento" : "Salvar renda"}
-              </Button>
-              <Button variant="ghost" onClick={() => setDraft(null)}>
-                Cancelar
-              </Button>
-            </div>
+          <div className="mt-6 flex gap-2">
+            <Button onClick={save} disabled={saving} className="flex-1">
+              {saving ? "Salvando…" : empresa ? "Salvar recebimento" : "Salvar renda"}
+            </Button>
+            <Button variant="ghost" onClick={() => setDraft(null)}>
+              Cancelar
+            </Button>
           </div>
         </Sheet>
       )}
+    </div>
+  );
+}
+
+/** O formulário de sempre da conta pessoal. Não mudou. */
+function FormFamilia({
+  draft,
+  setDraft,
+}: {
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Field label="De onde vem">
+        <input
+          className={inputClass}
+          value={draft.source}
+          autoFocus
+          placeholder="Salário, freela, aluguel…"
+          onChange={(event) => setDraft({ ...draft, source: event.target.value })}
+        />
+      </Field>
+
+      <Field label="Valor">
+        <input
+          className={`${inputClass} money`}
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          min="0"
+          placeholder="0,00"
+          value={draft.amount}
+          onChange={(event) => setDraft({ ...draft, amount: event.target.value })}
+        />
+      </Field>
+
+      <SegmentedField
+        label="Tipo"
+        value={draft.kind}
+        onChange={(kind) =>
+          setDraft({
+            ...draft,
+            kind,
+            end_date: kind === "recurring" ? draft.end_date : "",
+          })
+        }
+        options={(["recurring", "one_time"] as EntryKind[]).map((kind) => ({
+          value: kind,
+          label: ENTRY_KIND_LABEL[kind],
+        }))}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={draft.kind === "one_time" ? "Data" : "Começa em"}>
+          <input
+            className={inputClass}
+            type="date"
+            value={draft.start_date}
+            onChange={(event) => setDraft({ ...draft, start_date: event.target.value })}
+          />
+        </Field>
+
+        {draft.kind === "recurring" && (
+          <Field label="Termina em" hint="Deixe vazio se não tem fim.">
+            <input
+              className={inputClass}
+              type="date"
+              value={draft.end_date}
+              onChange={(event) => setDraft({ ...draft, end_date: event.target.value })}
+            />
+          </Field>
+        )}
+      </div>
+
+      <Field label="Observação" hint="Opcional">
+        <input
+          className={inputClass}
+          value={draft.notes}
+          onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
+        />
+      </Field>
+    </div>
+  );
+}
+
+/** Empresa: à vista, parcelado ou todo mês; cliente; se já caiu na conta. */
+function FormEmpresa({
+  draft,
+  setDraft,
+  clientes,
+  podeMarcar,
+}: {
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+  clientes: string[];
+  podeMarcar: boolean;
+}) {
+  const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
+  const amount = Number(draft.amount.replace(",", "."));
+  const parcelas = Number(draft.parcelas);
+
+  const previa =
+    draft.modo === "parcelado" &&
+    Number.isInteger(parcelas) &&
+    parcelas >= 2 &&
+    amount > 0 &&
+    draft.start_date
+      ? `${parcelas}x de ${money(arredondar(amount / parcelas))} — termina em ${monthLabel(
+          addMonths(firstDayOfMonth(draft.start_date), parcelas - 1)
+        )}`
+      : null;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Field label="O que foi">
+        <input
+          className={inputClass}
+          value={draft.source}
+          autoFocus
+          placeholder="Instalação, manutenção, projeto…"
+          onChange={(event) => set({ source: event.target.value })}
+        />
+      </Field>
+
+      <Field label="Cliente" hint="Opcional. Serve pra ver depois quanto cada cliente deu de lucro.">
+        <input
+          className={inputClass}
+          value={draft.client}
+          list="clientes-recebimento"
+          maxLength={80}
+          placeholder="Nome do cliente"
+          onChange={(event) => set({ client: event.target.value })}
+        />
+        <datalist id="clientes-recebimento">
+          {clientes.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      </Field>
+
+      <SegmentedField
+        label="Como o cliente paga"
+        value={draft.modo}
+        onChange={(modo) => set({ modo })}
+        options={(["avista", "parcelado", "mensal"] as Modo[]).map((modo) => ({
+          value: modo,
+          label: MODO_LABEL[modo],
+        }))}
+      />
+
+      <Field
+        label={draft.modo === "parcelado" ? "Valor total" : draft.modo === "mensal" ? "Valor por mês" : "Valor"}
+        hint={draft.modo === "parcelado" ? "O valor total do serviço. Nós dividimos pelas parcelas." : undefined}
+      >
+        <input
+          className={`${inputClass} money`}
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          min="0"
+          placeholder="0,00"
+          value={draft.amount}
+          onChange={(event) => set({ amount: event.target.value })}
+        />
+      </Field>
+
+      {draft.modo === "parcelado" && (
+        <Field label="Número de parcelas" hint={previa ?? undefined}>
+          <input
+            className={inputClass}
+            type="number"
+            inputMode="numeric"
+            min="2"
+            max="120"
+            step="1"
+            placeholder="2"
+            value={draft.parcelas}
+            onChange={(event) => set({ parcelas: event.target.value })}
+          />
+        </Field>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label={
+            draft.modo === "avista" ? "Data" : draft.modo === "parcelado" ? "Primeira parcela" : "Começa em"
+          }
+        >
+          <input
+            className={inputClass}
+            type="date"
+            value={draft.start_date}
+            onChange={(event) => set({ start_date: event.target.value })}
+          />
+        </Field>
+
+        {draft.modo === "mensal" && (
+          <Field label="Termina em" hint="Deixe vazio se não tem fim.">
+            <input
+              className={inputClass}
+              type="date"
+              value={draft.end_date}
+              onChange={(event) => set({ end_date: event.target.value })}
+            />
+          </Field>
+        )}
+      </div>
+
+      {/* Só no novo: na edição, o que já entrou se marca pelas parcelas ou em "A receber". */}
+      {!draft.id && podeMarcar && draft.modo !== "mensal" && (
+        <SegmentedField
+          label={draft.modo === "parcelado" ? "A 1ª parcela já caiu na conta?" : "Já caiu na conta?"}
+          value={draft.jaRecebido ? "sim" : "nao"}
+          onChange={(v) => set({ jaRecebido: v === "sim" })}
+          options={[
+            { value: "sim", label: "Já caiu" },
+            { value: "nao", label: "Ainda não" },
+          ]}
+        />
+      )}
+
+      <Field label="Observação" hint="Opcional">
+        <input
+          className={inputClass}
+          value={draft.notes}
+          onChange={(event) => set({ notes: event.target.value })}
+        />
+      </Field>
     </div>
   );
 }
