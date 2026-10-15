@@ -1,6 +1,6 @@
 # Fase F — Modo Empresa
 
-**Status:** modo Empresa entregue (F0–F7) em 15/10/2026. Faltam só duas conferências de olho (F1.9 login por usuário, F5.1 lucro por cliente), a C4 (endereço no Supabase Auth) e a F8 (velocidade).
+**Status:** modo Empresa entregue e conferido (F0–F7) em 15/10/2026. Em andamento: F8 (velocidade).
 **Para quem:** a Solaris — Talles e Joaquim, sócios.
 **Regra desta lista:** todo problema encontrado no caminho entra como item
 novo em "Correções encontradas no caminho". Nada é corrigido sem antes
@@ -80,7 +80,7 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [x] F1.6 Categorias iniciais de empresa: Materiais, Alimentação, Combustível, Manutenção de máquinas, Manutenção de veículos, Ferramentas, Impostos, Outros
 - [x] F1.7 Contas bancárias e cartões compartilhados entre os sócios (só em empresa; na família continuam privados) — conferido nos dados da Solaris em 15/10 (F7.2): cada sócio tem conta e cartão, e o Talles vê os 2 cartões e as 2 contas; família continua sem ver os de outros
 - [x] F1.8 Nome de usuário: coluna única no perfil, definido no cadastro e em Ajustes — conferido nos dados da Solaris em 15/10 (F7.2): solaristalles e solaris.joaquim
-- [ ] F1.9 Login com usuário ou e-mail (resolvido no servidor, sem expor e-mail de ninguém)
+- [x] F1.9 Login com usuário ou e-mail (resolvido no servidor, sem expor e-mail de ninguém) — conferido pelo Talles em 15/10 (entrou com `solaristalles`)
 
 ### F2 — Recebimentos
 - [x] F2.1 Recebimento parcelado: valor total ÷ parcelas, cada parcela no seu mês — conferido 15/10 no print: Beli · Instalação 5x de R$ 300, parcela 1 recebida
@@ -103,7 +103,7 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [x] F4.3 Tela Acerto: quem deve transferir quanto a quem ("Joaquim te deve R$ 340") — conferido nos dados da Solaris em 15/10 (F7.2): 2 acertos registrados pelo "Feito"
 
 ### F5 — Lucro por cliente ou serviço
-- [ ] F5.1 Relatório: por cliente/serviço, recebido − gasto = lucro do trabalho — código no PR da F5 (Relatórios → "Lucro por cliente"); sem migração; falta conferir no app
+- [ ] F5.1 Relatório: por cliente/serviço, recebido − gasto = lucro do trabalho — código no PR da F5 (Relatórios → "Lucro por cliente"); sem migração; conferido pelo Talles em 15/10
 
 ### F6 — Recibos e impostos
 - [x] F6.1 Recibos da empresa visíveis aos dois sócios (hoje só quem enviou vê) — conferido pelo Talles em 15/10 ("tudo deu certo")
@@ -112,17 +112,21 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 
 ### F7 — Fechamento
 - [x] F7.1 PRD atualizado (requisitos e regras da empresa) — PRD v1.4, seção 4b (RF35–RF47, regras E1–E8)
-- [x] F7.2 Teste completo com duas contas de empresa de teste — 15/10: as duas contas da Solaris usaram tudo (divisão 60/40 + reserva 10%, retirada, acertos, recibos dos dois, gastos do bolso, cliente); simulei no banco uma conta de família dividida: não vê cartão, conta, recibo, divisão, retirada, acerto nem gasto da Solaris. Pendente só o que depende de olho humano: F1.9 e F5.1
+- [x] F7.2 Teste completo com duas contas de empresa de teste — 15/10: as duas contas da Solaris usaram tudo (divisão 60/40 + reserva 10%, retirada, acertos, recibos dos dois, gastos do bolso, cliente); simulei no banco uma conta de família dividida: não vê cartão, conta, recibo, divisão, retirada, acerto nem gasto da Solaris. F1.9 e F5.1 conferidos pelo Talles depois
 
 ### F8 — Velocidade (pedido do Talles, 15/10: "quero que o app seja rápido")
 Já está a favor: servidor da Vercel em São Paulo (gru1) e banco em São Paulo
 (sa-east-1), sessão conferida sem ir ao servidor de login, consultas de cada
 tela em paralelo.
 - [ ] F8.1 Medir antes de mexer: tempo de cada tela no celular (4G) e tamanho do JavaScript por tela — sem número, não dá pra saber se melhorou
+  - 15/10, JavaScript (build): 102 kB comum a todas; cada tela do painel 178–188 kB no total (Início 183, Gastos 188, Renda 183, Configurações 188)
+  - 15/10, banco: cada consulta leva 1–2 ms (conta do Talles, 137 gastos no banco todo). O banco não é o gargalo hoje; o tempo está nas idas e voltas pela rede do celular
+  - Idas ao banco por tela, uma depois da outra: quase todas 1 rodada (consultas em paralelo); Início da empresa 3 rodadas
+  - Medidor no app (Configurações → Velocidade): mede no celular de verdade quanto cada tela leva pra ficar pronta. Falta o Talles ligar e anotar os tempos de antes
 - [ ] F8.2 Banco: as regras de acesso (RLS) recalculam "quem está logado" linha por linha em 12 tabelas — trocar por `(select auth.uid())`, que calcula uma vez só
 - [ ] F8.3 Banco: juntar regras de leitura duplicadas (gastos, renda, investimentos, categorias, cartões, contas) — hoje o banco testa duas ou três regras por linha
 - [ ] F8.4 Banco: 3 índices que faltam (convites e cartão que define o mês)
-- [ ] F8.5 Gráficos (recharts, a biblioteca mais pesada) só carregam quando a tela tem gráfico
+- [x] F8.5 Gráficos (recharts, a biblioteca mais pesada) só carregam quando a tela tem gráfico — já era assim (MonthlyBarsLazy, carregado sob demanda no Início e em Relatórios); conferido no build de 15/10: nenhuma tela leva o recharts no primeiro carregamento
 - [ ] F8.6 Trocar de tela sem esperar: guardar o que já foi carregado (cartões, categorias, contas) em vez de buscar de novo a cada tela
 - [ ] F8.7 Telas novas da empresa nascem seguindo isso (consultas em paralelo, nada de buscar a mesma coisa duas vezes)
 - [ ] F8.8 Medir de novo e comparar com F8.1
@@ -133,7 +137,7 @@ tela em paralelo.
 - [x] C1 Migração 010 não estava aplicada em produção: a seção da casa em Ajustes sumia desde 06/10 — aplicada em 15/10 (ver F0.1)
 - [x] C2 Migração 011 aplicada pelo Talles no SQL Editor (o MCP do Supabase passou a cancelar mudanças de estrutura) — conferida em 15/10
 - [x] C3 Migração 012 (convite diz casa ou empresa) aplicada pelo Talles — conferida em 15/10: `get_invite` devolve `household_kind`
-- [ ] C4 O endereço do app mudou para rumofacil-pi.vercel.app (o antigo redireciona): conferir no Supabase (Authentication → URL Configuration) se o novo endereço está em Site URL / Redirect URLs, senão o link do e-mail de confirmação e o de trocar senha podem cair no endereço errado
+- [x] C4 O endereço do app mudou para rumofacil-pi.vercel.app (o antigo redireciona): conferir no Supabase (Authentication → URL Configuration) se o novo endereço está em Site URL / Redirect URLs, senão o link do e-mail de confirmação e o de trocar senha podem cair no endereço errado — feito pelo Talles em 15/10
 - [x] C5 Tipo fixo: Ajustes não oferece mais trocar Família/Empresa (só mostra o tipo) e o banco não deixa trocar pelo app (migração 013, testada em tabela descartável; aplicada pelo Talles e conferida em 15/10)
 - [x] C6 Cabeçalho no celular: os botões escorregavam pra esquerda quando a pessoa está sozinha (sem o seletor de escopo); Ajustes ganha engrenagem e fica um pouco maior, junto do Sair — conferido no print de 15/10
 - [x] C7 Textos de casa aparecendo na empresa: "Sua casa, só você por enquanto", gastos, relatórios, recebimentos, categorias, cartões ("só seus" — na empresa os sócios veem), contas, recibos, Ajustes, sair da empresa, convite, exportar, excluir conta, importar planilha
@@ -147,3 +151,4 @@ tela em paralelo.
 - [x] C15 A 016 travou TODO gasto e recebimento novo (de qualquer conta): a trava de sócio lia um campo que só existe na outra tabela ("Não deu para salvar o gasto"). Corrigida pela 017, aplicada direto em produção em 15/10 e conferida no banco. Lição: testar gatilho na tabela real (ou réplica com as MESMAS colunas), não numa réplica com só a coluna testada
 - [x] C16 Migração 018 (recibos da empresa visíveis aos sócios) — aplicada e conferida no banco em 15/10 (receipts_select_empresa)
 - [x] C17 Ajustes "muito escondido": o botão ⚙ Ajustes do topo abre um menu com Contas, Cartões, Categorias, Recibos, Acerto (empresa) e Configurações (pedido do Talles, 15/10)
+- [ ] C18 Migração 019 (F8.2–F8.4): o MCP do Supabase não aplica (pede confirmação pra apagar política e o tempo esgota; nada foi mudado). Aplicar no SQL Editor e conferir: cada conta tem que ver exatamente o mesmo número de linhas de antes (contagem de 15/10 guardada)

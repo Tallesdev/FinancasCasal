@@ -8,6 +8,7 @@ import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { AceiteTermos } from "@/components/AceiteTermos";
 import { MenuAjustes } from "@/components/MenuAjustes";
+import { Medidor } from "@/components/Medidor";
 import { iaConfigurada } from "@/lib/ia";
 import { recibosAtivos } from "@/lib/recibos-servidor";
 import type { Household, Profile } from "@/lib/types";
@@ -70,6 +71,8 @@ export default async function PainelLayout({
     >
       <RegisterServiceWorker />
       <AceiteTermos />
+      {/* Medidor de velocidade: só aparece se ligado em Configurações. */}
+      <Medidor />
       <div className="flex min-h-dvh">
         <Nav />
         <div className="flex min-w-0 flex-1 flex-col">
