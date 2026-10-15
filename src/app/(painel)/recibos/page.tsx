@@ -26,6 +26,8 @@ import {
 import type { Receipt } from "@/lib/types";
 
 type ReciboComGasto = Receipt & {
+  /** Quem enviou. Na empresa aparecem os dos sócios também (migração 018). */
+  user_id: string;
   expenses: { description: string; amount: number; start_date: string } | null;
 };
 
@@ -38,12 +40,17 @@ const JANELA_LIGAR = 45;
  * Recibos por ano (FASE_E.md §3.5). Pensada pra ser aberta uma vez, na
  * época do imposto: escolher o ano, conferir e baixar.
  *
- * Só os recibos de quem está logado — nem na visão "todos" aparece o de
- * outra pessoa (RLS da migração 009).
+ * Na família, só os recibos de quem está logado — nem na visão "todos"
+ * aparece o de outra pessoa (RLS da migração 009). Na empresa o recibo é
+ * da empresa: aparecem os dos sócios também, mas só quem enviou apaga ou
+ * liga a um gasto (migração 018).
  */
 export default function RecibosPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, recursos, empresa } = useScope();
+  const { me, members, recursos, empresa } = useScope();
+  const nomeDe = (id: string) =>
+    (members.find((m) => m.id === id)?.display_name ?? "sócio").split(" ")[0];
+  const [baixandoZip, setBaixandoZip] = useState(false);
 
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState(anoAtual);
@@ -63,18 +70,22 @@ export default function RecibosPage() {
     if (!recursos.recibos) return setLoading(false);
     setLoading(true);
 
-    const [doAno, todasAsDatas] = await Promise.all([
-      supabase
-        .from("receipts")
-        .select(
-          "id, expense_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at, expenses(description, amount, start_date)"
-        )
-        .eq("user_id", me.id)
-        .gte("occurred_on", `${ano}-01-01`)
-        .lte("occurred_on", `${ano}-12-31`)
-        .order("occurred_on", { ascending: false }),
-      supabase.from("receipts").select("occurred_on").eq("user_id", me.id),
-    ]);
+    // Família: só os meus, como sempre. Empresa: quem decide é a RLS (os
+    // meus + os concluídos dos sócios).
+    let consultaAno = supabase
+      .from("receipts")
+      .select(
+        "id, user_id, expense_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at, expenses(description, amount, start_date)"
+      )
+      .gte("occurred_on", `${ano}-01-01`)
+      .lte("occurred_on", `${ano}-12-31`)
+      .order("occurred_on", { ascending: false });
+    let consultaDatas = supabase.from("receipts").select("occurred_on");
+    if (!empresa) {
+      consultaAno = consultaAno.eq("user_id", me.id);
+      consultaDatas = consultaDatas.eq("user_id", me.id);
+    }
+    const [doAno, todasAsDatas] = await Promise.all([consultaAno, consultaDatas]);
 
     if (doAno.error) {
       setError(
@@ -90,7 +101,32 @@ export default function RecibosPage() {
     for (const r of todasAsDatas.data ?? []) encontrados.add(Number(r.occurred_on.slice(0, 4)));
     setAnos([...encontrados].sort((a, b) => b - a));
     setLoading(false);
-  }, [supabase, me.id, ano, anoAtual, recursos.recibos]);
+  }, [supabase, me.id, ano, anoAtual, recursos.recibos, empresa]);
+
+  /** As notas do mês num .zip, com um resumo.csv pro contador (FASE_F.md, F6.2). */
+  async function baixarZipDoMes() {
+    if (!mes) return;
+    setBaixandoZip(true);
+    setError(null);
+    try {
+      const resposta = await fetch(`/api/recibos/exportar?mes=${ano}-${mes}`);
+      if (!resposta.ok) {
+        const json = (await resposta.json().catch(() => ({}))) as { error?: string };
+        throw new Error(json.error ?? "Não deu para montar o arquivo.");
+      }
+      const blob = await resposta.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `notas-${ano}-${mes}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não deu para baixar.");
+    } finally {
+      setBaixandoZip(false);
+    }
+  }
 
   useEffect(() => {
     carregar();
@@ -187,7 +223,7 @@ export default function RecibosPage() {
         title="Recibos"
         description={
           empresa
-            ? "Suas fotos de recibo e nota por ano — pra ter o comprovante quando o contador pedir. Só você vê."
+            ? "Recibos e notas da empresa por mês — os sócios também veem. Escolha o mês e baixe tudo pro contador."
             : "Suas fotos de recibo por ano — pra ter o comprovante na hora do imposto de renda. Só você vê."
         }
       />
@@ -253,6 +289,11 @@ export default function RecibosPage() {
             );
           })}
         </select>
+        {mes && (
+          <Button variant="ghost" onClick={baixarZipDoMes} disabled={baixandoZip}>
+            {baixandoZip ? "Montando…" : "Baixar notas do mês (.zip)"}
+          </Button>
+        )}
       </div>
 
       {error && <ErrorNote>{error}</ErrorNote>}
@@ -321,6 +362,9 @@ export default function RecibosPage() {
                             <Tag>sem lançamento</Tag>
                           ) : null}
                           {r.size_bytes ? <span>{tamanhoLegivel(r.size_bytes)}</span> : null}
+                          {empresa && r.user_id !== me.id && (
+                            <Tag>enviado por {nomeDe(r.user_id)}</Tag>
+                          )}
                         </p>
                       </div>
 
@@ -339,7 +383,7 @@ export default function RecibosPage() {
                         >
                           Baixar
                         </a>
-                      ) : (
+                      ) : r.user_id === me.id ? (
                         <Button
                           variant="quiet"
                           className="px-2 py-1 text-xs"
@@ -347,8 +391,9 @@ export default function RecibosPage() {
                         >
                           Conferir envio
                         </Button>
-                      )}
-                      {r.uploaded_at && !r.expense_id && (
+                      ) : null}
+                      {/* Ligar e apagar: só quem enviou (o banco também só deixa ele). */}
+                      {r.user_id === me.id && r.uploaded_at && !r.expense_id && (
                         <Button
                           variant="quiet"
                           className="px-2 py-1 text-xs"
@@ -357,7 +402,9 @@ export default function RecibosPage() {
                           {ligando === r.id ? "Fechar" : "Ligar a um gasto"}
                         </Button>
                       )}
-                      <DeleteButton onConfirm={() => apagar(r.id)} label="Apagar" />
+                      {r.user_id === me.id && (
+                        <DeleteButton onConfirm={() => apagar(r.id)} label="Apagar" />
+                      )}
                     </div>
 
                     {ligando === r.id && (
