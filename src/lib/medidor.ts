@@ -72,11 +72,29 @@ export function aoMudar(ouvinte: () => void) {
   };
 }
 
+/** Nenhum "Carregando…" na tela: o que a pessoa pediu já chegou. */
+export function nadaCarregando() {
+  return ativos === 0;
+}
+
 /** Começa a medir uma troca de tela. */
 export function comecarTroca(destino: string) {
   tela = destino;
   inicio = performance.now();
   abertura = false;
+}
+
+/**
+ * A tela nova entrou. Se ela veio pronta (guardada, sem "Carregando…"),
+ * a troca termina aqui; se mostra "Carregando…", termina quando ele sumir.
+ */
+export function telaTrocou() {
+  if (ativos > 0 || tela === null) return;
+  const fim = performance.now();
+  clearTimeout(espera);
+  espera = setTimeout(() => {
+    if (ativos === 0) registrar(fim);
+  }, FOLGA_MS);
 }
 
 export function carregandoApareceu() {

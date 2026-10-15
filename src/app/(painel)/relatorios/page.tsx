@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useScope } from "@/components/ScopeProvider";
+import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
+import { guardar, lerGuardado } from "@/lib/guardado";
+import { buscarRelatorio, type RelatorioGuardado } from "@/lib/telas";
 import { MonthlyBars } from "@/components/MonthlyBarsLazy";
 import { RankBar } from "@/components/RankBar";
 import { LucroPorCliente } from "@/components/LucroPorCliente";
 import { Dot, ErrorNote, Loading, PageTitle } from "@/components/ui";
-import { money, monthName, percent, yearRange } from "@/lib/format";
+import { money, monthName, percent } from "@/lib/format";
 import type { CategoryRankingRow, MonthlySummaryRow } from "@/lib/types";
 
 export default function RelatoriosPage() {
@@ -16,31 +18,35 @@ export default function RelatoriosPage() {
   const { userIds, scope, empresa } = useScope();
 
   const [year, setYear] = useState(() => new Date().getFullYear());
-  const [summary, setSummary] = useState<MonthlySummaryRow[]>([]);
-  const [ranking, setRanking] = useState<CategoryRankingRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  // O que esta tela tinha da última vez (lib/guardado.ts): aparece na hora,
+  // e o load() confere o novo por trás.
+  const chave = useChaveGuardada("relatorios", year);
+  const [inicial] = useState(() => lerGuardado<RelatorioGuardado>(chave));
+  const [summary, setSummary] = useState<MonthlySummaryRow[]>(inicial?.summary ?? []);
+  const [ranking, setRanking] = useState<CategoryRankingRow[]>(inicial?.ranking ?? []);
+  const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    const { from, to } = yearRange(year);
-
-    const [summaryResult, rankingResult] = await Promise.all([
-      supabase.rpc("monthly_summary", { p_from: from, p_to: to }),
-      supabase.rpc("category_ranking", { p_from: from, p_to: to }),
-    ]);
-
-    if (summaryResult.error || rankingResult.error) {
+    const guardado = lerGuardado<RelatorioGuardado>(chave);
+    if (guardado) {
+      setSummary(guardado.summary);
+      setRanking(guardado.ranking);
+      setLoading(false);
+    } else setLoading(true);
+    const novos = await buscarRelatorio(supabase, year);
+    if (!novos) {
       setError("Não deu para carregar o relatório do ano.");
       setLoading(false);
       return;
     }
 
     setError(null);
-    setSummary(summaryResult.data as MonthlySummaryRow[]);
-    setRanking(rankingResult.data as CategoryRankingRow[]);
+    setSummary(novos.summary);
+    setRanking(novos.ranking);
+    guardar(chave, novos);
     setLoading(false);
-  }, [supabase, year]);
+  }, [supabase, chave, year]);
 
   useEffect(() => {
     load();

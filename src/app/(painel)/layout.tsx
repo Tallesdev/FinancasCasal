@@ -9,6 +9,7 @@ import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { AceiteTermos } from "@/components/AceiteTermos";
 import { MenuAjustes } from "@/components/MenuAjustes";
 import { Medidor } from "@/components/Medidor";
+import { PreCarregar } from "@/components/PreCarregar";
 import { iaConfigurada } from "@/lib/ia";
 import { recibosAtivos } from "@/lib/recibos-servidor";
 import type { Household, Profile } from "@/lib/types";
@@ -73,6 +74,8 @@ export default async function PainelLayout({
       <AceiteTermos />
       {/* Medidor de velocidade: só aparece se ligado em Configurações. */}
       <Medidor />
+      {/* Busca as outras abas por trás, depois que a tela aberta carrega. */}
+      <PreCarregar />
       <div className="flex min-h-dvh">
         <Nav />
         <div className="flex min-w-0 flex-1 flex-col">

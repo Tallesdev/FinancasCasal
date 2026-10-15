@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useScope } from "./ScopeProvider";
+import { useChaveGuardada, useScope } from "./ScopeProvider";
+import { guardar, lerGuardado } from "@/lib/guardado";
+import { buscarLucroPorCliente, type GastoComCliente, type LucroPorClienteGuardado } from "@/lib/telas";
 import { ErrorNote, Loading } from "./ui";
 import { formatDate, money, monthLabel } from "@/lib/format";
 import { chaveDoCliente, lucroPorCliente } from "@/lib/clientes";
 import { mesesDe } from "@/lib/recebimentos";
-import type { ExpenseOccurrence, Income } from "@/lib/types";
-
-type GastoComCliente = { expense_id: string; client: string | null; amount: number; description: string; month: string };
+import type { Income } from "@/lib/types";
 
 /**
  * Lucro por cliente no ano (FASE_F.md, F5.1). Só empresa, e sempre a
@@ -21,44 +21,35 @@ export function LucroPorCliente({ ano }: { ano: number }) {
   const { members } = useScope();
   const ids = useMemo(() => members.map((m) => m.id), [members]);
 
-  const [incomes, setIncomes] = useState<Income[]>([]);
-  const [gastos, setGastos] = useState<GastoComCliente[]>([]);
-  const [loading, setLoading] = useState(true);
+  // O que este quadro tinha da última vez (lib/guardado.ts).
+  const chave = useChaveGuardada("lucro-por-cliente", ano);
+  const [inicial] = useState(() => lerGuardado<LucroPorClienteGuardado>(chave));
+  const [incomes, setIncomes] = useState<Income[]>(inicial?.incomes ?? []);
+  const [gastos, setGastos] = useState<GastoComCliente[]>(inicial?.gastos ?? []);
+  const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    const [incomesResult, expensesResult, ocorrenciasResult] = await Promise.all([
-      supabase.from("incomes").select("*"),
-      supabase.from("expenses").select("id, user_id, client"),
-      supabase.rpc("expense_occurrences", { p_from: `${ano}-01-01`, p_to: `${ano}-12-31` }),
-    ]);
-    if (incomesResult.error || expensesResult.error || ocorrenciasResult.error) {
+    const guardado = lerGuardado<LucroPorClienteGuardado>(chave);
+    if (guardado) {
+      setIncomes(guardado.incomes);
+      setGastos(guardado.gastos);
+      setLoading(false);
+    } else setLoading(true);
+
+    const novos = await buscarLucroPorCliente(supabase, ano, ids);
+    if (!novos) {
       setError("Não deu para carregar o lucro por cliente.");
       setLoading(false);
       return;
     }
-    const clientePorGasto = new Map(
-      ((expensesResult.data ?? []) as { id: string; user_id: string; client: string | null }[])
-        .filter((e) => ids.includes(e.user_id))
-        .map((e) => [e.id, e.client ?? null])
-    );
-    setIncomes(((incomesResult.data ?? []) as Income[]).filter((i) => ids.includes(i.user_id)));
-    setGastos(
-      ((ocorrenciasResult.data ?? []) as ExpenseOccurrence[])
-        .filter((o) => clientePorGasto.has(o.expense_id))
-        .map((o) => ({
-          expense_id: o.expense_id,
-          client: clientePorGasto.get(o.expense_id) ?? null,
-          amount: Number(o.amount),
-          description: o.description,
-          month: o.month,
-        }))
-    );
+    guardar(chave, novos);
+    setIncomes(novos.incomes);
+    setGastos(novos.gastos);
     setError(null);
     setLoading(false);
-  }, [supabase, ano, ids]);
+  }, [supabase, chave, ano, ids]);
 
   useEffect(() => {
     load();

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useScope } from "@/components/ScopeProvider";
+import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
+import { guardar, lerGuardado } from "@/lib/guardado";
+import { buscarGastos, type GastosGuardados } from "@/lib/telas";
 import { GravarGasto, type GastoPorAudio } from "@/components/GravarGasto";
 import { AnexarRecibos, Clipe } from "@/components/AnexarRecibos";
 import { SegmentedField, SelectField } from "@/components/form/Field";
@@ -92,18 +94,24 @@ export default function GastosPage() {
   const [month, setMonth] = useState(() =>
     firstDayOfMonth(toISODate(new Date()))
   );
-  const [occurrences, setOccurrences] = useState<ExpenseOccurrence[]>([]);
-  const [expenses, setExpenses] = useState<Record<string, Expense>>({});
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [cards, setCards] = useState<Card[]>([]);
-  const [accounts, setAccounts] = useState<BankAccount[]>([]);
-  const [loading, setLoading] = useState(true);
+  // O que esta tela tinha da última vez (lib/guardado.ts): aparece na hora,
+  // e o load() confere o novo por trás.
+  const chave = useChaveGuardada("gastos", month);
+  const [inicial] = useState(() => lerGuardado<GastosGuardados>(chave));
+  const [occurrences, setOccurrences] = useState<ExpenseOccurrence[]>(inicial?.occurrences ?? []);
+  const [expenses, setExpenses] = useState<Record<string, Expense>>(inicial?.expenses ?? {});
+  const [categories, setCategories] = useState<Category[]>(inicial?.categories ?? []);
+  const [cards, setCards] = useState<Card[]>(inicial?.cards ?? []);
+  const [accounts, setAccounts] = useState<BankAccount[]>(inicial?.accounts ?? []);
+  const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   /** Recibos (só os meus) por gasto — pro clipe na lista e pra abrir na edição. */
-  const [recibosPorGasto, setRecibosPorGasto] = useState<Record<string, Receipt[]>>({});
+  const [recibosPorGasto, setRecibosPorGasto] = useState<Record<string, Receipt[]>>(
+    inicial?.recibosPorGasto ?? {}
+  );
   /** Os recibos do formulário aberto. Em gasto novo, sobem soltos e são ligados ao salvar. */
   const [recibosDoForm, setRecibosDoForm] = useState<Receipt[]>([]);
   // A leitura por IA termina depois de alguns segundos; nesse meio tempo a
@@ -118,67 +126,36 @@ export default function GastosPage() {
   const [filterCard, setFilterCard] = useState("");
   const [filterAccount, setFilterAccount] = useState("");
 
+  const aplicar = useCallback((dados: GastosGuardados) => {
+    setOccurrences(dados.occurrences);
+    setExpenses(dados.expenses);
+    setCategories(dados.categories);
+    setCards(dados.cards);
+    setAccounts(dados.accounts);
+    setRecibosPorGasto(dados.recibosPorGasto);
+    setLoading(false);
+  }, []);
+
   const load = useCallback(async () => {
-    setLoading(true);
+    const guardado = lerGuardado<GastosGuardados>(chave);
+    if (guardado) aplicar(guardado);
+    else setLoading(true);
 
-    const [
-      occurrencesResult,
-      expensesResult,
-      categoriesResult,
-      cardsResult,
-      accountsResult,
-    ] = await Promise.all([
-        // A lista do mês vem da projeção, não da tabela crua: assim os fixos
-        // aparecem no mês certo e o parcelado sabe que parcela é.
-        supabase.rpc("expense_occurrences", { p_from: month, p_to: month }),
-        supabase.from("expenses").select("*"),
-        supabase.from("categories").select("*"),
-        // Sem filtro de dono: quem decide é a RLS. Na família cartão e conta
-        // são privados (voltam só os meus); na empresa voltam os dos sócios,
-        // porque a conta da empresa está no nome de um deles (migração 011).
-        supabase.from("cards").select("*"),
-        supabase
-          .from("bank_accounts")
-          .select("*")
-          .eq("archived", false)
-          .order("name"),
-      ]);
-
-    if (occurrencesResult.error) {
+    const novos = await buscarGastos(supabase, {
+      month,
+      meId: me.id,
+      empresa,
+      recibos: recursos.recibos,
+    });
+    if (!novos) {
       setError("Não deu para carregar os gastos do mês.");
       setLoading(false);
       return;
     }
-
+    guardar(chave, novos);
     setError(null);
-    setOccurrences(occurrencesResult.data as ExpenseOccurrence[]);
-
-    const byId: Record<string, Expense> = {};
-    for (const row of (expensesResult.data ?? []) as Expense[]) byId[row.id] = row;
-    setExpenses(byId);
-
-    setCategories((categoriesResult.data ?? []) as Category[]);
-    setCards((cardsResult.data ?? []) as Card[]);
-    setAccounts((accountsResult.data ?? []) as BankAccount[]);
-    setLoading(false);
-
-    if (recursos.recibos) {
-      let consulta = supabase
-        .from("receipts")
-        .select("id, expense_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at")
-        .not("expense_id", "is", null)
-        .not("uploaded_at", "is", null);
-      // Família: só os meus. Empresa: os dos sócios também (migração 018),
-      // pra o clipe aparecer no gasto de quem quer que tenha lançado.
-      if (!empresa) consulta = consulta.eq("user_id", me.id);
-      const { data: recibos } = await consulta;
-      const porGasto: Record<string, Receipt[]> = {};
-      for (const r of (recibos ?? []) as Receipt[]) {
-        (porGasto[r.expense_id!] ??= []).push(r);
-      }
-      setRecibosPorGasto(porGasto);
-    }
-  }, [supabase, month, me.id, recursos.recibos, empresa]);
+    aplicar(novos);
+  }, [supabase, chave, aplicar, month, me.id, recursos.recibos, empresa]);
 
   useEffect(() => {
     load();
