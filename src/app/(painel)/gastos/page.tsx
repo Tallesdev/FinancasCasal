@@ -58,6 +58,8 @@ type Draft = {
   bank_account_id: string;
   /** Empresa: cliente/serviço do gasto (migração 014). */
   client: string;
+  /** Empresa: quem pagou. "" = conta da empresa; id = bolso do sócio (migração 016). */
+  paid_by: string;
 };
 
 function emptyDraft(month: string): Draft {
@@ -79,6 +81,7 @@ function emptyDraft(month: string): Draft {
     notes: "",
     bank_account_id: "",
     client: "",
+    paid_by: "",
   };
 }
 
@@ -301,6 +304,7 @@ export default function GastosPage() {
       notes: expense.notes ?? "",
       bank_account_id: expense.bank_account_id ?? "",
       client: expense.client ?? "",
+      paid_by: expense.paid_by ?? "",
     });
     setRecibosDoForm(recibosPorGasto[expense.id] ?? []);
     setFormError(null);
@@ -455,6 +459,9 @@ export default function GastosPage() {
         draft.payment_method === "pix" ? draft.bank_account_id || null : null,
       // Coluna da 014: só vai na empresa, a conta pessoal não depende dela.
       ...(empresa ? { client: draft.client.trim() || null } : {}),
+      // Coluna da 016: só manda quando é de um sócio, pra a empresa seguir
+      // salvando gasto mesmo antes da migração rodar.
+      ...(empresa && (draft.paid_by || draft.id) ? { paid_by: draft.paid_by || null } : {}),
     };
 
     setSaving(true);
@@ -663,6 +670,9 @@ export default function GastosPage() {
                     <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
                       {category && <span>{category.name}</span>}
                       {empresa && expense?.client && <span>{expense.client}</span>}
+                      {empresa && expense?.paid_by && (
+                        <Tag>pago por {(profileById[expense.paid_by]?.name ?? "sócio").split(" ")[0]}</Tag>
+                      )}
                       <Tag>
                         {occurrence.payment_method === "card"
                           ? card?.name ?? PAYMENT_METHOD_LABEL.card
@@ -732,6 +742,7 @@ export default function GastosPage() {
             cards={myCards}
             accounts={accounts}
             clientes={empresa ? clientes : undefined}
+            socios={empresa && members.length > 1 ? members : undefined}
             error={formError}
             saving={saving}
             onSave={save}
@@ -760,6 +771,7 @@ function ExpenseForm({
   cards,
   accounts,
   clientes,
+  socios,
   error,
   saving,
   onSave,
@@ -773,6 +785,8 @@ function ExpenseForm({
   accounts: BankAccount[];
   /** Só na empresa: aparece o campo Cliente, com estes como sugestão. */
   clientes?: string[];
+  /** Só na empresa com sócios: aparece "Quem pagou". */
+  socios?: { id: string; display_name: string }[];
   error: string | null;
   saving: boolean;
   onSave: () => void;
@@ -974,6 +988,26 @@ function ExpenseForm({
           ))}
         </select>
       </Field>
+
+      {socios && (
+        <Field
+          label="Quem pagou"
+          hint="Do bolso de um sócio = a empresa fica devendo a ele (aparece no Acerto)."
+        >
+          <select
+            className={inputClass}
+            value={draft.paid_by}
+            onChange={(event) => set({ paid_by: event.target.value })}
+          >
+            <option value="">Conta da empresa</option>
+            {socios.map((s) => (
+              <option key={s.id} value={s.id}>
+                Do bolso de {s.display_name.split(" ")[0]}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       {clientes && (
         <Field label="Cliente" hint="Opcional. De qual cliente ou serviço é este gasto.">

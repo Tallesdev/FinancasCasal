@@ -35,6 +35,7 @@ import {
   type Income,
   type IncomeReceived,
   type MonthlySummaryRow,
+  type Settlement,
   type Withdrawal,
 } from "@/lib/types";
 
@@ -62,6 +63,10 @@ export default function DashboardPage() {
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [recebidos, setRecebidos] = useState<IncomeReceived[] | null>(null);
   const [retiradas, setRetiradas] = useState<Withdrawal[]>([]);
+  // Acerto (migração 016): o caixa é a conta da empresa, então gasto pago do
+  // bolso de um sócio não sai dele, e acerto com a empresa entra ou sai.
+  const [pagoDoBolso, setPagoDoBolso] = useState(0);
+  const [acertos, setAcertos] = useState<Settlement[]>([]);
 
   // --- janela do cartão ---
   const [cards, setCards] = useState<Card[]>([]);
@@ -128,6 +133,26 @@ export default function DashboardPage() {
         // Retiradas saem do caixa (migração 015; sem ela, fica zero).
         empresa ? supabase.from("withdrawals").select("amount, taken_on") : null,
       ]);
+    // Migração 016: sem ela, estas duas dão erro e o caixa fica como antes.
+    const [bolsoResult, acertosResult] = await Promise.all([
+      empresa ? supabase.from("expenses").select("id, start_date").not("paid_by", "is", null) : null,
+      empresa ? supabase.from("settlements").select("from_user, to_user, amount, paid_on") : null,
+    ]);
+    setAcertos(acertosResult && !acertosResult.error ? ((acertosResult.data ?? []) as Settlement[]) : []);
+    const doBolso = bolsoResult && !bolsoResult.error ? (bolsoResult.data ?? []) : [];
+    if (doBolso.length) {
+      const ids = new Set(doBolso.map((e) => e.id as string));
+      const inicio = doBolso.map((e) => e.start_date as string).sort()[0];
+      const { data } = await supabase.rpc("expense_occurrences", {
+        p_from: firstDayOfMonth(inicio),
+        p_to: month,
+      });
+      setPagoDoBolso(
+        ((data ?? []) as ExpenseOccurrence[])
+          .filter((o) => ids.has(o.expense_id))
+          .reduce((t, o) => t + Number(o.amount), 0)
+      );
+    } else setPagoDoBolso(0);
     setRetiradas(
       retiradasResult && !retiradasResult.error ? ((retiradasResult.data ?? []) as Withdrawal[]) : []
     );
@@ -259,6 +284,8 @@ export default function DashboardPage() {
     // Talles/Joaquim/Empresa, como a conta do banco também não muda.
     const todos = members.map((m) => m.id);
     const meus = incomes.filter((i) => todos.includes(i.user_id));
+    // Só o que caiu na conta da empresa entra no caixa (o resto está com um sócio).
+    const naEmpresa = meus.filter((i) => !i.received_into);
     const fimDoMes = shiftDay(addMonths(month, 1), -1);
     const saiu = summary
       .filter((row) => todos.includes(row.user_id))
@@ -268,13 +295,23 @@ export default function DashboardPage() {
     const retirado = retiradas
       .filter((r) => r.taken_on.slice(0, 10) <= fimDoMes)
       .reduce((t, r) => t + Number(r.amount), 0);
+    const acertoNaEmpresa = acertos
+      .filter((a) => a.paid_on.slice(0, 10) <= fimDoMes)
+      .reduce(
+        (t, a) => t + (a.to_user === null ? Number(a.amount) : 0) - (a.from_user === null ? Number(a.amount) : 0),
+        0
+      );
     return {
-      caixa: recebidoAte(meus, recebidos, fimDoMes) - saiu - retirado,
+      caixa:
+        recebidoAte(naEmpresa, recebidos, fimDoMes) -
+        (saiu - pagoDoBolso) -
+        retirado +
+        acertoNaEmpresa,
       entrouDoMes: recebidoDoMes(meus, recebidos, month),
       aReceber: pendencias.reduce((t, p) => t + p.valor, 0),
       atrasado: pendencias.filter((p) => p.atrasado).reduce((t, p) => t + p.valor, 0),
     };
-  }, [empresa, recebidos, incomes, members, summary, month, retiradas]);
+  }, [empresa, recebidos, incomes, members, summary, month, retiradas, pagoDoBolso, acertos]);
 
   /**
    * Os quatro números e as duas listas saem daqui, venham do mês ou da
@@ -483,7 +520,7 @@ export default function DashboardPage() {
                   Caixa da empresa
                 </p>
                 <p className="text-xs text-[var(--color-text-faint)]">
-                  O que caiu na conta menos gastos e retiradas, desde o começo, até o fim de{" "}
+                  O que entrou e saiu pela conta da empresa (recebimentos, gastos, retiradas e acertos), até o fim de{" "}
                   {monthLabel(month)}.
                 </p>
               </div>

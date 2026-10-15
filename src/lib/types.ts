@@ -92,6 +92,8 @@ export type Income = {
   installments_total?: number | null;
   /** Migração 014. Cliente do recebimento (empresa). */
   client?: string | null;
+  /** Migração 016. Onde caiu: nulo = conta da empresa; id = conta pessoal do sócio. */
+  received_into?: string | null;
 };
 
 /** Migração 014: parcela (ou mês) de um recebimento que já entrou. */
@@ -122,6 +124,8 @@ export type Expense = {
   bank_account_id: string | null;
   /** Migração 014. Cliente/serviço a que o gasto pertence (empresa). */
   client?: string | null;
+  /** Migração 016. Quem pagou: nulo = conta da empresa; id = bolso do sócio. */
+  paid_by?: string | null;
 };
 
 export type Investment = {
@@ -314,6 +318,18 @@ export type Withdrawal = {
   user_id: string;
   amount: number;
   taken_on: string;
+  notes: string | null;
+  created_by: string | null;
+};
+
+/** Migração 016: acerto feito entre sócios/empresa. Nulo = conta da empresa. */
+export type Settlement = {
+  id: string;
+  household_id: string;
+  from_user: string | null;
+  to_user: string | null;
+  amount: number;
+  paid_on: string;
   notes: string | null;
   created_by: string | null;
 };
