@@ -32,10 +32,12 @@ function linksDaEmpresa() {
   );
 }
 
-const settingsDaEmpresa = () =>
-  SETTINGS.map((link) =>
+const settingsDaEmpresa = () => [
+  { href: "/acerto", label: "Acerto entre sócios" },
+  ...SETTINGS.map((link) =>
     link.href === "/ajustes" ? { ...link, label: "Perfil e empresa" } : link
-  );
+  ),
+];
 
 export function Nav() {
   const pathname = usePathname();

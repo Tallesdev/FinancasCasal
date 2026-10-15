@@ -16,7 +16,7 @@ export default function AjustesPage() {
           <LinkVoltar href="/" rotulo="Início" soCelular />
         </div>
         <span className="scope-rule mb-3 block h-1 w-10 rounded-full" />
-        <h1 className="text-2xl font-bold">Ajustes</h1>
+        <h1 className="text-2xl font-bold">Configurações</h1>
         <p className="mt-1 text-sm text-[var(--color-text-dim)]">
           O que você cadastra uma vez e usa em todo lançamento.
         </p>
