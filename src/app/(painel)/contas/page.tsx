@@ -169,7 +169,7 @@ export default function ContasPage() {
         />
       ) : (
         <div className="flex flex-col gap-6">
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {active.map((account) => (
               <li
                 key={account.id}
@@ -215,7 +215,7 @@ export default function ContasPage() {
               <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-text-faint)]">
                 Arquivadas
               </p>
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {archived.map((account) => (
                   <li
                     key={account.id}

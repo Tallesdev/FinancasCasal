@@ -28,7 +28,7 @@ const LINKS = [
     href: "/recibos",
     title: "Recibos",
     description: "Fotos dos comprovantes por ano, pra hora do imposto. Só você vê.",
-    empresa: "Fotos de recibos e notas por ano, pra quando o contador pedir. Só você vê.",
+    empresa: "Fotos de recibos e notas por mês, pra quando o contador pedir. Os sócios também veem.",
   },
   {
     href: "/importar",

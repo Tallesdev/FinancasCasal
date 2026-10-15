@@ -153,7 +153,7 @@ export default function CategoriasPage() {
         />
       ) : (
         <div className="flex flex-col gap-6">
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {active.map((category) => (
               <li
                 key={category.id}
@@ -199,7 +199,7 @@ export default function CategoriasPage() {
               <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-text-faint)]">
                 Arquivadas
               </p>
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {archived.map((category) => (
                   <li
                     key={category.id}
