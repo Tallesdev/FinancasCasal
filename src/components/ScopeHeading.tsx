@@ -15,7 +15,12 @@ export function ScopeHeading() {
   const { scope, me, members, household, empresa } = useScope();
 
   const todos = scope === "us";
-  const title = todos ? labelTodos(members, household) : firstName(me.display_name);
+  // Na empresa o título é o nome dela (Ajustes → Minha empresa); o seletor
+  // lá em cima continua dizendo só "Empresa" (FASE_F.md, C9).
+  const nomeEmpresa = empresa ? household?.name?.trim() : "";
+  const title = todos
+    ? nomeEmpresa || labelTodos(members, household)
+    : firstName(me.display_name);
 
   const subtitle = todos
     ? `${listar(members.map((m) => firstName(m.display_name)))} — somados.`

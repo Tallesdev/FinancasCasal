@@ -43,7 +43,7 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 
 ### F1 — Fundação do modo Empresa
 - [x] F1.1 Cadastro: escolher "Uso pessoal" ou "Empresa"; a casa criada nasce com esse tipo — conferido 15/10: solaristalles e solaris.joaquim nasceram empresa, com as 8 categorias
-- [ ] F1.2 Convite: tipos diferentes não entram (era só aviso; virou bloqueio pela decisão 9 — ver C8)
+- [x] F1.2 Convite: tipos diferentes não entram (era só aviso; virou bloqueio pela decisão 9 — ver C8) — conferido 15/10: Joaquim entrou na Solaris pelo link
 - [x] F1.3 Trocar o tipo depois de criado: decidido que não troca (decisão 9 — ver C5)
 - [x] F1.4 Navegação da empresa: sem Investir, sem "Pelo cartão", sem relatório de ciclo, sem "cartão que define o mês" — conferido no print de 15/10
 - [ ] F1.5 Textos da empresa: Renda → Recebimentos; Início → Faturou / Gastou / Lucro
@@ -105,6 +105,7 @@ tela em paralelo.
 - [x] C3 Migração 012 (convite diz casa ou empresa) aplicada pelo Talles — conferida em 15/10: `get_invite` devolve `household_kind`
 - [ ] C4 O endereço do app mudou para rumofacil-pi.vercel.app (o antigo redireciona): conferir no Supabase (Authentication → URL Configuration) se o novo endereço está em Site URL / Redirect URLs, senão o link do e-mail de confirmação e o de trocar senha podem cair no endereço errado
 - [x] C5 Tipo fixo: Ajustes não oferece mais trocar Família/Empresa (só mostra o tipo) e o banco não deixa trocar pelo app (migração 013, testada em tabela descartável; aplicada pelo Talles e conferida em 15/10)
-- [ ] C6 Cabeçalho no celular: os botões escorregavam pra esquerda quando a pessoa está sozinha (sem o seletor de escopo); Ajustes ganha engrenagem e fica um pouco maior, junto do Sair
+- [x] C6 Cabeçalho no celular: os botões escorregavam pra esquerda quando a pessoa está sozinha (sem o seletor de escopo); Ajustes ganha engrenagem e fica um pouco maior, junto do Sair — conferido no print de 15/10
 - [ ] C7 Textos de casa aparecendo na empresa: "Sua casa, só você por enquanto", gastos, relatórios, recebimentos, categorias, cartões ("só seus" — na empresa os sócios veem), contas, recibos, Ajustes, sair da empresa, convite, exportar, excluir conta, importar planilha
 - [x] C8 Sair de uma empresa criava uma casa de família; convite deixava conta pessoal entrar em empresa — corrigido na 013 (testado com as contas da Solaris, tudo desfeito no fim; 013 aplicada e conferida em 15/10)
+- [ ] C9 Na visão da empresa, o título do Início diz "Empresa"; deve mostrar o nome da empresa (o seletor do topo continua "Empresa") — pedido do Talles, 15/10
