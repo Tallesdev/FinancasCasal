@@ -194,7 +194,7 @@ export default function ContasPage() {
                   >
                     Editar
                   </Button>
-                  {usage[account.id] > 0 ? (
+                  {usage[account.id] > 0 && (
                     <Button
                       variant="quiet"
                       className="px-2 py-1 text-xs"
@@ -202,13 +202,21 @@ export default function ContasPage() {
                     >
                       Arquivar
                     </Button>
-                  ) : (
-                    <DeleteButton onConfirm={() => remove(account)} />
                   )}
+                  {/* Em uso também exclui: o banco só tira a ligação
+                      (on delete set null), nenhum lançamento some. */}
+                  <DeleteButton onConfirm={() => remove(account)} />
                 </span>
               </li>
             ))}
           </ul>
+
+          {active.some((item) => usage[item.id] > 0) && (
+            <p className="-mt-3 text-xs text-[var(--color-text-faint)]">
+              O número ao lado do nome é quantos lançamentos usam. Excluir não apaga nenhum
+              deles: só ficam sem conta. Arquivar esconde da lista e mantém tudo como está.
+            </p>
+          )}
 
           {archived.length > 0 && (
             <div className="flex flex-col gap-2">
@@ -225,13 +233,16 @@ export default function ContasPage() {
                       <Dot color={account.color} />
                       <span className="truncate">{account.name}</span>
                     </span>
-                    <Button
-                      variant="quiet"
-                      className="px-2 py-1 text-xs"
-                      onClick={() => setArchived(account, false)}
-                    >
-                      Reativar
-                    </Button>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="quiet"
+                        className="px-2 py-1 text-xs"
+                        onClick={() => setArchived(account, false)}
+                      >
+                        Reativar
+                      </Button>
+                      <DeleteButton onConfirm={() => remove(account)} />
+                    </span>
                   </li>
                 ))}
               </ul>
