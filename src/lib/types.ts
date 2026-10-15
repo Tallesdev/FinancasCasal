@@ -299,6 +299,25 @@ export type Household = {
   kind: HouseholdKind;
 };
 
+/** Migração 015: a % de cada sócio no lucro. */
+export type ProfitShare = {
+  household_id: string;
+  user_id: string;
+  pct: number;
+};
+
+/** Migração 015: retirada de um sócio ("Talles retirou R$ 2.000"). */
+export type Withdrawal = {
+  id: string;
+  household_id: string;
+  /** Quem retirou (não quem lançou). */
+  user_id: string;
+  amount: number;
+  taken_on: string;
+  notes: string | null;
+  created_by: string | null;
+};
+
 /** Convite por link (household_invites). O token é o que vai na URL. */
 export type HouseholdInvite = {
   id: string;
