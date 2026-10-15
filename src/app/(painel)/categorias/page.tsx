@@ -161,7 +161,7 @@ export default function CategoriasPage() {
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   <Dot color={category.color} />
-                  <span className="truncate font-medium">{category.name}</span>
+                  <span className="min-w-0 break-words font-medium">{category.name}</span>
                   {usage[category.id] > 0 && <Tag>{usage[category.id]}</Tag>}
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
