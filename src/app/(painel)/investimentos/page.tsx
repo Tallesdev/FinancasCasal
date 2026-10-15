@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useScope } from "@/components/ScopeProvider";
+import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
+import { guardar, lerGuardado } from "@/lib/guardado";
+import { buscarInvestimentos } from "@/lib/telas";
 import { SegmentedField } from "@/components/form/Field";
 import {
   Button,
@@ -47,27 +49,32 @@ export default function InvestimentosPage() {
   const supabase = useMemo(() => createClient(), []);
   const { me, members, userIds, scope } = useScope();
 
-  const [investments, setInvestments] = useState<Investment[]>([]);
-  const [loading, setLoading] = useState(true);
+  // O que esta tela tinha da última vez (lib/guardado.ts): aparece na hora,
+  // e o load() confere o novo por trás.
+  const chave = useChaveGuardada("investimentos");
+  const [inicial] = useState(() => lerGuardado<Investment[]>(chave));
+  const [investments, setInvestments] = useState<Investment[]>(inicial ?? []);
+  const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    const { data, error: readError } = await supabase
-      .from("investments")
-      .select("*")
-      .order("start_date", { ascending: false });
-
-    if (readError) setError("Não deu para carregar os investimentos.");
+    const guardados = lerGuardado<Investment[]>(chave);
+    if (guardados) {
+      setInvestments(guardados);
+      setLoading(false);
+    } else setLoading(true);
+    const novos = await buscarInvestimentos(supabase);
+    if (!novos) setError("Não deu para carregar os investimentos.");
     else {
       setError(null);
-      setInvestments(data as Investment[]);
+      setInvestments(novos);
+      guardar(chave, novos);
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, chave]);
 
   useEffect(() => {
     load();

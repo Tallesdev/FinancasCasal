@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useScope } from "./ScopeProvider";
 import { Button } from "./ui";
 import {
   aoMudar,
   comecarTroca,
   ligarMedidor,
+  telaTrocou,
   limparMedidas,
   medidas,
   medidorLigado,
@@ -61,6 +63,11 @@ function useMedidor() {
 export function Medidor() {
   const { ligado, lista } = useMedidor();
   const nome = useNomeDaTela();
+  const pathname = usePathname();
+
+  // Tela que já entra pronta (guardada) não mostra "Carregando…": a troca
+  // termina quando ela aparece.
+  useEffect(() => telaTrocou(), [pathname]);
 
   useEffect(() => {
     const toque = (event: MouseEvent) => {

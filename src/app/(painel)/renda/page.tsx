@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useScope } from "@/components/ScopeProvider";
+import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
+import { guardar, lerGuardado } from "@/lib/guardado";
+import { buscarRecebidos, buscarRenda, type RendaGuardada } from "@/lib/telas";
 import { SegmentedField } from "@/components/form/Field";
 import {
   Button,
@@ -94,11 +96,15 @@ export default function RendaPage() {
   // Empresa não tem "renda": recebe de cliente (FASE_F.md, F1.5).
   const novo = empresa ? "Novo recebimento" : "Nova renda";
 
-  const [incomes, setIncomes] = useState<Income[]>([]);
-  const [recebidos, setRecebidos] = useState<IncomeReceived[]>([]);
+  // O que esta tela tinha da última vez (lib/guardado.ts): aparece na hora,
+  // e o load() confere o novo por trás.
+  const chave = useChaveGuardada("renda");
+  const [inicial] = useState(() => lerGuardado<RendaGuardada>(chave));
+  const [incomes, setIncomes] = useState<Income[]>(inicial?.incomes ?? []);
+  const [recebidos, setRecebidos] = useState<IncomeReceived[]>(inicial?.recebidos ?? []);
   /** Falso enquanto a migração 014 não roda: some tudo que depende de "recebido". */
-  const [recebidosOk, setRecebidosOk] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [recebidosOk, setRecebidosOk] = useState(inicial?.recebidosOk ?? false);
+  const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -110,27 +116,35 @@ export default function RendaPage() {
   const [abertoTodos, setAbertoTodos] = useLembrado("rumofacil:recebimentos-aberto", true);
 
   const carregarRecebidos = useCallback(async () => {
+    const marcados = await buscarRecebidos(supabase, empresa);
     if (!empresa) return;
-    const { data, error: e } = await supabase.from("income_received").select("*");
-    setRecebidosOk(!e);
-    setRecebidos(e ? [] : ((data ?? []) as IncomeReceived[]));
-  }, [supabase, empresa]);
+    setRecebidosOk(marcados.recebidosOk);
+    setRecebidos(marcados.recebidos);
+    const guardada = lerGuardado<RendaGuardada>(chave);
+    if (guardada) guardar(chave, { ...guardada, ...marcados });
+  }, [supabase, empresa, chave]);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    const [{ data, error: readError }] = await Promise.all([
-      supabase.from("incomes").select("*").order("start_date", { ascending: false }),
-      carregarRecebidos(),
-    ]);
+    const guardada = lerGuardado<RendaGuardada>(chave);
+    if (guardada) {
+      setIncomes(guardada.incomes);
+      setRecebidos(guardada.recebidos);
+      setRecebidosOk(guardada.recebidosOk);
+      setLoading(false);
+    } else setLoading(true);
 
-    if (readError)
+    const novos = await buscarRenda(supabase, empresa);
+    if (!novos)
       setError(empresa ? "Não deu para carregar os recebimentos." : "Não deu para carregar a renda.");
     else {
       setError(null);
-      setIncomes(data as Income[]);
+      guardar(chave, novos);
+      setIncomes(novos.incomes);
+      setRecebidos(novos.recebidos);
+      setRecebidosOk(novos.recebidosOk);
     }
     setLoading(false);
-  }, [supabase, empresa, carregarRecebidos]);
+  }, [supabase, empresa, chave]);
 
   useEffect(() => {
     load();

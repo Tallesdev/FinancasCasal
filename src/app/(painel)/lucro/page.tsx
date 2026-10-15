@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useScope } from "@/components/ScopeProvider";
+import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
+import { guardar, lerGuardado } from "@/lib/guardado";
+import { buscarLucro, type LucroGuardado } from "@/lib/telas";
 import {
   Button,
   DeleteButton,
@@ -16,7 +18,7 @@ import {
   Sheet,
   inputClass,
 } from "@/components/ui";
-import { formatDate, money, monthName, toISODate, yearRange } from "@/lib/format";
+import { formatDate, money, monthName, toISODate } from "@/lib/format";
 import { dividirMes, partesValidas, resumoDoAno } from "@/lib/divisao";
 import type { MonthlySummaryRow, ProfitShare, Withdrawal } from "@/lib/types";
 
@@ -40,13 +42,17 @@ export default function LucroPage() {
   const { me, members, empresa } = useScope();
 
   const [ano, setAno] = useState(() => new Date().getFullYear());
-  const [summary, setSummary] = useState<MonthlySummaryRow[]>([]);
-  const [salvas, setSalvas] = useState<ProfitShare[]>([]);
-  const [reservaPct, setReservaPct] = useState(0);
-  const [retiradas, setRetiradas] = useState<Withdrawal[]>([]);
+  // O que esta tela tinha da última vez (lib/guardado.ts): aparece na hora,
+  // e o load() confere o novo por trás.
+  const chave = useChaveGuardada("lucro", ano);
+  const [inicial] = useState(() => lerGuardado<LucroGuardado>(chave));
+  const [summary, setSummary] = useState<MonthlySummaryRow[]>(inicial?.summary ?? []);
+  const [salvas, setSalvas] = useState<ProfitShare[]>(inicial?.salvas ?? []);
+  const [reservaPct, setReservaPct] = useState(inicial?.reservaPct ?? 0);
+  const [retiradas, setRetiradas] = useState<Withdrawal[]>(inicial?.retiradas ?? []);
   /** Falso enquanto a migração 015 não roda. */
-  const [pronto, setPronto] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [pronto, setPronto] = useState(inicial?.pronto ?? true);
+  const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -57,34 +63,28 @@ export default function LucroPage() {
 
   const load = useCallback(async () => {
     if (!empresa) return;
-    setLoading(true);
-    const { from } = yearRange(ano);
-    const [resumo, partes, casa, saques] = await Promise.all([
-      supabase.rpc("monthly_summary", { p_from: from, p_to: `${ano}-12-31` }),
-      supabase.from("profit_shares").select("*"),
-      supabase.from("households").select("reserve_pct").maybeSingle(),
-      supabase
-        .from("withdrawals")
-        .select("*")
-        .gte("taken_on", from)
-        .lte("taken_on", `${ano}-12-31`)
-        .order("taken_on", { ascending: false }),
-    ]);
+    const aplicar = (dados: LucroGuardado) => {
+      setSummary(dados.summary);
+      setPronto(dados.pronto);
+      setSalvas(dados.salvas);
+      setReservaPct(dados.reservaPct);
+      setRetiradas(dados.retiradas);
+      setLoading(false);
+    };
+    const guardado = lerGuardado<LucroGuardado>(chave);
+    if (guardado) aplicar(guardado);
+    else setLoading(true);
 
-    if (resumo.error) {
+    const novos = await buscarLucro(supabase, ano);
+    if (!novos) {
       setError("Não deu para carregar o lucro do ano.");
       setLoading(false);
       return;
     }
     setError(null);
-    setSummary(resumo.data as MonthlySummaryRow[]);
-    const temMigracao = !partes.error && !casa.error && !saques.error;
-    setPronto(temMigracao);
-    setSalvas(temMigracao ? ((partes.data ?? []) as ProfitShare[]) : []);
-    setReservaPct(temMigracao ? Number(casa.data?.reserve_pct ?? 0) : 0);
-    setRetiradas(temMigracao ? ((saques.data ?? []) as Withdrawal[]) : []);
-    setLoading(false);
-  }, [supabase, empresa, ano]);
+    guardar(chave, novos);
+    aplicar(novos);
+  }, [supabase, empresa, chave, ano]);
 
   useEffect(() => {
     load();

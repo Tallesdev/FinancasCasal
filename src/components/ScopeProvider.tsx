@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import type { Household, Profile, Scope } from "@/lib/types";
+import { chaveGuardada } from "@/lib/guardado";
 
 /**
  * O que está ligado neste deploy. Vem do servidor, que é quem sabe quais
@@ -124,4 +125,13 @@ export function useScope() {
   const ctx = useContext(ScopeContext);
   if (!ctx) throw new Error("useScope precisa estar dentro de ScopeProvider");
   return ctx;
+}
+
+/**
+ * Chave do guardado (lib/guardado.ts) da tela: leva a pessoa e a casa, pra
+ * nunca mostrar o que outra conta (ou outra casa) tinha carregado.
+ */
+export function useChaveGuardada(...partes: (string | number)[]) {
+  const { me, household } = useScope();
+  return chaveGuardada(me.id, household?.id, ...partes);
 }

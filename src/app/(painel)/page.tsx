@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useScope } from "@/components/ScopeProvider";
+import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
+import { guardar, lerGuardado } from "@/lib/guardado";
+import {
+  buscarInicioBase,
+  buscarInicioMes,
+  type BaseGuardada,
+  type MesGuardado,
+} from "@/lib/telas";
 import { ScopeHeading } from "@/components/ScopeHeading";
 import { MonthlyBars } from "@/components/MonthlyBarsLazy";
 import { RankBar } from "@/components/RankBar";
@@ -57,26 +64,33 @@ export default function DashboardPage() {
   const [month, setMonth] = useState(() =>
     firstDayOfMonth(toISODate(new Date()))
   );
-  const [summary, setSummary] = useState<MonthlySummaryRow[]>([]);
-  const [occurrences, setOccurrences] = useState<ExpenseOccurrence[]>([]);
+  // O que esta tela tinha da última vez (lib/guardado.ts): aparece na hora,
+  // e a busca confere o novo por trás.
+  const chaveMes = useChaveGuardada("inicio", month);
+  const chaveBase = useChaveGuardada("inicio-base");
+  const [mesInicial] = useState(() => lerGuardado<MesGuardado>(chaveMes));
+  const [baseInicial] = useState(() => lerGuardado<BaseGuardada>(chaveBase));
+
+  const [summary, setSummary] = useState<MonthlySummaryRow[]>(mesInicial?.summary ?? []);
+  const [occurrences, setOccurrences] = useState<ExpenseOccurrence[]>(mesInicial?.occurrences ?? []);
   // --- empresa: recebimentos e o que já entrou (FASE_F.md, F2.5/F2.6) ---
-  const [incomes, setIncomes] = useState<Income[]>([]);
-  const [recebidos, setRecebidos] = useState<IncomeReceived[] | null>(null);
-  const [retiradas, setRetiradas] = useState<Withdrawal[]>([]);
+  const [incomes, setIncomes] = useState<Income[]>(mesInicial?.incomes ?? []);
+  const [recebidos, setRecebidos] = useState<IncomeReceived[] | null>(mesInicial?.recebidos ?? null);
+  const [retiradas, setRetiradas] = useState<Withdrawal[]>(mesInicial?.retiradas ?? []);
   // Acerto (migração 016): o caixa é a conta da empresa, então gasto pago do
   // bolso de um sócio não sai dele, e acerto com a empresa entra ou sai.
-  const [pagoDoBolso, setPagoDoBolso] = useState(0);
-  const [acertos, setAcertos] = useState<Settlement[]>([]);
+  const [pagoDoBolso, setPagoDoBolso] = useState(mesInicial?.pagoDoBolso ?? 0);
+  const [acertos, setAcertos] = useState<Settlement[]>(mesInicial?.acertos ?? []);
 
   // --- janela do cartão ---
-  const [cards, setCards] = useState<Card[]>([]);
+  const [cards, setCards] = useState<Card[]>(baseInicial?.cards ?? []);
   const [cartaoId, setCartaoId] = useState<string | null>(null);
   const [reference, setReference] = useState(() => toISODate(new Date()));
   const [bounds, setBounds] = useState<CycleBounds | null>(null);
   const [janela, setJanela] = useState<TotaisDaJanela>(JANELA_VAZIA);
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>(baseInicial?.categories ?? []);
+  const [loading, setLoading] = useState(!mesInicial);
   const [error, setError] = useState<string | null>(null);
 
   /** Só cartão com fechamento tem ciclo pra calcular. */
@@ -101,80 +115,39 @@ export default function DashboardPage() {
   // Cartões e categorias mudam pouco; carregam uma vez.
   useEffect(() => {
     (async () => {
-      const [cardsResult, categoriesResult] = await Promise.all([
-        supabase
-          .from("cards")
-          .select("*")
-          .eq("user_id", me.id)
-          .eq("archived", false)
-          .order("name"),
-        supabase.from("categories").select("*"),
-      ]);
-      setCards((cardsResult.data ?? []) as Card[]);
-      setCategories((categoriesResult.data ?? []) as Category[]);
+      const base = await buscarInicioBase(supabase, me.id);
+      guardar(chaveBase, base);
+      setCards(base.cards);
+      setCategories(base.categories);
     })();
-  }, [supabase, me.id]);
+  }, [supabase, me.id, chaveBase]);
+
+  const aplicarMes = useCallback((dados: MesGuardado) => {
+    setSummary(dados.summary);
+    setOccurrences(dados.occurrences);
+    setIncomes(dados.incomes);
+    setRecebidos(dados.recebidos);
+    setRetiradas(dados.retiradas);
+    setPagoDoBolso(dados.pagoDoBolso);
+    setAcertos(dados.acertos);
+    setLoading(false);
+  }, []);
 
   const carregarMes = useCallback(async () => {
-    setLoading(true);
+    const guardado = lerGuardado<MesGuardado>(chaveMes);
+    if (guardado) aplicarMes(guardado);
+    else setLoading(true);
 
-    // Desde uma época bem antiga até o mês visto: o gráfico só usa os
-    // últimos 6 meses, mas o saldo acumulado precisa de tudo que já foi
-    // lançado. Cada linha é limitada pela própria data do lançamento, então
-    // isso não pesa a consulta.
-    const from = "2000-01-01";
-
-    const [summaryResult, occurrencesResult, incomesResult, recebidosResult, retiradasResult] =
-      await Promise.all([
-        supabase.rpc("monthly_summary", { p_from: from, p_to: month }),
-        supabase.rpc("expense_occurrences", { p_from: month, p_to: month }),
-        empresa ? supabase.from("incomes").select("*") : null,
-        empresa ? supabase.from("income_received").select("*") : null,
-        // Retiradas saem do caixa (migração 015; sem ela, fica zero).
-        empresa ? supabase.from("withdrawals").select("amount, taken_on") : null,
-      ]);
-    // Migração 016: sem ela, estas duas dão erro e o caixa fica como antes.
-    const [bolsoResult, acertosResult] = await Promise.all([
-      empresa ? supabase.from("expenses").select("id, start_date").not("paid_by", "is", null) : null,
-      empresa ? supabase.from("settlements").select("from_user, to_user, amount, paid_on") : null,
-    ]);
-    setAcertos(acertosResult && !acertosResult.error ? ((acertosResult.data ?? []) as Settlement[]) : []);
-    const doBolso = bolsoResult && !bolsoResult.error ? (bolsoResult.data ?? []) : [];
-    if (doBolso.length) {
-      const ids = new Set(doBolso.map((e) => e.id as string));
-      const inicio = doBolso.map((e) => e.start_date as string).sort()[0];
-      const { data } = await supabase.rpc("expense_occurrences", {
-        p_from: firstDayOfMonth(inicio),
-        p_to: month,
-      });
-      setPagoDoBolso(
-        ((data ?? []) as ExpenseOccurrence[])
-          .filter((o) => ids.has(o.expense_id))
-          .reduce((t, o) => t + Number(o.amount), 0)
-      );
-    } else setPagoDoBolso(0);
-    setRetiradas(
-      retiradasResult && !retiradasResult.error ? ((retiradasResult.data ?? []) as Withdrawal[]) : []
-    );
-    setIncomes((incomesResult?.data ?? []) as Income[]);
-    // Nulo = migração 014 não rodou (ou não é empresa): volta o saldo acumulado.
-    setRecebidos(
-      recebidosResult && !recebidosResult.error
-        ? ((recebidosResult.data ?? []) as IncomeReceived[])
-        : null
-    );
-
-    if (summaryResult.error || occurrencesResult.error) {
+    const novo = await buscarInicioMes(supabase, { month, empresa });
+    if (!novo) {
       setError("Não deu para carregar o resumo do mês.");
       setLoading(false);
       return;
     }
-
+    guardar(chaveMes, novo);
     setError(null);
-    setSummary(summaryResult.data as MonthlySummaryRow[]);
-    setOccurrences(occurrencesResult.data as ExpenseOccurrence[]);
-    setLoading(false);
-  }, [supabase, month, empresa]);
+    aplicarMes(novo);
+  }, [supabase, chaveMes, aplicarMes, month, empresa]);
 
   const carregarCartao = useCallback(async () => {
     if (!cartaoDoMes) return;

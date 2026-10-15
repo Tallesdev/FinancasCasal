@@ -118,18 +118,27 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 Já está a favor: servidor da Vercel em São Paulo (gru1) e banco em São Paulo
 (sa-east-1), sessão conferida sem ir ao servidor de login, consultas de cada
 tela em paralelo.
-- [ ] F8.1 Medir antes de mexer: tempo de cada tela no celular (4G) e tamanho do JavaScript por tela — sem número, não dá pra saber se melhorou
+- [x] F8.1 Medir antes de mexer: tempo de cada tela no celular (4G) e tamanho do JavaScript por tela — sem número, não dá pra saber se melhorou
   - 15/10, JavaScript (build): 102 kB comum a todas; cada tela do painel 178–188 kB no total (Início 183, Gastos 188, Renda 183, Configurações 188)
   - 15/10, banco: cada consulta leva 1–2 ms (conta do Talles, 137 gastos no banco todo). O banco não é o gargalo hoje; o tempo está nas idas e voltas pela rede do celular
   - Idas ao banco por tela, uma depois da outra: quase todas 1 rodada (consultas em paralelo); Início da empresa 3 rodadas
-  - Medidor no app (Configurações → Velocidade): mede no celular de verdade quanto cada tela leva pra ficar pronta. Falta o Talles ligar e anotar os tempos de antes
-- [ ] F8.2 Banco: as regras de acesso (RLS) recalculam "quem está logado" linha por linha em 12 tabelas — trocar por `(select auth.uid())`, que calcula uma vez só
-- [ ] F8.3 Banco: juntar regras de leitura duplicadas (gastos, renda, investimentos, categorias, cartões, contas) — hoje o banco testa duas ou três regras por linha
-- [ ] F8.4 Banco: 3 índices que faltam (convites e cartão que define o mês)
+  - Medidor no app (Configurações → Velocidade): mede no celular de verdade quanto cada tela leva pra ficar pronta
+  - 15/10, celular do Talles (conta do Joaquim, empresa), antes da parte 2: abrir o app 0,7 s; Início 0,4; Gastos 1,1; Recebidos 0,4; Lucro 0,4; Relatórios 0,5; Configurações 0,3
+- [x] F8.2 Banco: as regras de acesso (RLS) recalculam "quem está logado" linha por linha em 12 tabelas — trocar por `(select auth.uid())`, que calcula uma vez só
+- [x] F8.3 Banco: juntar regras de leitura duplicadas (gastos, renda, investimentos, categorias, cartões, contas) — hoje o banco testa duas ou três regras por linha
+- [x] F8.4 Banco: 3 índices que faltam (convites e cartão que define o mês)
 - [x] F8.5 Gráficos (recharts, a biblioteca mais pesada) só carregam quando a tela tem gráfico — já era assim (MonthlyBarsLazy, carregado sob demanda no Início e em Relatórios); conferido no build de 15/10: nenhuma tela leva o recharts no primeiro carregamento
-- [ ] F8.6 Trocar de tela sem esperar: guardar o que já foi carregado (cartões, categorias, contas) em vez de buscar de novo a cada tela
-- [ ] F8.7 Telas novas da empresa nascem seguindo isso (consultas em paralelo, nada de buscar a mesma coisa duas vezes)
+- [x] F8.6 Trocar de tela sem esperar: guardar o que já foi carregado (cartões, categorias, contas) em vez de buscar de novo a cada tela
+  - Cada aba de baixo guarda na memória o que carregou (lib/guardado.ts): voltar mostra na hora e confere o novo por trás. Só memória, nada gravado no aparelho; a chave leva pessoa e casa; Sair apaga
+  - Depois que a tela aberta termina de carregar, o app prepara as outras abas por trás (components/PreCarregar.tsx): a tela do servidor e os dados do banco. Até a primeira visita a cada aba abre pronta
+  - O que cada tela busca saiu pra lib/telas.ts (serve à tela e ao pré-carregamento)
+- [x] F8.7 Telas novas da empresa nascem seguindo isso (consultas em paralelo, nada de buscar a mesma coisa duas vezes) — Início da empresa: 3 idas ao banco seguidas viraram 2; Gastos: os recibos vinham numa segunda ida, agora vêm junto; Lucro e Lucro por cliente também guardam e são pré-carregados
 - [ ] F8.8 Medir de novo e comparar com F8.1
+  - 15/10, simulado: o app inteiro rodando aqui com um Supabase de mentira, rede de 4G (150 ms, 4 Mbps) e processador 4x mais lento, medido pelo próprio medidor. Antes → depois:
+    - Família, trocar de aba: 0,24–0,54 s → 0,04–0,23 s (Gastos 0,52 → 0,16; Renda 0,30 → 0,06; Início 0,33 → 0,12; Relatórios 0,33 → 0,09)
+    - Empresa, trocar de aba: 0,30–0,94 s → 0,05–0,17 s (Início 0,83 → 0,10; Relatórios 0,94 → 0,08; Lucro 0,33 → 0,11)
+    - Abrir o app de novo: família igual (~0,75 s); empresa 1,2 → 1,0 s
+  - Falta: o Talles medir no celular de verdade, antes e depois
 
 ---
 
@@ -151,4 +160,4 @@ tela em paralelo.
 - [x] C15 A 016 travou TODO gasto e recebimento novo (de qualquer conta): a trava de sócio lia um campo que só existe na outra tabela ("Não deu para salvar o gasto"). Corrigida pela 017, aplicada direto em produção em 15/10 e conferida no banco. Lição: testar gatilho na tabela real (ou réplica com as MESMAS colunas), não numa réplica com só a coluna testada
 - [x] C16 Migração 018 (recibos da empresa visíveis aos sócios) — aplicada e conferida no banco em 15/10 (receipts_select_empresa)
 - [x] C17 Ajustes "muito escondido": o botão ⚙ Ajustes do topo abre um menu com Contas, Cartões, Categorias, Recibos, Acerto (empresa) e Configurações (pedido do Talles, 15/10)
-- [ ] C18 Migração 019 (F8.2–F8.4): o MCP do Supabase não aplica (pede confirmação pra apagar política e o tempo esgota; nada foi mudado). Aplicar no SQL Editor e conferir: cada conta tem que ver exatamente o mesmo número de linhas de antes (contagem de 15/10 guardada)
+- [x] C18 Migração 019 (F8.2–F8.4): o MCP do Supabase não aplica (pede confirmação pra apagar política e o tempo esgota; nada foi mudado). Aplicada pelo Talles no SQL Editor em 15/10 e conferida: 7 políticas novas, nenhuma antiga sobrando, 12 índices; as 9 contas veem o mesmo número de linhas em 15 tabelas (a única diferença é um recibo novo do Joaquim, enviado depois da contagem, que os dois sócios veem — e prova que enviar recibo segue funcionando)
