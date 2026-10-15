@@ -4,14 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "./ScopeProvider";
-import { SegmentedField, TextField } from "./form/Field";
+import { TextField } from "./form/Field";
 import { Button, ColorPicker, DeleteButton, Dot, ErrorNote, Field } from "./ui";
 import { formatDate } from "@/lib/format";
 import {
   HOUSEHOLD_KIND_LABEL,
   type Household,
   type HouseholdInvite,
-  type HouseholdKind,
 } from "@/lib/types";
 
 const LIMITE = 6;
@@ -34,7 +33,6 @@ export function MinhaCasa() {
   const [casa, setCasa] = useState<Household | null>(null);
   const [nome, setNome] = useState("");
   const [cor, setCor] = useState("#C77DFF");
-  const [tipo, setTipo] = useState<HouseholdKind>("familia");
   const [convites, setConvites] = useState<HouseholdInvite[]>([]);
   const [emailConvite, setEmailConvite] = useState("");
   const [link, setLink] = useState<string | null>(null);
@@ -59,7 +57,6 @@ export function MinhaCasa() {
     setCasa(c);
     setNome(c?.name ?? "");
     if (c?.color) setCor(c.color);
-    if (c?.kind) setTipo(c.kind);
     // Tabela ausente = migração 005 não rodou. Não é motivo pra quebrar
     // a tela de ajustes inteira; a seção só fica sem convites.
     setConvites((convitesResult.data ?? []) as HouseholdInvite[]);
@@ -69,29 +66,29 @@ export function MinhaCasa() {
     load();
   }, [load]);
 
+  const empresa = casa?.kind === "empresa";
   const vagas = LIMITE - members.length - convites.length;
 
   const mudouCasa =
     Boolean(casa) &&
-    (nome.trim() !== casa!.name || cor !== casa!.color || tipo !== casa!.kind);
+    (nome.trim() !== casa!.name || cor !== casa!.color);
 
   async function salvarCasa() {
     const name = nome.trim();
     if (!casa || !name || !mudouCasa) return;
     setSaving(true);
     setError(null);
-    // kind só vai quando mudou: o banco recusa trocar o tipo com mais de
-    // uma pessoa na casa (migração 011), e isso não pode travar o nome/cor.
+    // O tipo nunca vai junto: é escolhido no cadastro e não muda mais.
     const { error: e } = await supabase
       .from("households")
-      .update({ name, color: cor, ...(tipo !== casa.kind ? { kind: tipo } : {}) })
+      .update({ name, color: cor })
       .eq("id", casa.id);
     setSaving(false);
     if (e)
       return setError(
         e.code === "42501" ? e.message : "Não deu para salvar. Tente de novo."
       );
-    setCasa({ ...casa, name, color: cor, kind: tipo });
+    setCasa({ ...casa, name, color: cor });
     // O layout lê a casa no servidor: sem isso a cor nova só apareceria
     // na próxima abertura do app.
     router.refresh();
@@ -136,7 +133,7 @@ export function MinhaCasa() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Convite para ${casa?.name ?? "minha casa"}`,
+          title: `Convite para ${casa?.name ?? (empresa ? "minha empresa" : "minha casa")}`,
           text: `${me.display_name.split(" ")[0]} te convidou para juntar as finanças no RumoFácil.`,
           url: link,
         });
@@ -172,10 +169,6 @@ export function MinhaCasa() {
     router.refresh();
   }
 
-  // Rótulos seguem o tipo SALVO, não o que está sendo escolhido agora.
-  const empresa = casa?.kind === "empresa";
-  const sozinho = members.length <= 1;
-
   return (
     <section className="card flex flex-col gap-5 px-4 py-5">
       <div>
@@ -204,24 +197,16 @@ export function MinhaCasa() {
             <ColorPicker value={cor} onChange={setCor} />
           </Field>
 
-          {/* Virar empresa abre contas e cartões aos outros membros: por isso o
-              tipo só muda com a pessoa sozinha (o banco também confere). */}
-          {sozinho ? (
-            <SegmentedField
-              label="Tipo"
-              value={tipo}
-              onChange={setTipo}
-              options={Object.entries(HOUSEHOLD_KIND_LABEL).map(([value, label]) => ({
-                value: value as HouseholdKind,
-                label,
-              }))}
-            />
-          ) : (
-            <p className="text-xs text-[var(--color-text-faint)]">
-              Tipo: <strong className="text-[var(--color-text-dim)]">{HOUSEHOLD_KIND_LABEL[casa.kind ?? "familia"]}</strong>.
-              Só dá pra trocar enquanto você está sozinho aqui.
-            </p>
-          )}
+          {/* O tipo é escolhido no cadastro e não muda mais (FASE_F.md, C5):
+              trocar depois mistura lançamentos de casa e de empresa e abre
+              contas e cartões a quem não devia vê-los. O banco também trava. */}
+          <p className="text-xs text-[var(--color-text-faint)]">
+            Tipo:{" "}
+            <strong className="text-[var(--color-text-dim)]">
+              {HOUSEHOLD_KIND_LABEL[casa.kind ?? "familia"]}
+            </strong>
+            . Escolhido ao criar a conta; não muda depois.
+          </p>
 
           <div>
             <Button
@@ -260,7 +245,7 @@ export function MinhaCasa() {
 
         {vagas <= 0 ? (
           <p className="text-sm text-[var(--color-text-dim)]">
-            A casa está no limite de {LIMITE} pessoas, contando convites
+            {empresa ? "A empresa" : "A casa"} está no limite de {LIMITE} pessoas, contando convites
             pendentes. Revogue um convite para abrir vaga.
           </p>
         ) : (
@@ -343,7 +328,7 @@ export function MinhaCasa() {
         <p className="text-xs text-[var(--color-text-faint)]">
           Alguém te passou um código?{" "}
           <a href="/convite" className="underline hover:text-[var(--color-text)]">
-            Entrar numa casa
+            {empresa ? "Entrar numa empresa" : "Entrar numa casa"}
           </a>
         </p>
       )}
@@ -352,9 +337,12 @@ export function MinhaCasa() {
       {members.length > 1 && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-line)] pt-4">
           <p className="text-xs text-[var(--color-text-faint)]">
-            Seus lançamentos vão com você. Você vai para uma casa nova, sozinho.
+            Seus lançamentos vão com você.{" "}
+            {empresa
+              ? "Você vai para uma empresa nova, sozinho."
+              : "Você vai para uma casa nova, sozinho."}
           </p>
-          <DeleteButton onConfirm={sair} label="Sair da casa" />
+          <DeleteButton onConfirm={sair} label={empresa ? "Sair da empresa" : "Sair da casa"} />
         </div>
       )}
     </section>

@@ -81,7 +81,7 @@ function emptyDraft(month: string): Draft {
 
 export default function GastosPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, members, userIds, scope, recursos } = useScope();
+  const { me, members, userIds, scope, recursos, empresa } = useScope();
 
   const [month, setMonth] = useState(() =>
     firstDayOfMonth(toISODate(new Date()))
@@ -481,7 +481,9 @@ export default function GastosPage() {
         title="Gastos"
         description={
           scope === "us"
-            ? "Tudo que a casa gastou no mês."
+            ? empresa
+              ? "Tudo que a empresa gastou no mês."
+              : "Tudo que a casa gastou no mês."
             : "Tudo que passou pela sua conta no mês."
         }
         action={

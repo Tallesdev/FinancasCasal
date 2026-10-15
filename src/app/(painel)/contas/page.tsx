@@ -25,7 +25,7 @@ type Draft = { id: string | null; name: string; color: string };
 
 export default function ContasPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me } = useScope();
+  const { me, empresa } = useScope();
 
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   // Quantos cartões e gastos apontam pra cada conta: define se dá pra excluir.
@@ -145,7 +145,11 @@ export default function ContasPage() {
       <PageTitle
         voltar={VOLTAR_AJUSTES}
         title="Contas"
-        description="De onde o dinheiro sai. É o que liga um Pix à fatura do cartão."
+        description={
+          empresa
+            ? "De onde o dinheiro da empresa sai. Os sócios também veem estas contas."
+            : "De onde o dinheiro sai. É o que liga um Pix à fatura do cartão."
+        }
         action={<Button onClick={openNew}>Nova conta</Button>}
       />
 
@@ -156,7 +160,11 @@ export default function ContasPage() {
       ) : accounts.length === 0 ? (
         <EmptyState
           title="Nenhuma conta ainda"
-          description="Cadastre a conta de onde saem seus pagamentos, para o relatório por ciclo saber o que juntar."
+          description={
+            empresa
+              ? "Cadastre a conta da empresa, de onde saem os pagamentos."
+              : "Cadastre a conta de onde saem seus pagamentos, para o relatório por ciclo saber o que juntar."
+          }
           action={<Button onClick={openNew}>Nova conta</Button>}
         />
       ) : (

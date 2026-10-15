@@ -43,7 +43,7 @@ const JANELA_LIGAR = 45;
  */
 export default function RecibosPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, recursos } = useScope();
+  const { me, recursos, empresa } = useScope();
 
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState(anoAtual);
@@ -185,7 +185,11 @@ export default function RecibosPage() {
       <PageTitle
         voltar={VOLTAR_AJUSTES}
         title="Recibos"
-        description="Suas fotos de recibo por ano — pra ter o comprovante na hora do imposto de renda. Só você vê."
+        description={
+          empresa
+            ? "Suas fotos de recibo e nota por ano — pra ter o comprovante quando o contador pedir. Só você vê."
+            : "Suas fotos de recibo por ano — pra ter o comprovante na hora do imposto de renda. Só você vê."
+        }
       />
 
       <section className="card flex flex-col gap-3 px-4 py-5">

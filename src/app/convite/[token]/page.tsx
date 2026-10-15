@@ -74,7 +74,8 @@ export default function ConvitePage() {
   const voltarPraCa = `/entrar?next=${encodeURIComponent(`/convite/${token}`)}`;
   const conviteEmpresa = info?.household_kind === "empresa";
   const lugar = conviteEmpresa ? "empresa" : "casa";
-  // Entrar leva a conta pra lá, e o app passa a funcionar como lá (FASE_F.md).
+  // Convite só vale entre contas do mesmo tipo (FASE_F.md, C8; o banco
+  // também recusa, migração 013): pessoal dentro de empresa mistura tudo.
   const tipoDiferente =
     logado && meuTipo !== null && meuTipo !== (info?.household_kind ?? "familia");
 
@@ -135,14 +136,6 @@ export default function ConvitePage() {
               </p>
             </div>
 
-            {tipoDiferente && (
-              <p className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)] px-3.5 py-2.5 text-sm text-[var(--color-text-dim)]">
-                {conviteEmpresa
-                  ? "Sua conta é de uso pessoal. Se entrar, ela passa a funcionar como conta da empresa. Para manter a pessoal separada, saia e crie uma conta nova escolhendo \u201cEmpresa\u201d."
-                  : "Sua conta é de empresa. Se entrar, ela passa a funcionar como conta pessoal desta casa. Para manter a empresa separada, use outra conta."}
-              </p>
-            )}
-
             {error && (
               <p
                 role="alert"
@@ -165,6 +158,14 @@ export default function ConvitePage() {
                   conta&rdquo;{conviteEmpresa && <> e &ldquo;Empresa&rdquo;</>} — você volta para cá depois.
                 </p>
               </>
+            ) : tipoDiferente ? (
+              <div className="card px-5 py-4">
+                <p className="text-sm">
+                  {conviteEmpresa
+                    ? "Este convite é de uma empresa, e você está numa conta de uso pessoal. Saia e entre com a conta da empresa — ou crie uma escolhendo \u201cEmpresa\u201d."
+                    : "Este convite é de uma casa, e você está numa conta de empresa. Saia e entre com a sua conta pessoal."}
+                </p>
+              </div>
             ) : jaDivide ? (
               <div className="card px-5 py-4">
                 <p className="text-sm">

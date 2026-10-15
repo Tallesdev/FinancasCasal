@@ -25,6 +25,9 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 6. **Reserva antes de dividir:** configurável, começa em **0%**.
 7. **A empresa tem conta bancária própria** (no nome do Joaquim).
 8. **Sempre pelo mês.** Na empresa não existe "Pelo cartão" nem ciclo.
+9. **O tipo não muda depois de criado** (decidido em 15/10, depois do primeiro
+   teste). Empresa continua empresa, família continua família; convite só
+   entre contas do mesmo tipo; quem sai de uma empresa vai para outra empresa.
 
 ### Fora desta fase (decidido deixar em aberto)
 - Retirada da empresa virar renda na conta pessoal automaticamente.
@@ -36,13 +39,13 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 
 ### F0 — Base
 - [x] F0.1 Aplicar a migração 010 (`households.kind`) em produção — 15/10
-- [ ] F0.2 Conferir no app que a seção da casa em Ajustes voltou (nome, cor, tipo)
+- [x] F0.2 Conferir no app que a seção da casa em Ajustes voltou (nome, cor, tipo) — print do Talles, 15/10
 
 ### F1 — Fundação do modo Empresa
-- [ ] F1.1 Cadastro: escolher "Uso pessoal" ou "Empresa"; a casa criada nasce com esse tipo
-- [ ] F1.2 Convite: avisar quando o tipo de quem convida é diferente do de quem entra
-- [ ] F1.3 Trocar o tipo depois de criado: decidir regra e aplicar (hoje qualquer membro troca em Ajustes)
-- [ ] F1.4 Navegação da empresa: sem Investir, sem "Pelo cartão", sem relatório de ciclo, sem "cartão que define o mês"
+- [x] F1.1 Cadastro: escolher "Uso pessoal" ou "Empresa"; a casa criada nasce com esse tipo — conferido 15/10: solaristalles e solaris.joaquim nasceram empresa, com as 8 categorias
+- [ ] F1.2 Convite: tipos diferentes não entram (era só aviso; virou bloqueio pela decisão 9 — ver C8)
+- [ ] F1.3 Trocar o tipo depois de criado: decidido que não troca (decisão 9 — ver C5)
+- [x] F1.4 Navegação da empresa: sem Investir, sem "Pelo cartão", sem relatório de ciclo, sem "cartão que define o mês" — conferido no print de 15/10
 - [ ] F1.5 Textos da empresa: Renda → Recebimentos; Início → Faturou / Gastou / Lucro
 - [x] F1.6 Categorias iniciais de empresa: Materiais, Alimentação, Combustível, Manutenção de máquinas, Manutenção de veículos, Ferramentas, Impostos, Outros
 - [ ] F1.7 Contas bancárias e cartões compartilhados entre os sócios (só em empresa; na família continuam privados)
@@ -81,7 +84,27 @@ virar item. Um item só é marcado quando está feito **e conferido**.
 - [ ] F7.1 PRD atualizado (requisitos e regras da empresa)
 - [ ] F7.2 Teste completo com duas contas de empresa de teste
 
+### F8 — Velocidade (pedido do Talles, 15/10: "quero que o app seja rápido")
+Já está a favor: servidor da Vercel em São Paulo (gru1) e banco em São Paulo
+(sa-east-1), sessão conferida sem ir ao servidor de login, consultas de cada
+tela em paralelo.
+- [ ] F8.1 Medir antes de mexer: tempo de cada tela no celular (4G) e tamanho do JavaScript por tela — sem número, não dá pra saber se melhorou
+- [ ] F8.2 Banco: as regras de acesso (RLS) recalculam "quem está logado" linha por linha em 12 tabelas — trocar por `(select auth.uid())`, que calcula uma vez só
+- [ ] F8.3 Banco: juntar regras de leitura duplicadas (gastos, renda, investimentos, categorias, cartões, contas) — hoje o banco testa duas ou três regras por linha
+- [ ] F8.4 Banco: 3 índices que faltam (convites e cartão que define o mês)
+- [ ] F8.5 Gráficos (recharts, a biblioteca mais pesada) só carregam quando a tela tem gráfico
+- [ ] F8.6 Trocar de tela sem esperar: guardar o que já foi carregado (cartões, categorias, contas) em vez de buscar de novo a cada tela
+- [ ] F8.7 Telas novas da empresa nascem seguindo isso (consultas em paralelo, nada de buscar a mesma coisa duas vezes)
+- [ ] F8.8 Medir de novo e comparar com F8.1
+
 ---
 
 ## Correções encontradas no caminho
 - [x] C1 Migração 010 não estava aplicada em produção: a seção da casa em Ajustes sumia desde 06/10 — aplicada em 15/10 (ver F0.1)
+- [x] C2 Migração 011 aplicada pelo Talles no SQL Editor (o MCP do Supabase passou a cancelar mudanças de estrutura) — conferida em 15/10
+- [x] C3 Migração 012 (convite diz casa ou empresa) aplicada pelo Talles — conferida em 15/10: `get_invite` devolve `household_kind`
+- [ ] C4 O endereço do app mudou para rumofacil-pi.vercel.app (o antigo redireciona): conferir no Supabase (Authentication → URL Configuration) se o novo endereço está em Site URL / Redirect URLs, senão o link do e-mail de confirmação e o de trocar senha podem cair no endereço errado
+- [ ] C5 Tipo fixo: Ajustes não oferece mais trocar Família/Empresa (só mostra o tipo) e o banco não deixa trocar pelo app (migração 013, testada em tabela descartável)
+- [ ] C6 Cabeçalho no celular: os botões escorregavam pra esquerda quando a pessoa está sozinha (sem o seletor de escopo); Ajustes ganha engrenagem e fica um pouco maior, junto do Sair
+- [ ] C7 Textos de casa aparecendo na empresa: "Sua casa, só você por enquanto", gastos, relatórios, recebimentos, categorias, cartões ("só seus" — na empresa os sócios veem), contas, recibos, Ajustes, sair da empresa, convite, exportar, excluir conta, importar planilha
+- [ ] C8 Sair de uma empresa criava uma casa de família; convite deixava conta pessoal entrar em empresa — corrigido na 013 (testado com as contas da Solaris, tudo desfeito no fim)

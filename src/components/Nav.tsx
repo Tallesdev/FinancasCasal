@@ -30,10 +30,16 @@ function linksDaEmpresa() {
   );
 }
 
+const settingsDaEmpresa = () =>
+  SETTINGS.map((link) =>
+    link.href === "/ajustes" ? { ...link, label: "Perfil e empresa" } : link
+  );
+
 export function Nav() {
   const pathname = usePathname();
   const { empresa } = useScope();
   const links = empresa ? linksDaEmpresa() : LINKS;
+  const settings = empresa ? settingsDaEmpresa() : SETTINGS;
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -92,7 +98,7 @@ export function Nav() {
           <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-[var(--color-text-faint)]">
             Ajustes
           </p>
-          {SETTINGS.map((link) => (
+          {settings.map((link) => (
             <Link
               key={link.href}
               href={link.href}
