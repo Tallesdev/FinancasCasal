@@ -8,6 +8,7 @@ import { Button, DeleteButton, ErrorNote } from "./ui";
 import {
   ErroRecibo,
   apagarRecibo,
+  ehPdf,
   enviarRecibo,
   lerReciboComIA,
   urlDoRecibo,
@@ -15,7 +16,7 @@ import {
 import type { Receipt, ReciboLido } from "@/lib/types";
 
 /**
- * Anexar foto de recibo a um gasto (FASE_E.md §3.5).
+ * Anexar foto ou PDF de recibo a um gasto (FASE_E.md §3.5; PDF no C25).
  *
  * Some por inteiro se o R2 não está configurado — como o áudio, o resto do
  * app segue igual.
@@ -94,7 +95,7 @@ export function AnexarRecibos({
         setError(
           e instanceof ErroRecibo
             ? { msg: e.message, detalhe: e.detalhe }
-            : { msg: "Não deu para enviar a foto.", detalhe: String(e) }
+            : { msg: "Não deu para enviar o recibo.", detalhe: String(e) }
         );
       }
       setEnviando((n) => n - 1);
@@ -138,20 +139,7 @@ export function AnexarRecibos({
         <ul className="flex flex-wrap gap-3">
           {recibos.map((r) => (
             <li key={r.id} className="flex w-24 flex-col items-center gap-1">
-              <a
-                href={urlDoRecibo(r.id)}
-                target="_blank"
-                rel="noreferrer"
-                className="block h-28 w-24 overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)]"
-                aria-label="Ver recibo"
-              >
-                <img
-                  src={urlDoRecibo(r.id)}
-                  alt="Recibo"
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              </a>
+              <Miniatura recibo={r} className="h-28 w-24" />
               {onLeitura && recursos.lerRecibo && (
                 <Button
                   variant="quiet"
@@ -225,6 +213,18 @@ export function AnexarRecibos({
             desativado={enviando > 0}
             onEscolher={escolher}
           />
+          {/*
+            PDF num botão à parte: incluir PDF no da galeria faz o Android
+            trocar o seletor de fotos pelo de arquivos, e achar a foto fica
+            mais difícil.
+          */}
+          <Anexo
+            id={inputId + "-pdf"}
+            rotulo="Escolher PDF"
+            desativado={enviando > 0}
+            pdf
+            onEscolher={escolher}
+          />
         </div>
       ) : (
         <Button variant="ghost" className="min-h-11 w-fit" onClick={() => setExplicando(true)}>
@@ -266,12 +266,14 @@ function Anexo({
   rotulo,
   desativado,
   camera = false,
+  pdf = false,
   onEscolher,
 }: {
   id: string;
   rotulo: string;
   desativado: boolean;
   camera?: boolean;
+  pdf?: boolean;
   onEscolher: (arquivos: FileList | null) => void;
 }) {
   return (
@@ -283,7 +285,7 @@ function Anexo({
         desativado ? "pointer-events-none opacity-50" : "",
       ].join(" ")}
     >
-      {camera ? <Camera /> : <Clipe />}
+      {camera ? <Camera /> : pdf ? <Documento /> : <Clipe />}
       {rotulo}
       <input
         id={id}
@@ -293,7 +295,7 @@ function Anexo({
         // (o padrão de câmera em vários aparelhos) — elas continuam na
         // galeria, só não aparecem pra escolher. O Chrome não decodifica
         // HEIC; abrirImagem() em recibos.ts converte nesse caso.
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+        accept={pdf ? "application/pdf,.pdf" : "image/jpeg,image/png,image/webp,image/heic,image/heif"}
         // "environment" é a câmera de trás — a que fotografa papel.
         {...(camera ? { capture: "environment" as const } : { multiple: true })}
         className="sr-only"
@@ -303,6 +305,56 @@ function Anexo({
         }}
       />
     </label>
+  );
+}
+
+/**
+ * Miniatura que abre o recibo. Foto aparece como foto; PDF não cabe num
+ * <img>, então vira um cartão "PDF" — tocando, o navegador abre o arquivo.
+ */
+export function Miniatura({ recibo, className }: { recibo: Receipt; className: string }) {
+  const caixa = `block shrink-0 overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)] ${className}`;
+  return (
+    <a
+      href={urlDoRecibo(recibo.id)}
+      target="_blank"
+      rel="noreferrer"
+      className={caixa}
+      aria-label={ehPdf(recibo) ? "Abrir PDF do recibo" : "Ver recibo"}
+    >
+      {ehPdf(recibo) ? (
+        <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-[var(--color-text-dim)]">
+          <Documento className="h-7 w-7" />
+          <span className="text-xs font-semibold">PDF</span>
+        </span>
+      ) : (
+        <img
+          src={urlDoRecibo(recibo.id)}
+          alt="Recibo"
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
+      )}
+    </a>
+  );
+}
+
+function Documento({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+      <path d="M8 13h8M8 17h5" />
+    </svg>
   );
 }
 

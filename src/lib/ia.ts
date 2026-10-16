@@ -322,18 +322,7 @@ export async function lerRecibo(
   tipo: string,
   categorias: string[]
 ): Promise<ReciboLido> {
-  const sistema = [
-    "Você lê a foto de um recibo, nota fiscal ou comprovante brasileiro.",
-    "Responda SOMENTE um JSON com as chaves:",
-    "  description (nome do estabelecimento ou o que foi comprado, até 60 caracteres, ou null),",
-    "  amount (o TOTAL pago, número em reais, ou null),",
-    "  date (data da compra no formato AAAA-MM-DD, ou null),",
-    "  category_name (uma das categorias da lista, exatamente como escrita, ou null).",
-    "Nunca invente: se não estiver legível, use null.",
-    "Não inclua CPF, endereço, nome de pessoa, nome de remédio nem dados de cartão em nenhum campo.",
-    "Datas brasileiras são dia/mês/ano.",
-    `Categorias da pessoa: ${categorias.length ? categorias.join(", ") : "(nenhuma)"}`,
-  ].join("\n");
+  const sistema = instrucoesDoRecibo("a foto", categorias);
 
   const dataUrl = `data:${tipo};base64,${Buffer.from(imagem).toString("base64")}`;
 
@@ -368,6 +357,64 @@ export async function lerRecibo(
       if (modeloInexistente(r.status, corpo) || r.status === 400)
         throw new Error(`MODELO_INEXISTENTE: ${modelo} → ${corpo}`);
       throw new Error(`leitura de recibo ${r.status}: ${corpo}`);
+    }
+
+    const json = (await r.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return json.choices?.[0]?.message?.content ?? "{}";
+  });
+
+  return sanitizarRecibo(bruto, categorias);
+}
+
+/** O mesmo pedido pra foto e pro texto do PDF: muda só o que chega. */
+function instrucoesDoRecibo(fonte: string, categorias: string[]) {
+  return [
+    `Você lê ${fonte} de um recibo, nota fiscal ou comprovante brasileiro.`,
+    "Responda SOMENTE um JSON com as chaves:",
+    "  description (nome do estabelecimento ou o que foi comprado, até 60 caracteres, ou null),",
+    "  amount (o TOTAL pago, número em reais, ou null),",
+    "  date (data da compra no formato AAAA-MM-DD, ou null),",
+    "  category_name (uma das categorias da lista, exatamente como escrita, ou null).",
+    "Nunca invente: se não estiver legível, use null.",
+    "Não inclua CPF, endereço, nome de pessoa, nome de remédio nem dados de cartão em nenhum campo.",
+    "Datas brasileiras são dia/mês/ano.",
+    `Categorias da pessoa: ${categorias.length ? categorias.join(", ") : "(nenhuma)"}`,
+  ].join("\n");
+}
+
+/**
+ * Recibo em PDF (C25): o texto já sai do arquivo no servidor (lib/pdf.ts),
+ * então basta o modelo de texto — mais barato que o de visão e lê o valor
+ * exato, sem depender da nitidez de uma imagem.
+ */
+export async function lerReciboDeTexto(texto: string, categorias: string[]): Promise<ReciboLido> {
+  const sistema = instrucoesDoRecibo("o texto tirado de um PDF", categorias);
+
+  const bruto = await comFallback("leitura de PDF", comPreferido(MODELOS_TEXTO, "GROQ_MODELO_TEXTO"), async (modelo) => {
+    const r = await fetch(`${GROQ}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${chave()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modelo,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: sistema },
+          { role: "user", content: texto },
+        ],
+      }),
+    });
+
+    if (!r.ok) {
+      const corpo = (await r.text()).slice(0, 300);
+      if (modeloInexistente(r.status, corpo))
+        throw new Error(`MODELO_INEXISTENTE: ${modelo} → ${corpo}`);
+      throw new Error(`leitura de PDF ${r.status}: ${corpo}`);
     }
 
     const json = (await r.json()) as {

@@ -14,11 +14,27 @@ export { SEM_SESSAO, clienteAdmin, erro, sessao } from "@/lib/rotas";
  */
 export const TAMANHO_MAXIMO = 3 * 1024 * 1024;
 
+/**
+ * PDF não é comprimido: vai como o banco gerou. Comprovante de Pix tem
+ * dezenas de KB; nota fiscal, algumas centenas. 4 MB fica abaixo do limite
+ * de corpo da Vercel (4,5 MB), que é por onde o arquivo passa (rota enviar).
+ */
+export const TAMANHO_MAXIMO_PDF = 4 * 1024 * 1024;
+
+export const PDF = "application/pdf";
+
 export const EXTENSAO: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
+  [PDF]: "pdf",
 };
+
+export const tamanhoMaximo = (tipo: string) => (tipo === PDF ? TAMANHO_MAXIMO_PDF : TAMANHO_MAXIMO);
+
+export const TIPO_RECUSADO = "Envie uma foto (JPEG, PNG ou WebP) ou um PDF.";
+export const GRANDE_DEMAIS = (tipo: string) =>
+  tipo === PDF ? "PDF grande demais: o limite é 4 MB." : "Foto grande demais, mesmo depois de comprimir.";
 
 /**
  * Recibos só ligam com R2 E a chave secreta do Supabase: é com ela que o

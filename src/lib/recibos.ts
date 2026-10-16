@@ -7,6 +7,12 @@ import type { Receipt, ReciboLido } from "./types";
  * As chaves do R2 nunca passam por aqui — só links assinados de minutos.
  */
 
+export const PDF = "application/pdf";
+/** Igual ao TAMANHO_MAXIMO_PDF do servidor (recibos-servidor.ts). */
+const PDF_MAXIMO = 4 * 1024 * 1024;
+
+export const ehPdf = (r: { mime_type: string }) => r.mime_type === PDF;
+
 /** Lado maior da foto depois de comprimir. Recibo continua legível. */
 const LADO_MAXIMO = 1600;
 /** Se um recibo ficar ilegível, é aqui que se sobe a qualidade. */
@@ -29,7 +35,7 @@ export async function comprimirImagem(arquivo: File): Promise<Blob> {
   const ficha = fichaDoArquivo(arquivo);
 
   if (!arquivo.type.startsWith("image/")) {
-    throw new ErroRecibo("Escolha uma foto.", ficha);
+    throw new ErroRecibo("Escolha uma foto ou um PDF.", ficha);
   }
 
   const imagem = await abrirImagem(arquivo, ficha);
@@ -136,6 +142,20 @@ async function abrirImagem(arquivo: File, ficha: string): Promise<{
   );
 }
 
+/**
+ * PDF vai como está (C25): comprovante de banco já é pequeno, e recomprimir
+ * PDF no navegador exigiria uma biblioteca grande. Alguns Android mandam o
+ * tipo vazio; aí vale a extensão, e o servidor confere o começo do arquivo.
+ */
+function prepararPdf(arquivo: File): Blob {
+  if (arquivo.size > PDF_MAXIMO) {
+    throw new ErroRecibo("PDF grande demais: o limite é 4 MB.", fichaDoArquivo(arquivo));
+  }
+  return arquivo.type === PDF ? arquivo : new Blob([arquivo], { type: PDF });
+}
+
+const ehArquivoPdf = (arquivo: File) => arquivo.type === PDF || /\.pdf$/i.test(arquivo.name);
+
 /** O tipo às vezes chega vazio: na dúvida, confere a assinatura do arquivo. */
 async function ehHeic(arquivo: File) {
   if (/heic|heif/i.test(arquivo.type) || /\.(heic|heif)$/i.test(arquivo.name)) return true;
@@ -168,7 +188,7 @@ async function lerErro(r: Response, padrao: string): Promise<ErroRecibo> {
 /**
  * Os três passos do envio (FASE_E.md §3.1):
  *   1. o servidor confere e cria a linha;
- *   2. o navegador manda a foto ao servidor, que grava no R2;
+ *   2. o navegador manda a foto (ou o PDF) ao servidor, que grava no R2;
  *   3. o servidor confere que chegou.
  */
 export async function enviarRecibo({
@@ -180,14 +200,14 @@ export async function enviarRecibo({
   data: string;
   expenseId?: string | null;
 }): Promise<Receipt> {
-  const foto = await comprimirImagem(arquivo);
+  const pronto = ehArquivoPdf(arquivo) ? prepararPdf(arquivo) : await comprimirImagem(arquivo);
 
   const r1 = await fetch("/api/recibos/assinar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      tipo: foto.type || "image/jpeg",
-      tamanho: foto.size,
+      tipo: pronto.type || "image/jpeg",
+      tamanho: pronto.size,
       data,
       expense_id: expenseId ?? null,
     }),
@@ -198,17 +218,17 @@ export async function enviarRecibo({
   try {
     const r2 = await fetch(`/api/recibos/${recibo.id}/enviar`, {
       method: "PUT",
-      headers: { "Content-Type": foto.type || "image/jpeg" },
-      body: foto,
+      headers: { "Content-Type": pronto.type || "image/jpeg" },
+      body: pronto,
     });
-    if (!r2.ok) throw await lerErro(r2, "Não deu para enviar a foto.");
+    if (!r2.ok) throw await lerErro(r2, "Não deu para enviar o recibo.");
   } catch (e) {
     // Envio não chegou: apaga a linha pra não ficar "não concluído" à toa.
     await apagarRecibo(recibo.id).catch(() => {});
     if (e instanceof ErroRecibo) throw e;
     // TypeError aqui é falta de sinal: o pedido nem chegou ao app.
     throw new ErroRecibo(
-      "Não deu para enviar a foto. Confira a conexão e tente de novo.",
+      "Não deu para enviar o recibo. Confira a conexão e tente de novo.",
       e instanceof Error ? e.message : String(e)
     );
   }
