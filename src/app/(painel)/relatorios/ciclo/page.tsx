@@ -365,7 +365,7 @@ export default function CicloPage() {
               <p className="text-xs text-[var(--color-text-faint)]">
                 A fatura já está comprometida no momento em que fecha, mesmo que
                 só saia da conta no vencimento — por isso ela entra no
-                &ldquo;saiu&rdquo; desta janela, junto com o Pix e as
+                &ldquo;saiu&rdquo; desta janela, junto com o Pix, o boleto, o dinheiro e as
                 transferências do mesmo período. A lista abaixo mostra só as
                 compras do cartão; o resto está no{" "}
                 <Link href="/relatorios" className="underline">

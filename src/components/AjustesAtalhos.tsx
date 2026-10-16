@@ -10,7 +10,7 @@ const LINKS = [
   {
     href: "/contas",
     title: "Contas",
-    description: "De onde o dinheiro sai. É o que liga um Pix à fatura do cartão.",
+    description: "De onde o dinheiro sai. É o que liga um Pix ou boleto à fatura do cartão.",
     empresa: "De onde o dinheiro da empresa sai. Os sócios também veem.",
   },
   {

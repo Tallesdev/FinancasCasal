@@ -13,6 +13,8 @@
  * em vez de UTF-8 (acentos viram lixo se lidos errado).
  */
 
+import type { PaymentMethod } from "./types";
+
 // ---------------------------------------------------------------------
 // Ler o arquivo
 // ---------------------------------------------------------------------
@@ -247,7 +249,7 @@ export function lerData(bruto: string, ordem: OrdemData): string | null {
 // Cabeçalho
 // ---------------------------------------------------------------------
 
-export type Campo = "data" | "descricao" | "valor" | "categoria" | "cartao" | "tipo";
+export type Campo = "data" | "descricao" | "valor" | "categoria" | "cartao" | "tipo" | "forma";
 
 /** Minúsculo, sem acento, sem "(r$)", espaços colapsados. */
 export function normalizar(s: string) {
@@ -270,6 +272,7 @@ const APELIDOS: Record<Campo, string[]> = {
   categoria: ["categoria", "category", "grupo", "classificacao"],
   cartao: ["cartao", "card", "cartao de credito"],
   tipo: ["tipo", "tipo lancamento", "tipo de lancamento", "natureza"],
+  forma: ["forma", "forma de pagamento", "pagamento", "meio de pagamento", "como pagou", "metodo"],
 };
 
 /** Adivinha qual coluna é qual pelo nome. A pessoa confere e ajusta na tela. */
@@ -308,6 +311,28 @@ export function lerTipo(bruto: string): TipoLancamento | null {
   if (/^(gast|despes|saida|debito)/.test(s)) return "gasto";
   if (/^(rend|receita|entrada|salario|credito)/.test(s)) return "renda";
   if (/^(invest|aporte)/.test(s)) return "investimento";
+  return null;
+}
+
+/** Forma de pagamento → como sai na planilha exportada (e volta na importada). */
+export const FORMA_CSV: Record<PaymentMethod, string> = {
+  pix: "pix",
+  card: "cartao",
+  cash: "dinheiro",
+  boleto: "boleto",
+  check: "cheque",
+};
+
+/** Célula da coluna "forma" → forma de pagamento, ou null se não reconhecer. */
+export function lerForma(bruto: string): PaymentMethod | null {
+  const s = normalizar(bruto);
+  if (!s) return null;
+  // Débito e transferência saem da conta na hora: contam como Pix (igual à voz).
+  if (/^(pix|debito|transf|ted\b)/.test(s)) return "pix";
+  if (/^(cart|credito|card)/.test(s)) return "card";
+  if (/^(dinheiro|especie|cash)/.test(s)) return "cash";
+  if (/^boleto/.test(s)) return "boleto";
+  if (/^(cheque|check)/.test(s)) return "check";
   return null;
 }
 

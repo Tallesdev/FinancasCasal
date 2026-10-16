@@ -23,6 +23,7 @@ import {
   lerCsv,
   lerData,
   lerTipo,
+  lerForma,
   lerValor,
   mapearCabecalho,
   normalizar,
@@ -30,7 +31,7 @@ import {
   type Campo,
   type TipoLancamento,
 } from "@/lib/planilha";
-import type { Card, Category } from "@/lib/types";
+import type { Card, Category, PaymentMethod } from "@/lib/types";
 
 /** Uma importação é uma requisição só por tabela; acima disso, dividir o arquivo. */
 const MAX_LINHAS = 2000;
@@ -51,6 +52,8 @@ type Linha = {
   categoriaId: string | null;
   categoriaNova: boolean;
   cartaoId: string | null;
+  /** Coluna "forma" (pix, dinheiro, boleto…). Nulo = não veio. */
+  forma: PaymentMethod | null;
   problemas: string[];
   avisos: string[];
   duplicado: boolean;
@@ -65,6 +68,7 @@ const CAMPOS: { campo: Campo; rotulo: string; obrigatorio?: boolean }[] = [
   { campo: "categoria", rotulo: "Categoria" },
   { campo: "cartao", rotulo: "Cartão" },
   { campo: "tipo", rotulo: "Tipo (gasto, renda…)" },
+  { campo: "forma", rotulo: "Forma de pagamento" },
 ];
 
 const TIPO_ROTULO: Record<TipoLancamento, string> = {
@@ -235,6 +239,12 @@ export default function ImportarPage() {
       let categoriaId: string | null = null;
       let categoriaNova = false;
       let cartaoId: string | null = null;
+      let forma: PaymentMethod | null = null;
+      const formaCelula = desprotegerTexto(celula(l, "forma"));
+      if (mapa.forma !== undefined && formaCelula) {
+        forma = lerForma(formaCelula);
+        if (!forma) avisos.push(`forma "${formaCelula}" não reconhecida — entra sem forma`);
+      }
 
       // Categoria e cartão só existem pra gasto.
       if (tipo === "gasto") {
@@ -258,6 +268,11 @@ export default function ImportarPage() {
           if (cartao) cartaoId = cartao.id;
           else avisos.push(`cartão "${car}" não encontrado — entra como Pix`);
         }
+        // Forma "cartão" sem um cartão conhecido não tem fatura onde cair.
+        if (forma === "card" && !cartaoId) {
+          avisos.push("forma cartão sem cartão cadastrado — entra como Pix");
+          forma = null;
+        }
       }
 
       const valor = lido === null ? null : Math.abs(lido);
@@ -275,6 +290,7 @@ export default function ImportarPage() {
         categoriaId,
         categoriaNova,
         cartaoId,
+        forma,
         problemas,
         avisos,
         duplicado,
@@ -371,7 +387,7 @@ export default function ImportarPage() {
           gastos.map((l) => ({
             description: l.descricao,
             amount: l.valor,
-            payment_method: l.cartaoId ? "card" : "pix",
+            payment_method: l.cartaoId ? "card" : (l.forma ?? "pix"),
             kind: "variable",
             card_id: l.cartaoId,
             category_id: l.categoriaId ?? (l.categoriaNova ? idPorNome.get(normalizar(l.categoriaNome!)) ?? null : null),
@@ -385,6 +401,8 @@ export default function ImportarPage() {
         const { error: e } = await supabase.from("incomes").insert(
           rendas.map((l) => ({
             source: l.descricao, amount: l.valor, kind: "one_time", start_date: l.data, import_id: importId,
+            // Só manda a coluna quando a planilha trouxe a forma (migração 020).
+            ...(l.forma ? { payment_method: l.forma } : {}),
           }))
         );
         if (e) throw e;

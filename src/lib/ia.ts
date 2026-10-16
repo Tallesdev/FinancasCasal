@@ -4,6 +4,8 @@
  * cliente vaza a chave — o Next reclama, mas não confie só nele.
  */
 
+import { PAYMENT_METHODS, type PaymentMethod } from "./types";
+
 const GROQ = "https://api.groq.com/openai/v1";
 
 /**
@@ -186,7 +188,7 @@ export type GastoInterpretado = {
   category_name: string | null;
   /** Nome exato de um dos cartões passados, ou nulo. */
   card_name: string | null;
-  payment_method: "pix" | "card" | null;
+  payment_method: PaymentMethod | null;
 };
 
 /**
@@ -210,7 +212,7 @@ export async function interpretarGasto(
     "  amount (número em reais, ou null),",
     "  category_name (uma das categorias da lista, exatamente como escrita, ou null),",
     "  card_name (um dos cartões da lista, exatamente como escrito, ou null),",
-    '  payment_method ("pix", "card" ou null — "cartão"/"crédito" = card; "pix"/"débito"/"dinheiro" = pix).',
+    '  payment_method ("pix", "card", "cash", "boleto", "check" ou null — "cartão"/"crédito" = card; "pix"/"débito" = pix; "dinheiro"/"espécie" = cash; "boleto" = boleto; "cheque" = check).',
     "Não invente valor. Se a frase não tem número, amount é null.",
     "Se a categoria não bate com nenhuma da lista, category_name é null.",
     "Se a pessoa disser o nome do cartão (ex: 'no Itaú'), case com a lista.",
@@ -284,8 +286,8 @@ export async function interpretarGasto(
   // mas escorregou no método, o cartão manda.
   const payment_method = card_name
     ? ("card" as const)
-    : parsed.payment_method === "pix" || parsed.payment_method === "card"
-      ? parsed.payment_method
+    : PAYMENT_METHODS.includes(parsed.payment_method as PaymentMethod)
+      ? (parsed.payment_method as PaymentMethod)
       : null;
   const description =
     typeof parsed.description === "string" && parsed.description.trim()

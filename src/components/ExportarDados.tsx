@@ -6,7 +6,7 @@ import { useScope } from "./ScopeProvider";
 import { Button, ErrorNote } from "./ui";
 import { toISODate } from "@/lib/format";
 import { TERMOS_VERSAO } from "@/lib/legal";
-import { dataCsv, gerarCsv, protegerTexto, valorCsv } from "@/lib/planilha";
+import { FORMA_CSV, dataCsv, gerarCsv, protegerTexto, valorCsv } from "@/lib/planilha";
 import type {
   BankAccount,
   Card,
@@ -14,6 +14,7 @@ import type {
   Expense,
   Income,
   Investment,
+  PaymentMethod,
 } from "@/lib/types";
 
 const RECORRENCIA: Record<string, string> = {
@@ -140,7 +141,7 @@ export function ExportarDados() {
             protegerTexto(g.description),
             valorCsv(g.amount),
             protegerTexto(nomeCategoria.get(g.category_id ?? "") ?? ""),
-            g.payment_method === "card" ? "cartao" : "pix",
+            FORMA_CSV[g.payment_method as PaymentMethod] ?? g.payment_method,
             protegerTexto(nomeCartao.get(g.card_id ?? "") ?? ""),
             RECORRENCIA[g.kind] ?? "",
             g.installments_total ?? "",
@@ -154,7 +155,8 @@ export function ExportarDados() {
           data: r.start_date,
           linha: [
             "renda", dataCsv(r.start_date), protegerTexto(r.source), valorCsv(r.amount),
-            "", "", "", RECORRENCIA[r.kind] ?? "", "",
+            "", r.payment_method ? FORMA_CSV[r.payment_method as PaymentMethod] ?? "" : "", "",
+            RECORRENCIA[r.kind] ?? "", "",
             r.end_date ? dataCsv(r.end_date) : "", protegerTexto(r.notes ?? ""),
           ],
         });
