@@ -148,7 +148,7 @@ export default function ContasPage() {
         description={
           empresa
             ? "De onde o dinheiro da empresa sai. Os sócios também veem estas contas."
-            : "De onde o dinheiro sai. É o que liga um Pix à fatura do cartão."
+            : "De onde o dinheiro sai. É o que liga um Pix ou boleto à fatura do cartão."
         }
         action={<Button onClick={openNew}>Nova conta</Button>}
       />

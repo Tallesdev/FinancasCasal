@@ -34,6 +34,8 @@ import {
 import {
   EXPENSE_KIND_LABEL,
   PAYMENT_METHOD_LABEL,
+  PAYMENT_METHODS,
+  SAI_DE_CONTA,
   type BankAccount,
   type Card,
   type Category,
@@ -467,10 +469,11 @@ export default function GastosPage() {
       installments_total:
         draft.kind === "fixed_installment" ? installments : null,
       notes: draft.notes.trim() || null,
-      // Só faz sentido no Pix: é o que liga esse gasto ao ciclo do cartão
-      // que sai da mesma conta. No cartão, a conta vem do próprio cartão.
+      // Pix, boleto e cheque saem de uma conta: é o que liga esse gasto ao
+      // ciclo do cartão daquela conta. No cartão, a conta vem do próprio
+      // cartão; dinheiro não sai de conta.
       bank_account_id:
-        draft.payment_method === "pix" ? draft.bank_account_id || null : null,
+        SAI_DE_CONTA.includes(draft.payment_method) ? draft.bank_account_id || null : null,
       // Coluna da 014: só vai na empresa, a conta pessoal não depende dela.
       ...(empresa ? { client: draft.client.trim() || null } : {}),
       // Coluna da 016: só manda quando é de um sócio, pra a empresa seguir
@@ -563,8 +566,11 @@ export default function GastosPage() {
           }
         >
           <option value="">Toda forma</option>
-          <option value="pix">Pix</option>
-          <option value="card">Cartão</option>
+          {PAYMENT_METHODS.map((method) => (
+            <option key={method} value={method}>
+              {PAYMENT_METHOD_LABEL[method]}
+            </option>
+          ))}
         </select>
 
         <select
@@ -695,7 +701,7 @@ export default function GastosPage() {
                       <Tag>
                         {occurrence.payment_method === "card"
                           ? card?.name ?? PAYMENT_METHOD_LABEL.card
-                          : PAYMENT_METHOD_LABEL.pix}
+                          : PAYMENT_METHOD_LABEL[occurrence.payment_method] ?? occurrence.payment_method}
                       </Tag>
                       {occurrence.kind !== "variable" && (
                         <Tag>
@@ -881,11 +887,12 @@ function ExpenseForm({
           set({
             payment_method: method,
             card_id: method === "card" ? draft.card_id : "",
-            // A conta só acompanha o Pix; no cartão ela vem do cartão.
-            bank_account_id: method === "pix" ? draft.bank_account_id : "",
+            // A conta acompanha Pix, boleto e cheque; no cartão ela vem do
+            // cartão, e dinheiro não sai de conta.
+            bank_account_id: SAI_DE_CONTA.includes(method) ? draft.bank_account_id : "",
           })
         }
-        options={(["pix", "card"] as PaymentMethod[]).map((method) => ({
+        options={PAYMENT_METHODS.map((method) => ({
           value: method,
           label: PAYMENT_METHOD_LABEL[method],
         }))}
@@ -911,7 +918,7 @@ function ExpenseForm({
         </Field>
       )}
 
-      {draft.payment_method === "pix" && (
+      {SAI_DE_CONTA.includes(draft.payment_method) && (
         <div className="flex flex-col gap-1.5">
           <SelectField
             label="Saiu de qual conta"

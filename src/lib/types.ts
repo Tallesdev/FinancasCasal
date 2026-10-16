@@ -1,4 +1,5 @@
-export type PaymentMethod = "card" | "pix";
+/** Migração 020 trouxe dinheiro, boleto e cheque. */
+export type PaymentMethod = "pix" | "card" | "cash" | "boleto" | "check";
 export type ExpenseKind = "variable" | "fixed_recurring" | "fixed_installment";
 export type EntryKind = "one_time" | "recurring";
 
@@ -94,6 +95,8 @@ export type Income = {
   client?: string | null;
   /** Migração 016. Onde caiu: nulo = conta da empresa; id = conta pessoal do sócio. */
   received_into?: string | null;
+  /** Migração 020. Como o cliente pagou. Nulo = não informado. */
+  payment_method?: PaymentMethod | null;
 };
 
 /** Migração 014: parcela (ou mês) de um recebimento que já entrou. */
@@ -165,9 +168,18 @@ export const EXPENSE_KIND_LABEL: Record<ExpenseKind, string> = {
 };
 
 export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
-  card: "Cartão",
   pix: "Pix",
+  card: "Cartão",
+  cash: "Dinheiro",
+  boleto: "Boleto",
+  check: "Cheque",
 };
+
+/** Ordem em que as formas aparecem nas telas e nos filtros. */
+export const PAYMENT_METHODS: PaymentMethod[] = ["pix", "card", "cash", "boleto", "check"];
+
+/** Formas que tiram dinheiro de uma conta do banco (pede "Saiu de qual conta"). */
+export const SAI_DE_CONTA: PaymentMethod[] = ["pix", "boleto", "check"];
 
 /** Retorno de public.expense_occurrences() — um gasto por mês em que ele cai. */
 export type ExpenseOccurrence = {

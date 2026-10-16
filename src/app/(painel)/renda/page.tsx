@@ -36,9 +36,12 @@ import {
 } from "@/lib/recebimentos";
 import {
   ENTRY_KIND_LABEL,
+  PAYMENT_METHOD_LABEL,
+  PAYMENT_METHODS,
   type EntryKind,
   type Income,
   type IncomeReceived,
+  type PaymentMethod,
 } from "@/lib/types";
 
 /** Como o cliente paga. Só na empresa; na família o tipo continua o de sempre. */
@@ -66,6 +69,8 @@ type Draft = {
   jaRecebido: boolean;
   /** Onde caiu: "" = conta da empresa; id = conta pessoal do sócio (migração 016). */
   caiuEm: string;
+  /** Como o cliente pagou (migração 020). "" = não informado. */
+  forma: "" | PaymentMethod;
 };
 
 const EMPTY: Draft = {
@@ -81,6 +86,7 @@ const EMPTY: Draft = {
   client: "",
   jaRecebido: true,
   caiuEm: "",
+  forma: "",
 };
 
 const arredondar = (v: number) => Math.round(v * 100) / 100;
@@ -228,6 +234,7 @@ export default function RendaPage() {
       parcelas: income.installments_total?.toString() ?? "",
       client: income.client ?? "",
       caiuEm: income.received_into ?? "",
+      forma: income.payment_method ?? "",
       jaRecebido:
         modo === "avista" && recebido.has(`${income.id}|${firstDayOfMonth(income.start_date)}`),
     });
@@ -275,6 +282,8 @@ export default function RendaPage() {
       payload.client = draft.client.trim() || null;
       // Coluna da 016: só manda quando precisa, pra seguir salvando antes da migração.
       if (draft.caiuEm || draft.id) payload.received_into = draft.caiuEm || null;
+      // Coluna da 020, mesma ideia.
+      if (draft.forma || draft.id) payload.payment_method = draft.forma || null;
     }
 
     setSaving(true);
@@ -552,6 +561,9 @@ export default function RendaPage() {
                           : ENTRY_KIND_LABEL[income.kind]}
                       </Tag>
                       {empresa && income.client && <span>{income.client}</span>}
+                      {empresa && income.payment_method && (
+                        <Tag>{PAYMENT_METHOD_LABEL[income.payment_method] ?? income.payment_method}</Tag>
+                      )}
                       {empresa && income.received_into && (
                         <Tag>caiu na conta de {(profileById[income.received_into]?.name ?? "sócio").split(" ")[0]}</Tag>
                       )}
@@ -811,6 +823,19 @@ function FormEmpresa({
           label: MODO_LABEL[modo],
         }))}
       />
+
+      {/* Pra saber depois por onde o dinheiro entrou (migração 020). */}
+      <div className="flex flex-col gap-1.5">
+        <SegmentedField
+          label="Forma de pagamento"
+          value={draft.forma}
+          onChange={(forma) => set({ forma })}
+          options={PAYMENT_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABEL[m] }))}
+        />
+        <span className="text-xs text-[var(--color-text-faint)]">
+          Opcional. Pix, cartão, dinheiro, boleto ou cheque.
+        </span>
+      </div>
 
       <Field
         label={draft.modo === "parcelado" ? "Valor total" : draft.modo === "mensal" ? "Valor por mês" : "Valor"}
