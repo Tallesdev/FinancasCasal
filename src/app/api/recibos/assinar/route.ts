@@ -3,18 +3,20 @@ import {
   COLUNAS_PUBLICAS,
   DESLIGADO,
   EXTENSAO,
+  GRANDE_DEMAIS,
   SEM_SESSAO,
-  TAMANHO_MAXIMO,
+  TIPO_RECUSADO,
   erro,
   recibosAtivos,
   sessao,
+  tamanhoMaximo,
 } from "@/lib/recibos-servidor";
 
 export const runtime = "nodejs";
 
 /**
  * Passo 1 do envio: confere tipo, tamanho e consentimento e cria a linha do
- * recibo. A foto vem no passo 2, por /api/recibos/[id]/enviar.
+ * recibo. A foto (ou o PDF) vem no passo 2, por /api/recibos/[id]/enviar.
  *
  * Corpo: { tipo, tamanho, data (AAAA-MM-DD), expense_id? }
  */
@@ -32,11 +34,11 @@ export async function POST(request: Request) {
 
   const tipo = typeof corpo.tipo === "string" ? corpo.tipo : "";
   const ext = EXTENSAO[tipo];
-  if (!ext) return erro("Envie uma foto (JPEG, PNG ou WebP).", 415);
+  if (!ext) return erro(TIPO_RECUSADO, 415);
 
   const tamanho = Number(corpo.tamanho);
   if (!Number.isFinite(tamanho) || tamanho <= 0) return erro("Arquivo vazio.", 400);
-  if (tamanho > TAMANHO_MAXIMO) return erro("Foto grande demais, mesmo depois de comprimir.", 413);
+  if (tamanho > tamanhoMaximo(tipo)) return erro(GRANDE_DEMAIS(tipo), 413);
 
   const data =
     typeof corpo.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(corpo.data)

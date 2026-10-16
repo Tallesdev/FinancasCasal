@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useScope } from "@/components/ScopeProvider";
-import { AnexarRecibos } from "@/components/AnexarRecibos";
+import { AnexarRecibos, Miniatura } from "@/components/AnexarRecibos";
 import {
   Button,
   DeleteButton,
@@ -168,7 +168,7 @@ export default function RecibosPage() {
       carregar();
     } catch (e) {
       setError(
-        `${e instanceof Error ? e.message : "Não deu para conferir."} Se a foto não chegou, apague e envie de novo.`
+        `${e instanceof Error ? e.message : "Não deu para conferir."} Se o arquivo não chegou, apague e envie de novo.`
       );
     }
   }
@@ -224,7 +224,7 @@ export default function RecibosPage() {
         description={
           empresa
             ? "Recibos e notas da empresa por mês — os sócios também veem. Escolha o mês e baixe tudo pro contador."
-            : "Suas fotos de recibo por ano — pra ter o comprovante na hora do imposto de renda. Só você vê."
+            : "Suas fotos e PDFs de recibo por ano — pra ter o comprovante na hora do imposto de renda. Só você vê."
         }
       />
 
@@ -253,7 +253,7 @@ export default function RecibosPage() {
           }}
           data={dataNovo}
           expenseId={null}
-          textoBotao="Escolher foto"
+          textoBotao="Escolher foto ou PDF"
         />
       </section>
 
@@ -303,7 +303,7 @@ export default function RecibosPage() {
       ) : visiveis.length === 0 ? (
         <EmptyState
           title={mes ? "Nenhum recibo no mês" : `Nenhum recibo em ${ano}`}
-          description="Anexe a foto no formulário de um gasto, ou guarde uma aqui em cima."
+          description="Anexe a foto ou o PDF no formulário de um gasto, ou guarde um aqui em cima."
         />
       ) : (
         <>
@@ -330,23 +330,10 @@ export default function RecibosPage() {
                   <li key={r.id} className="card flex flex-col gap-3 px-4 py-3">
                     <div className="flex items-start gap-3">
                       {r.uploaded_at ? (
-                        <a
-                          href={urlDoRecibo(r.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block h-20 w-16 shrink-0 overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)]"
-                          aria-label="Ver recibo"
-                        >
-                          <img
-                            src={urlDoRecibo(r.id)}
-                            alt="Recibo"
-                            loading="lazy"
-                            className="h-full w-full object-cover"
-                          />
-                        </a>
+                        <Miniatura recibo={r} className="h-20 w-16" />
                       ) : (
                         <span className="flex h-20 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--color-line)] text-center text-[10px] text-[var(--color-text-faint)]">
-                          sem foto
+                          sem arquivo
                         </span>
                       )}
 

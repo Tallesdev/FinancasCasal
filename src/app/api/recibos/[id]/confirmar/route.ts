@@ -3,12 +3,13 @@ import { apagarObjeto, infoDoObjeto } from "@/lib/r2";
 import {
   COLUNAS_PUBLICAS,
   DESLIGADO,
+  EXTENSAO,
   SEM_SESSAO,
-  TAMANHO_MAXIMO,
   clienteAdmin,
   erro,
   recibosAtivos,
   sessao,
+  tamanhoMaximo,
 } from "@/lib/recibos-servidor";
 
 export const runtime = "nodejs";
@@ -47,12 +48,12 @@ export async function POST(
     return erro("Não deu para conferir o envio agora.", 502, String(e));
   }
 
-  if (!info) return erro("A foto não chegou. Tente enviar de novo.", 409);
+  if (!info) return erro("O arquivo não chegou. Tente enviar de novo.", 409);
 
-  if (info.tamanho > TAMANHO_MAXIMO || !info.tipo.startsWith("image/")) {
+  if (info.tamanho > tamanhoMaximo(recibo.mime_type) || !EXTENSAO[info.tipo]) {
     await apagarObjeto(recibo.r2_key).catch(() => {});
     await s.supabase.from("receipts").delete().eq("id", id);
-    return erro("O arquivo enviado não é uma foto aceita.", 422);
+    return erro("O arquivo enviado não é uma foto nem um PDF aceito.", 422);
   }
 
   const { data: atualizado, error: falha } = await clienteAdmin()

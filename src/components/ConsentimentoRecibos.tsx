@@ -83,8 +83,8 @@ export function ConsentimentoRecibos() {
         <h2 className="text-sm font-semibold">Recibos</h2>
         <p className="mt-0.5 text-xs text-[var(--color-text-faint)]">
           {empresa
-            ? "Guardar fotos de recibos e notas — por exemplo pra mandar ao contador."
-            : "Guardar fotos de recibos — por exemplo pra declaração de imposto de renda."}
+            ? "Guardar fotos e PDFs de recibos e notas — por exemplo pra mandar ao contador."
+            : "Guardar fotos e PDFs de recibos — por exemplo pra declaração de imposto de renda."}
           {recursos.recibos ? (
             <>
               {" "}

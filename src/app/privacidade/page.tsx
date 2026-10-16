@@ -73,13 +73,13 @@ export default function PrivacidadePage() {
         </p>
         <p>
           <strong className="text-[var(--color-text)]">Recibos, se você permitir:</strong>{" "}
-          a foto que você anexa fica guardada para que você possa consultá-la,
-          por exemplo na declaração de imposto de renda. Antes de subir, ela é
-          reduzida no seu aparelho. Guardamos também a data e a que gasto ela
-          pertence. A câmera só abre quando você toca em &ldquo;Tirar
+          a foto ou o PDF que você anexa fica guardado para que você possa
+          consultá-lo, por exemplo na declaração de imposto de renda. Antes de
+          subir, a foto é reduzida no seu aparelho; o PDF vai como está.
+          Guardamos também a data e a que gasto ele pertence. A câmera só abre quando você toca em &ldquo;Tirar
           foto&rdquo;, e quem fotografa é o app de câmera do seu aparelho: o
           RumoFácil não acessa a câmera por conta própria, não grava vídeo e
-          não vê nada antes de você escolher enviar. Se você tocar em &ldquo;Ler recibo&rdquo;, a foto é enviada
+          não vê nada antes de você escolher enviar. Se você tocar em &ldquo;Ler recibo&rdquo;, a foto (ou o texto do PDF) é enviada
           a um provedor de inteligência artificial que sugere descrição, valor
           e data — a sugestão só vira dado se você salvar o gasto. Ver também
           &ldquo;Dados de saúde em recibos&rdquo;.
