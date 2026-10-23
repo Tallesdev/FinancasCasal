@@ -37,12 +37,26 @@ const LINKS = [
   },
 ];
 
+/** Só na empresa: os mesmos cadastros do app de orçamentos (C28). */
+const DA_EMPRESA = [
+  {
+    href: "/clientes",
+    title: "Clientes",
+    description: "Os clientes da empresa, com telefone e endereço. Os mesmos do app de orçamentos.",
+  },
+  {
+    href: "/servicos",
+    title: "Serviços",
+    description: "Os serviços que vocês fazem sempre, pra escolher ao marcar um cliente na agenda.",
+  },
+];
+
 export function AjustesAtalhos() {
   const { empresa } = useScope();
 
   return (
     <ul className="grid gap-3 sm:grid-cols-2 md:hidden">
-      {LINKS.map((link) => (
+      {[...(empresa ? DA_EMPRESA : []), ...LINKS].map((link) => (
         <li key={link.href}>
           <Link
             href={link.href}
@@ -50,7 +64,8 @@ export function AjustesAtalhos() {
           >
             <p className="font-semibold">{link.title}</p>
             <p className="mt-1 text-sm text-[var(--color-text-dim)]">
-              {(empresa && link.empresa) || link.description}
+              {(empresa && "empresa" in link ? (link.empresa as string | undefined) : undefined) ||
+                link.description}
             </p>
           </Link>
         </li>

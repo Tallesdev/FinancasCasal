@@ -12,6 +12,7 @@ import { Medidor } from "@/components/Medidor";
 import { PreCarregar } from "@/components/PreCarregar";
 import { iaConfigurada } from "@/lib/ia";
 import { recibosAtivos } from "@/lib/recibos-servidor";
+import { casaLigada } from "@/lib/orcamentos";
 import type { Household, Profile } from "@/lib/types";
 
 export default async function PainelLayout({
@@ -68,6 +69,8 @@ export default async function PainelLayout({
       recursos={{
         recibos: recibosAtivos(),
         lerRecibo: recibosAtivos() && iaConfigurada(),
+        // Só a empresa ligada (ORCAMENTOS_HOUSEHOLD_ID) vê os dados de lá.
+        orcamentos: casaLigada((casa as Household | null)?.id),
       }}
     >
       <RegisterServiceWorker />

@@ -20,9 +20,14 @@ export type Recursos = {
   recibos: boolean;
   /** Groq configurada: dá pra ler recibo com IA. */
   lerRecibo: boolean;
+  /**
+   * Empresa ligada ao app de orçamentos (C27, C28): clientes e serviços
+   * compartilhados e orçamentos aprovados em Recebimentos.
+   */
+  orcamentos: boolean;
 };
 
-const SEM_RECURSOS: Recursos = { recibos: false, lerRecibo: false };
+const SEM_RECURSOS: Recursos = { recibos: false, lerRecibo: false, orcamentos: false };
 
 type ScopeContextValue = {
   scope: Scope;

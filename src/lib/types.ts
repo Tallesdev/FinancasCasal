@@ -103,6 +103,10 @@ export type Income = {
   received_into?: string | null;
   /** Migração 020. Como o cliente pagou. Nulo = não informado. */
   payment_method?: PaymentMethod | null;
+  /** Orçamento (app JJ Orçamentos) que virou este recebimento (migração 023). */
+  quote_id?: string | null;
+  /** Número do orçamento pra mostrar ("0040-R1"). */
+  quote_number?: string | null;
 };
 
 /** Migração 014: parcela (ou mês) de um recebimento que já entrou. */
@@ -376,4 +380,94 @@ export type InviteInfo = {
   email_locked: boolean;
   /** Migração 012. Indefinido enquanto ela não roda: trata como família. */
   household_kind?: HouseholdKind;
+};
+
+// ---------------------------------------------------------- Orçamentos (C27, C28)
+
+/** Cliente do app de orçamentos — o mesmo cadastro nos dois apps. */
+export type OrcCliente = {
+  id: string;
+  /** Número do cliente lá (#0012). */
+  code: number;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  doc: string | null;
+  cep: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  district: string | null;
+  city: string | null;
+  uf: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type OrcClienteInput = Omit<OrcCliente, "id" | "code" | "created_at">;
+
+/** Serviço (ou kit) do catálogo do app de orçamentos. */
+export type OrcServico = {
+  id: string;
+  kind: "servico" | "kit";
+  name: string;
+  description: string | null;
+  unit: string;
+  price: number;
+  includes: string[];
+  active: boolean;
+  use_count: number;
+};
+
+/** Orçamento aprovado que ainda não virou recebimento. */
+export type OrcAprovado = {
+  id: string;
+  /** "0040" ou "0040-R1". */
+  numero: string;
+  status: "aprovado" | "executado";
+  cliente: string;
+  cliente_id: string | null;
+  telefone: string | null;
+  endereco: string | null;
+  data: string;
+  itens: string[];
+  total: number;
+  pagamento: string | null;
+};
+
+// ---------------------------------------------------------- Agenda (C29)
+
+export type AppointmentStatus = "marcado" | "feito" | "cancelado";
+
+export const APPOINTMENT_STATUS_LABEL: Record<AppointmentStatus, string> = {
+  marcado: "Marcado",
+  feito: "Feito",
+  cancelado: "Cancelado",
+};
+
+export type AppointmentService = { catalog_id: string | null; name: string };
+
+/** Cliente marcado num dia (migração 023). É da empresa: os sócios veem e editam. */
+export type Appointment = {
+  id: string;
+  household_id: string;
+  /** Quem marcou. */
+  created_by: string;
+  /** Quem vai atender. Nulo = qualquer um. */
+  assigned_to: string | null;
+  date: string;
+  /** "HH:MM:SS" ou nulo. */
+  start_time: string | null;
+  end_time: string | null;
+  /** Cliente do app de orçamentos; nulo se foi digitado sem cadastro. */
+  client_id: string | null;
+  client_name: string;
+  client_phone: string | null;
+  client_address: string | null;
+  services: AppointmentService[];
+  /** O geral do que vai ser feito nesse cliente. */
+  details: string | null;
+  status: AppointmentStatus;
+  created_at: string;
+  updated_at: string;
 };
