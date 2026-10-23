@@ -12,6 +12,7 @@ import {
   type MesGuardado,
 } from "@/lib/telas";
 import { ScopeHeading } from "@/components/ScopeHeading";
+import { AgendaProximos } from "@/components/AgendaProximos";
 import { MonthlyBars } from "@/components/MonthlyBarsLazy";
 import { RankBar } from "@/components/RankBar";
 import {
@@ -363,6 +364,9 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <ScopeHeading />
+
+      {/* Empresa: quem está marcado hoje e nos próximos dias (C29). */}
+      {empresa && <AgendaProximos />}
 
       {/* Quem tem cartão com fechamento pode ler o mesmo dinheiro por duas
           réguas: o calendário ou o ciclo da fatura. */}

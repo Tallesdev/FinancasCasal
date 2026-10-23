@@ -38,7 +38,13 @@ export function MenuAjustes() {
     { href: "/cartoes", label: "Cartões" },
     { href: "/categorias", label: "Categorias" },
     { href: "/recibos", label: "Recibos" },
-    ...(empresa ? [{ href: "/acerto", label: "Acerto entre sócios" }] : []),
+    ...(empresa
+      ? [
+          { href: "/clientes", label: "Clientes" },
+          { href: "/servicos", label: "Serviços" },
+          { href: "/acerto", label: "Acerto entre sócios" },
+        ]
+      : []),
   ];
 
   return (

@@ -72,6 +72,14 @@ export default function PrivacidadePage() {
           desfazer a importação.
         </p>
         <p>
+          <strong className="text-[var(--color-text)]">Clientes e agenda (modo empresa):</strong>{" "}
+          o cadastro de clientes e de serviços é o mesmo do app de orçamentos
+          da empresa — o RumoFácil lê e grava nele. Na agenda guardamos o
+          nome, o telefone e o endereço do cliente marcado, os serviços
+          combinados e os detalhes que vocês escreverem; só os sócios da
+          empresa veem.
+        </p>
+        <p>
           <strong className="text-[var(--color-text)]">Recibos, se você permitir:</strong>{" "}
           a foto ou o PDF que você anexa fica guardado para que você possa
           consultá-lo, por exemplo na declaração de imposto de renda. Antes de

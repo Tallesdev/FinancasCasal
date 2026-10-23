@@ -20,7 +20,7 @@ import { useScope } from "./ScopeProvider";
 
 /** As abas de baixo, nas duas versões do app. */
 const ABAS_CASA = ["/", "/gastos", "/renda", "/investimentos", "/relatorios"];
-const ABAS_EMPRESA = ["/", "/gastos", "/renda", "/lucro", "/relatorios"];
+const ABAS_EMPRESA = ["/", "/agenda", "/gastos", "/renda", "/lucro", "/relatorios"];
 
 /**
  * Prepara por trás as abas de baixo assim que o app abre (FASE_F.md, F8.6),

@@ -7,6 +7,7 @@ import { guardar, lerGuardado } from "@/lib/guardado";
 import { buscarRecebidos, buscarRenda, type RendaGuardada } from "@/lib/telas";
 import { SegmentedField } from "@/components/form/Field";
 import { AnexarRecibos, Clipe } from "@/components/AnexarRecibos";
+import { listarAprovados } from "@/lib/orcamentos-app";
 import {
   Button,
   DeleteButton,
@@ -42,6 +43,7 @@ import {
   type EntryKind,
   type Income,
   type IncomeReceived,
+  type OrcAprovado,
   type PaymentMethod,
   type Receipt,
   type ReciboLido,
@@ -74,6 +76,9 @@ type Draft = {
   caiuEm: string;
   /** Como o cliente pagou (migração 020). "" = não informado. */
   forma: "" | PaymentMethod;
+  /** Orçamento aprovado que está sendo lançado (C27, migração 023). */
+  quoteId: string | null;
+  quoteNumero: string | null;
 };
 
 const EMPTY: Draft = {
@@ -90,6 +95,8 @@ const EMPTY: Draft = {
   jaRecebido: true,
   caiuEm: "",
   forma: "",
+  quoteId: null,
+  quoteNumero: null,
 };
 
 const arredondar = (v: number) => Math.round(v * 100) / 100;
@@ -132,6 +139,10 @@ export default function RendaPage() {
   // Seções recolhíveis da empresa. Lembra no navegador; é só conforto de quem olha.
   const [abertoAReceber, setAbertoAReceber] = useLembrado("rumofacil:a-receber-aberto", true);
   const [abertoTodos, setAbertoTodos] = useLembrado("rumofacil:recebimentos-aberto", true);
+  const [abertoAprovados, setAbertoAprovados] = useLembrado("rumofacil:aprovados-aberto", true);
+  /** Orçamentos aprovados no app de orçamentos que ainda não viraram recebimento (C27). */
+  const [aprovados, setAprovados] = useState<OrcAprovado[]>([]);
+  const [erroAprovados, setErroAprovados] = useState<string | null>(null);
 
   const carregarRecebidos = useCallback(async () => {
     const marcados = await buscarRecebidos(supabase, empresa);
@@ -169,6 +180,46 @@ export default function RendaPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const carregarAprovados = useCallback(() => {
+    if (!empresa || !recursos.orcamentos) return;
+    listarAprovados()
+      .then((lista) => {
+        setAprovados(lista);
+        setErroAprovados(null);
+      })
+      .catch((e: Error) => setErroAprovados(e.message));
+  }, [empresa, recursos.orcamentos]);
+
+  useEffect(() => {
+    carregarAprovados();
+  }, [carregarAprovados]);
+
+  /** Abre o formulário já preenchido com o orçamento. Quem decide como entra é a pessoa. */
+  function lancarOrcamento(o: OrcAprovado) {
+    const itens = o.itens.length
+      ? ` · ${o.itens[0]}${o.itens.length > 1 ? ` +${o.itens.length - 1}` : ""}`
+      : "";
+    setDraft({
+      ...EMPTY,
+      source: `Orçamento ${o.numero}${itens}`.slice(0, 120),
+      client: o.cliente,
+      amount: String(o.total),
+      notes: o.pagamento ? `Pagamento: ${o.pagamento}`.slice(0, 500) : "",
+      // Aprovado não quer dizer pago.
+      jaRecebido: false,
+      quoteId: o.id,
+      quoteNumero: o.numero,
+    });
+    setRecibosDoForm([]);
+    setFormError(null);
+  }
+
+  async function ignorarOrcamento(o: OrcAprovado) {
+    const { error: e } = await supabase.from("quote_dismissals").insert({ quote_id: o.id });
+    if (e) return setErroAprovados("Não deu para tirar da lista. Tente de novo.");
+    setAprovados((lista) => lista.filter((x) => x.id !== o.id));
+  }
 
   const profileById = useMemo(() => {
     const map: Record<string, { name: string; color: string }> = {};
@@ -249,6 +300,9 @@ export default function RendaPage() {
       client: income.client ?? "",
       caiuEm: income.received_into ?? "",
       forma: income.payment_method ?? "",
+      // Na edição o vínculo com o orçamento não muda.
+      quoteId: null,
+      quoteNumero: null,
       jaRecebido:
         modo === "avista" && recebido.has(`${income.id}|${firstDayOfMonth(income.start_date)}`),
     });
@@ -370,6 +424,11 @@ export default function RendaPage() {
       if (draft.caiuEm || draft.id) payload.received_into = draft.caiuEm || null;
       // Coluna da 020, mesma ideia.
       if (draft.forma || draft.id) payload.payment_method = draft.forma || null;
+      // Colunas da 023: só no recebimento que veio de um orçamento.
+      if (draft.quoteId) {
+        payload.quote_id = draft.quoteId;
+        payload.quote_number = draft.quoteNumero;
+      }
     }
 
     setSaving(true);
@@ -381,9 +440,14 @@ export default function RendaPage() {
 
     if (writeError || !salvo) {
       setSaving(false);
-      setFormError("Não deu para salvar. Confira os campos.");
+      setFormError(
+        writeError?.code === "23505" && draft.quoteId
+          ? "Este orçamento já foi lançado (talvez pelo outro sócio). Atualize a tela."
+          : "Não deu para salvar. Confira os campos."
+      );
       return;
     }
+    if (draft.quoteId) setAprovados((lista) => lista.filter((x) => x.id !== draft.quoteId));
 
     const mesInicial = firstDayOfMonth(draft.start_date);
     const caiuEm = draft.start_date <= hoje ? draft.start_date : hoje;
@@ -559,6 +623,60 @@ export default function RendaPage() {
         </div>
       )}
 
+      {/* Orçamentos aprovados que ainda não viraram recebimento (C27). */}
+      {erroAprovados && <ErrorNote>{erroAprovados}</ErrorNote>}
+      {aprovados.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <TituloRecolhivel
+            titulo="Orçamentos aprovados"
+            detalhe={`${aprovados.length} pra lançar`}
+            aberto={abertoAprovados}
+            onToggle={() => setAbertoAprovados(!abertoAprovados)}
+          />
+          {abertoAprovados && (
+            <ul className="flex flex-col gap-2">
+              {aprovados.map((o) => (
+                <li key={o.id} className="card flex flex-col gap-3 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{o.cliente || "Cliente sem nome"}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
+                        <Tag>orç. {o.numero}</Tag>
+                        {o.status === "executado" && <Tag>executado</Tag>}
+                        <span>{formatDate(o.data)}</span>
+                        {o.itens.length > 0 && (
+                          <span className="truncate">
+                            {o.itens.slice(0, 2).join(", ")}
+                            {o.itens.length > 2 ? ` +${o.itens.length - 2}` : ""}
+                          </span>
+                        )}
+                      </p>
+                      {o.pagamento && (
+                        <p className="mt-1 text-xs text-[var(--color-text-dim)]">Pagamento: {o.pagamento}</p>
+                      )}
+                    </div>
+                    <span className="money shrink-0 font-semibold text-[var(--color-in)]">{money(o.total)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button className="py-1.5" onClick={() => lancarOrcamento(o)}>
+                      Lançar recebimento
+                    </Button>
+                    <Button
+                      variant="quiet"
+                      className="px-2 py-1.5 text-xs"
+                      title="Tira da lista sem lançar. Ex.: já foi lançado à mão."
+                      onClick={() => ignorarOrcamento(o)}
+                    >
+                      Já lancei / ignorar
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* A receber (FASE_F.md, F2.4): atrasados primeiro, depois o mês e os próximos. */}
       {!loading && pendencias.length > 0 && (
         <section className="flex flex-col gap-2">
@@ -660,6 +778,7 @@ export default function RendaPage() {
                           : ENTRY_KIND_LABEL[income.kind]}
                       </Tag>
                       {empresa && income.client && <span>{income.client}</span>}
+                      {empresa && income.quote_number && <Tag>orç. {income.quote_number}</Tag>}
                       {empresa && recibosPorRecebimento[income.id]?.length ? (
                         <span
                           className="inline-flex items-center text-[var(--color-text-dim)]"
@@ -752,7 +871,15 @@ export default function RendaPage() {
 
       {draft && (
         <Sheet
-          title={draft.id ? (empresa ? "Editar recebimento" : "Editar renda") : novo}
+          title={
+            draft.id
+              ? empresa
+                ? "Editar recebimento"
+                : "Editar renda"
+              : draft.quoteNumero
+                ? `Lançar orçamento ${draft.quoteNumero}`
+                : novo
+          }
           onClose={fecharForm}
         >
           {empresa ? (

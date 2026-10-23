@@ -28,11 +28,17 @@ function linksDaEmpresa() {
   return LINKS.filter((link) => link.href !== "/investimentos").flatMap((link) =>
     link.href === "/renda"
       ? [{ ...link, label: "Recebidos" }, { href: "/lucro", label: "Lucro" }]
-      : [link]
+      : link.href === "/"
+        ? // Agenda logo depois do Início: é o que se abre todo dia (C29).
+          [link, { href: "/agenda", label: "Agenda" }]
+        : [link]
   );
 }
 
 const settingsDaEmpresa = () => [
+  // Os mesmos cadastros do app de orçamentos (C28).
+  { href: "/clientes", label: "Clientes" },
+  { href: "/servicos", label: "Serviços" },
   { href: "/acerto", label: "Acerto entre sócios" },
   ...SETTINGS.map((link) =>
     link.href === "/ajustes" ? { ...link, label: "Perfil e empresa" } : link
