@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
@@ -536,6 +537,15 @@ export default function GastosPage() {
               cartoes={myCards.map((c) => c.name)}
               onDraft={abrirPorAudio}
             />
+            {/* Pessoal: lançar o que esqueceu, pelo extrato do banco (C30). */}
+            {!empresa && (
+              <Link
+                href="/extrato"
+                className="inline-flex items-center justify-center rounded-lg border border-[var(--color-line)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+              >
+                Importar extrato
+              </Link>
+            )}
             {empresa && !loading && !temImpostoFixo && (
               <Button variant="ghost" onClick={abrirImposto}>
                 Imposto (DAS)

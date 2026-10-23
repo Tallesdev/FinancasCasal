@@ -28,6 +28,7 @@ const NOMES: Record<string, string> = {
   "/agenda": "Agenda",
   "/clientes": "Clientes",
   "/servicos": "Serviços",
+  "/extrato": "Importar extrato",
   "/contas": "Contas",
   "/cartoes": "Cartões",
   "/categorias": "Categorias",

@@ -37,6 +37,15 @@ const LINKS = [
   },
 ];
 
+/** Só no pessoal (C30). */
+const SO_PESSOAL = [
+  {
+    href: "/extrato",
+    title: "Importar extrato",
+    description: "Mande a fatura ou o extrato do banco (CSV ou OFX) e lance de uma vez o que esqueceu.",
+  },
+];
+
 /** Só na empresa: os mesmos cadastros do app de orçamentos (C28). */
 const DA_EMPRESA = [
   {
@@ -56,7 +65,7 @@ export function AjustesAtalhos() {
 
   return (
     <ul className="grid gap-3 sm:grid-cols-2 md:hidden">
-      {[...(empresa ? DA_EMPRESA : []), ...LINKS].map((link) => (
+      {[...(empresa ? DA_EMPRESA : SO_PESSOAL), ...LINKS].map((link) => (
         <li key={link.href}>
           <Link
             href={link.href}

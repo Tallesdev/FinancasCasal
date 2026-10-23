@@ -18,6 +18,8 @@ const SETTINGS = [
   { href: "/categorias", label: "Categorias" },
   { href: "/recibos", label: "Recibos" },
   { href: "/importar", label: "Importar planilha" },
+  // Só no pessoal (C30): o extrato é da pessoa.
+  { href: "/extrato", label: "Importar extrato" },
   // Sem isto, perfil, casa e convites ficam inalcançáveis no desktop: o
   // atalho de /ajustes no header é md:hidden.
   { href: "/ajustes", label: "Perfil e casa" },
@@ -40,7 +42,7 @@ const settingsDaEmpresa = () => [
   { href: "/clientes", label: "Clientes" },
   { href: "/servicos", label: "Serviços" },
   { href: "/acerto", label: "Acerto entre sócios" },
-  ...SETTINGS.map((link) =>
+  ...SETTINGS.filter((link) => link.href !== "/extrato").map((link) =>
     link.href === "/ajustes" ? { ...link, label: "Perfil e empresa" } : link
   ),
 ];

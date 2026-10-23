@@ -44,7 +44,7 @@ export function MenuAjustes() {
           { href: "/servicos", label: "Serviços" },
           { href: "/acerto", label: "Acerto entre sócios" },
         ]
-      : []),
+      : [{ href: "/extrato", label: "Importar extrato" }]),
   ];
 
   return (
