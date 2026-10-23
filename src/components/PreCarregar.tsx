@@ -61,7 +61,7 @@ export function PreCarregar() {
           chave("gastos", mes),
           () => buscarGastos(supabase, { month: mes, meId: me.id, empresa, recibos: recursos.recibos }),
         ],
-        [chave("renda"), () => buscarRenda(supabase, empresa)],
+        [chave("renda"), () => buscarRenda(supabase, empresa, recursos.recibos)],
         [chave("relatorios", ano), () => buscarRelatorio(supabase, ano)],
       ];
       if (empresa) {

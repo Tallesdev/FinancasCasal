@@ -18,14 +18,20 @@ export const runtime = "nodejs";
  * Passo 1 do envio: confere tipo, tamanho e consentimento e cria a linha do
  * recibo. A foto (ou o PDF) vem no passo 2, por /api/recibos/[id]/enviar.
  *
- * Corpo: { tipo, tamanho, data (AAAA-MM-DD), expense_id? }
+ * Corpo: { tipo, tamanho, data (AAAA-MM-DD), expense_id?, income_id? }
  */
 export async function POST(request: Request) {
   const s = await sessao();
   if (!s) return SEM_SESSAO();
   if (!recibosAtivos()) return DESLIGADO();
 
-  let corpo: { tipo?: unknown; tamanho?: unknown; data?: unknown; expense_id?: unknown };
+  let corpo: {
+    tipo?: unknown;
+    tamanho?: unknown;
+    data?: unknown;
+    expense_id?: unknown;
+    income_id?: unknown;
+  };
   try {
     corpo = await request.json();
   } catch {
@@ -45,10 +51,10 @@ export async function POST(request: Request) {
       ? corpo.data
       : new Date().toISOString().slice(0, 10);
 
-  const expenseId =
-    typeof corpo.expense_id === "string" && /^[0-9a-f-]{36}$/.test(corpo.expense_id)
-      ? corpo.expense_id
-      : null;
+  const uuid = (v: unknown) => (typeof v === "string" && /^[0-9a-f-]{36}$/.test(v) ? v : null);
+  const expenseId = uuid(corpo.expense_id);
+  // Comprovante de recebimento (migração 022). Um lançamento só por recibo.
+  const incomeId = expenseId ? null : uuid(corpo.income_id);
 
   // O consentimento é conferido AQUI, não só na tela: recibo pode ter dado de
   // saúde, e sem consentimento o servidor não aceita guardar. (LGPD art. 11)
@@ -68,7 +74,13 @@ export async function POST(request: Request) {
   // A linha nasce antes do arquivo: assim nunca existe arquivo sem linha.
   const { data: recibo, error: falha } = await s.supabase
     .from("receipts")
-    .insert({ r2_key: chave, mime_type: tipo, occurred_on: data, expense_id: expenseId })
+    .insert({
+      r2_key: chave,
+      mime_type: tipo,
+      occurred_on: data,
+      expense_id: expenseId,
+      ...(incomeId ? { income_id: incomeId } : {}),
+    })
     .select(COLUNAS_PUBLICAS)
     .single();
 

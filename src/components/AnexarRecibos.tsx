@@ -30,16 +30,22 @@ export function AnexarRecibos({
   onChange,
   data,
   expenseId,
+  incomeId = null,
+  leitura = "gasto",
   onLeitura,
   categorias = [],
   textoBotao = "Anexar recibo",
 }: {
   recibos: Receipt[];
   onChange: (recibos: Receipt[]) => void;
-  /** Data do gasto. É por ela que a tela de recibos agrupa. */
+  /** Data do lançamento. É por ela que a tela de recibos agrupa. */
   data: string;
   /** Nulo em gasto novo: a foto sobe solta e é ligada ao salvar. */
   expenseId: string | null;
+  /** Comprovante de recebimento (C26). Mesma regra: nulo em recebimento novo. */
+  incomeId?: string | null;
+  /** O que a IA procura: recibo de compra ou comprovante de quem pagou. */
+  leitura?: "gasto" | "recebimento";
   /** Recebe a sugestão da IA e devolve o que foi feito com ela, pra mostrar. */
   onLeitura?: (leitura: ReciboLido) => string;
   categorias?: string[];
@@ -88,7 +94,7 @@ export function AnexarRecibos({
 
     for (const arquivo of fila) {
       try {
-        const recibo = await enviarRecibo({ arquivo, data, expenseId });
+        const recibo = await enviarRecibo({ arquivo, data, expenseId, incomeId });
         lista = [...lista, recibo];
         onChange(lista);
       } catch (e) {
@@ -118,8 +124,7 @@ export function AnexarRecibos({
     setAviso(null);
     setLendo(id);
     try {
-      const leitura = await lerReciboComIA(id, categorias);
-      setAviso(onLeitura(leitura));
+      setAviso(onLeitura(await lerReciboComIA(id, categorias, leitura)));
     } catch (e) {
       setError(
         e instanceof ErroRecibo
@@ -248,9 +253,10 @@ export function AnexarRecibos({
         </ErrorNote>
       )}
 
-      {!expenseId && recibos.length > 0 && (
+      {!expenseId && !incomeId && recibos.length > 0 && (
         <span className="text-xs text-[var(--color-text-faint)]">
-          Se cancelar o gasto, a foto continua em Recibos, sem lançamento.
+          Se cancelar {leitura === "recebimento" ? "o recebimento" : "o gasto"}, o arquivo continua
+          em Recibos, sem lançamento.
         </span>
       )}
     </div>

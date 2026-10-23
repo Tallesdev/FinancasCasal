@@ -81,7 +81,9 @@ export default function PrivacidadePage() {
           RumoFácil não acessa a câmera por conta própria, não grava vídeo e
           não vê nada antes de você escolher enviar. Se você tocar em &ldquo;Ler recibo&rdquo;, a foto (ou o texto do PDF) é enviada
           a um provedor de inteligência artificial que sugere descrição, valor
-          e data — a sugestão só vira dado se você salvar o gasto. Ver também
+          e data (no comprovante de um recebimento da empresa, também o nome de
+          quem pagou e a forma de pagamento) — a sugestão só vira dado se você
+          salvar o lançamento. Ver também
           &ldquo;Dados de saúde em recibos&rdquo;.
         </p>
         <p>

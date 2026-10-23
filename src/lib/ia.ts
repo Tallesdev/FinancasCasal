@@ -306,7 +306,14 @@ export type ReciboLido = {
   date: string | null;
   /** Nome exato de uma das categorias passadas, ou nulo. */
   category_name: string | null;
+  /** Só no recebimento (C26): quem pagou. */
+  client: string | null;
+  /** Só no recebimento (C26): como o cliente pagou. */
+  payment_method: PaymentMethod | null;
 };
+
+/** O que está sendo lido: o recibo de um gasto ou o comprovante de um recebimento. */
+export type Leitura = "gasto" | "recebimento";
 
 /**
  * Foto de recibo → campos sugeridos (Fase E2). Mesma regra do áudio: sugere,
@@ -320,9 +327,10 @@ export type ReciboLido = {
 export async function lerRecibo(
   imagem: ArrayBuffer,
   tipo: string,
-  categorias: string[]
+  categorias: string[],
+  leitura: Leitura = "gasto"
 ): Promise<ReciboLido> {
-  const sistema = instrucoesDoRecibo("a foto", categorias);
+  const sistema = instrucoesDoRecibo("a foto", categorias, leitura);
 
   const dataUrl = `data:${tipo};base64,${Buffer.from(imagem).toString("base64")}`;
 
@@ -365,11 +373,30 @@ export async function lerRecibo(
     return json.choices?.[0]?.message?.content ?? "{}";
   });
 
-  return sanitizarRecibo(bruto, categorias);
+  return sanitizarRecibo(bruto, categorias, leitura);
 }
 
 /** O mesmo pedido pra foto e pro texto do PDF: muda só o que chega. */
-function instrucoesDoRecibo(fonte: string, categorias: string[]) {
+function instrucoesDoRecibo(fonte: string, categorias: string[], leitura: Leitura) {
+  if (leitura === "recebimento") {
+    // Comprovante de quem PAGOU a empresa (C26). Aqui o nome de quem pagou
+    // é o dado que importa: é o cliente do recebimento. O resto que
+    // identifica a pessoa continua fora.
+    return [
+      `Você lê ${fonte} de um comprovante de pagamento que uma empresa RECEBEU de um cliente`,
+      "(Pix, transferência, TED, depósito, boleto pago, cheque ou comprovante da maquininha de cartão).",
+      "Responda SOMENTE um JSON com as chaves:",
+      "  description (o que foi pago, se o comprovante disser — descrição ou mensagem do Pix, serviço da nota —, até 60 caracteres, ou null),",
+      "  amount (o valor recebido, número em reais, ou null),",
+      "  date (data do pagamento no formato AAAA-MM-DD, ou null),",
+      "  client (nome de quem pagou, pessoa ou empresa, até 60 caracteres, ou null),",
+      '  payment_method ("pix", "card", "cash", "boleto", "check" ou null — Pix/transferência/TED/DOC/depósito = pix; cartão/maquininha = card; dinheiro = cash; boleto = boleto; cheque = check).',
+      "Nunca invente: se não estiver legível, use null.",
+      "Quem RECEBEU é a empresa; client é quem PAGOU (o pagador, a origem).",
+      "Não inclua CPF, CNPJ, endereço, banco, agência, número de conta, chave Pix nem dados de cartão em nenhum campo.",
+      "Datas brasileiras são dia/mês/ano.",
+    ].join("\n");
+  }
   return [
     `Você lê ${fonte} de um recibo, nota fiscal ou comprovante brasileiro.`,
     "Responda SOMENTE um JSON com as chaves:",
@@ -389,8 +416,12 @@ function instrucoesDoRecibo(fonte: string, categorias: string[]) {
  * então basta o modelo de texto — mais barato que o de visão e lê o valor
  * exato, sem depender da nitidez de uma imagem.
  */
-export async function lerReciboDeTexto(texto: string, categorias: string[]): Promise<ReciboLido> {
-  const sistema = instrucoesDoRecibo("o texto tirado de um PDF", categorias);
+export async function lerReciboDeTexto(
+  texto: string,
+  categorias: string[],
+  leitura: Leitura = "gasto"
+): Promise<ReciboLido> {
+  const sistema = instrucoesDoRecibo("o texto tirado de um PDF", categorias, leitura);
 
   const bruto = await comFallback("leitura de PDF", comPreferido(MODELOS_TEXTO, "GROQ_MODELO_TEXTO"), async (modelo) => {
     const r = await fetch(`${GROQ}/chat/completions`, {
@@ -423,13 +454,14 @@ export async function lerReciboDeTexto(texto: string, categorias: string[]): Pro
     return json.choices?.[0]?.message?.content ?? "{}";
   });
 
-  return sanitizarRecibo(bruto, categorias);
+  return sanitizarRecibo(bruto, categorias, leitura);
 }
 
 /** Separado pra dar pra testar sem chamar a IA. */
 export function sanitizarRecibo(
   bruto: string,
   categorias: string[],
+  leitura: Leitura = "gasto",
   hoje = new Date()
 ): ReciboLido {
   let p: Record<string, unknown> = {};
@@ -463,5 +495,24 @@ export function sanitizarRecibo(
       ? p.description.trim().slice(0, 60)
       : null;
 
-  return { description, amount, date, category_name };
+  // Recebimento: quem pagou e como. No gasto ficam nulos — o prompt nem pede,
+  // e nome de pessoa num recibo de compra não é pra sair daqui.
+  const recebimento = leitura === "recebimento";
+  const client =
+    recebimento && typeof p.client === "string" && p.client.trim()
+      ? p.client.trim().slice(0, 60)
+      : null;
+  const payment_method =
+    recebimento && PAYMENT_METHODS.includes(p.payment_method as PaymentMethod)
+      ? (p.payment_method as PaymentMethod)
+      : null;
+
+  return {
+    description,
+    amount,
+    date,
+    category_name: recebimento ? null : category_name,
+    client,
+    payment_method,
+  };
 }

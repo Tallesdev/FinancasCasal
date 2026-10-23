@@ -24,6 +24,8 @@ type ReciboParaExportar = {
     amount: number;
     categories: { name: string } | null;
   } | null;
+  /** Comprovante de recebimento (migração 022). */
+  incomes: { source: string; amount: number; client: string | null } | null;
   profiles: { display_name: string } | null;
 };
 
@@ -51,7 +53,7 @@ export async function GET(request: Request) {
   let consulta = s.supabase
     .from("receipts")
     .select(
-      "user_id, r2_key, mime_type, occurred_on, notes, expenses(description, amount, categories(name)), profiles(display_name)"
+      "user_id, r2_key, mime_type, occurred_on, notes, expenses(description, amount, categories(name)), incomes(source, amount, client), profiles(display_name)"
     )
     .not("uploaded_at", "is", null)
     .order("occurred_on");
@@ -72,12 +74,14 @@ export async function GET(request: Request) {
 
   const zip = new JSZip();
   const usados = new Map<string, number>();
-  const linhas: string[][] = [["data", "descricao", "valor", "categoria", "enviado_por", "observacao", "arquivo"]];
+  const linhas: string[][] = [
+    ["data", "tipo", "descricao", "valor", "categoria", "cliente", "enviado_por", "observacao", "arquivo"],
+  ];
 
   for (const r of recibos as unknown as ReciboParaExportar[]) {
     const ext = EXTENSAO[r.mime_type] ?? "jpg";
     const pasta = mes ? "" : `${r.occurred_on.slice(0, 4)}/`;
-    const base = `${r.occurred_on}_${slug(r.expenses?.description)}`;
+    const base = `${r.occurred_on}_${slug(r.expenses?.description ?? r.incomes?.source)}`;
     const n = usados.get(base) ?? 0;
     usados.set(base, n + 1);
     const nome = `${pasta}${base}${n > 0 ? `-${n + 1}` : ""}.${ext}`;
@@ -85,11 +89,14 @@ export async function GET(request: Request) {
     const { dados } = await baixarObjeto(r.r2_key);
     zip.file(nome, Buffer.from(dados));
 
+    const valor = r.expenses?.amount ?? r.incomes?.amount;
     linhas.push([
       r.occurred_on.split("-").reverse().join("/"),
-      r.expenses?.description ?? "(sem lançamento)",
-      r.expenses ? Number(r.expenses.amount).toFixed(2).replace(".", ",") : "",
+      r.expenses ? "gasto" : r.incomes ? "recebimento" : "",
+      r.expenses?.description ?? r.incomes?.source ?? "(sem lançamento)",
+      valor != null ? Number(valor).toFixed(2).replace(".", ",") : "",
       r.expenses?.categories?.name ?? "",
+      r.incomes?.client ?? "",
       r.profiles?.display_name ?? "",
       r.notes ?? "",
       nome,

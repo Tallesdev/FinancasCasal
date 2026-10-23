@@ -31,11 +31,13 @@ export type Profile = {
  */
 export type Receipt = {
   id: string;
-  /** Nulo = recibo sem lançamento (estado válido). */
+  /** Nulo = recibo sem lançamento (estado válido). Gasto OU recebimento, nunca os dois. */
   expense_id: string | null;
+  /** Comprovante de um recebimento (migração 022). */
+  income_id?: string | null;
   mime_type: string;
   size_bytes: number | null;
-  /** A data do gasto, não a do envio. */
+  /** A data do lançamento, não a do envio. */
   occurred_on: string;
   notes: string | null;
   /** Nulo = envio não concluído. */
@@ -49,6 +51,10 @@ export type ReciboLido = {
   amount: number | null;
   date: string | null;
   category_name: string | null;
+  /** Só no comprovante de recebimento: quem pagou. */
+  client: string | null;
+  /** Só no comprovante de recebimento: como pagou. */
+  payment_method: PaymentMethod | null;
 };
 
 /** Uma importação de planilha. Apagar esta linha apaga, por cascade, tudo o que veio dela. */

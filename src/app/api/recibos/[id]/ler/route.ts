@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { iaConfigurada, lerRecibo, lerReciboDeTexto } from "@/lib/ia";
+import { iaConfigurada, lerRecibo, lerReciboDeTexto, type Leitura } from "@/lib/ia";
 import { textoDoPdf } from "@/lib/pdf";
 import { baixarObjeto } from "@/lib/r2";
 import { DESLIGADO, PDF, SEM_SESSAO, erro, recibosAtivos, sessao } from "@/lib/recibos-servidor";
@@ -13,7 +13,9 @@ export const runtime = "nodejs";
  *
  * PDF (C25): sai só o texto do arquivo, e vai pro modelo de texto.
  *
- * Corpo: { categorias: string[] } — as da pessoa, pra casar pelo nome.
+ * Corpo: { categorias: string[], leitura?: "gasto" | "recebimento" }
+ * categorias são as da pessoa, pra casar pelo nome. "recebimento" (C26) lê
+ * o comprovante de quem pagou: cliente e forma de pagamento em vez de categoria.
  */
 export async function POST(
   request: Request,
@@ -27,11 +29,13 @@ export async function POST(
   const { id } = await params;
 
   let categorias: string[] = [];
+  let leitura: Leitura = "gasto";
   try {
-    const corpo = (await request.json()) as { categorias?: unknown };
+    const corpo = (await request.json()) as { categorias?: unknown; leitura?: unknown };
     if (Array.isArray(corpo.categorias)) {
       categorias = corpo.categorias.filter((c): c is string => typeof c === "string").slice(0, 50);
     }
+    if (corpo.leitura === "recebimento") leitura = "recebimento";
   } catch {
     // Sem categorias a leitura funciona igual, só não sugere categoria.
   }
@@ -55,10 +59,9 @@ export async function POST(
           422
         );
       }
-      return NextResponse.json({ leitura: await lerReciboDeTexto(texto, categorias) });
+      return NextResponse.json({ leitura: await lerReciboDeTexto(texto, categorias, leitura) });
     }
-    const leitura = await lerRecibo(dados, tipo, categorias);
-    return NextResponse.json({ leitura });
+    return NextResponse.json({ leitura: await lerRecibo(dados, tipo, categorias, leitura) });
   } catch (e) {
     const motivo = e instanceof Error ? e.message : String(e);
     console.error("[api/recibos/ler]", motivo);
