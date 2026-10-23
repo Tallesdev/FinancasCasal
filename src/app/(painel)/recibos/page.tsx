@@ -29,6 +29,8 @@ type ReciboComGasto = Receipt & {
   /** Quem enviou. Na empresa aparecem os dos sócios também (migração 018). */
   user_id: string;
   expenses: { description: string; amount: number; start_date: string } | null;
+  /** Comprovante de recebimento (migração 022). */
+  incomes: { source: string; amount: number; client: string | null } | null;
 };
 
 type GastoParaLigar = { id: string; description: string; amount: number; start_date: string };
@@ -75,7 +77,7 @@ export default function RecibosPage() {
     let consultaAno = supabase
       .from("receipts")
       .select(
-        "id, user_id, expense_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at, expenses(description, amount, start_date)"
+        "id, user_id, expense_id, income_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at, expenses(description, amount, start_date), incomes(source, amount, client)"
       )
       .gte("occurred_on", `${ano}-01-01`)
       .lte("occurred_on", `${ano}-12-31`)
@@ -149,7 +151,7 @@ export default function RecibosPage() {
 
   const concluidos = visiveis.filter((r) => r.uploaded_at);
   const totalLigado = concluidos.reduce((s, r) => s + Number(r.expenses?.amount ?? 0), 0);
-  const semLancamento = concluidos.filter((r) => !r.expense_id).length;
+  const semLancamento = concluidos.filter((r) => !r.expense_id && !r.income_id).length;
 
   async function apagar(id: string) {
     setError(null);
@@ -339,13 +341,15 @@ export default function RecibosPage() {
 
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">
-                          {r.expenses?.description ?? "Recibo"}
+                          {r.expenses?.description ?? r.incomes?.source ?? "Recibo"}
                         </p>
                         <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
                           <span>{formatDate(r.occurred_on)}</span>
                           {!r.uploaded_at ? (
                             <Tag>envio não concluído</Tag>
-                          ) : !r.expense_id ? (
+                          ) : r.incomes ? (
+                            <Tag>recebimento{r.incomes.client ? ` · ${r.incomes.client}` : ""}</Tag>
+                          ) : !r.expense_id && !r.income_id ? (
                             <Tag>sem lançamento</Tag>
                           ) : null}
                           {r.size_bytes ? <span>{tamanhoLegivel(r.size_bytes)}</span> : null}
@@ -358,6 +362,11 @@ export default function RecibosPage() {
                       {r.expenses && (
                         <span className="money shrink-0 font-semibold">
                           {money(r.expenses.amount)}
+                        </span>
+                      )}
+                      {r.incomes && (
+                        <span className="money shrink-0 font-semibold text-[var(--color-in)]">
+                          +{money(r.incomes.amount)}
                         </span>
                       )}
                     </div>
@@ -380,7 +389,7 @@ export default function RecibosPage() {
                         </Button>
                       ) : null}
                       {/* Ligar e apagar: só quem enviou (o banco também só deixa ele). */}
-                      {r.user_id === me.id && r.uploaded_at && !r.expense_id && (
+                      {r.user_id === me.id && r.uploaded_at && !r.expense_id && !r.income_id && (
                         <Button
                           variant="quiet"
                           className="px-2 py-1 text-xs"

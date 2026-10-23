@@ -50,4 +50,4 @@ export const DESLIGADO = () =>
 
 /** Colunas que o navegador recebe. r2_key fica de fora: é detalhe do servidor. */
 export const COLUNAS_PUBLICAS =
-  "id, expense_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at";
+  "id, expense_id, income_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at";

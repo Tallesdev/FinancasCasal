@@ -222,18 +222,37 @@ export async function buscarRecebidos(
   };
 }
 
-export type RendaGuardada = RecebidosGuardados & { incomes: Income[] };
+export type RendaGuardada = RecebidosGuardados & {
+  incomes: Income[];
+  /** Comprovantes por recebimento (C26, migração 022). Só na empresa. */
+  recibosPorRecebimento?: Record<string, Receipt[]>;
+};
 
 export async function buscarRenda(
   supabase: SupabaseClient,
-  empresa: boolean
+  empresa: boolean,
+  recibos = false
 ): Promise<RendaGuardada | null> {
-  const [{ data, error }, marcados] = await Promise.all([
+  const [{ data, error }, marcados, recibosResult] = await Promise.all([
     supabase.from("incomes").select("*").order("start_date", { ascending: false }),
     buscarRecebidos(supabase, empresa),
+    // Empresa: os dos sócios também (a RLS da 018 decide), igual aos gastos.
+    empresa && recibos
+      ? supabase
+          .from("receipts")
+          .select("id, expense_id, income_id, mime_type, size_bytes, occurred_on, notes, uploaded_at, created_at")
+          .not("income_id", "is", null)
+          .not("uploaded_at", "is", null)
+      : null,
   ]);
   if (error) return null;
-  return { incomes: data as Income[], ...marcados };
+
+  // Sem a 022 a consulta falha; os recebimentos seguem aparecendo sem o clipe.
+  const recibosPorRecebimento: Record<string, Receipt[]> = {};
+  for (const r of (recibosResult?.data ?? []) as Receipt[]) {
+    (recibosPorRecebimento[r.income_id!] ??= []).push(r);
+  }
+  return { incomes: data as Income[], ...marcados, recibosPorRecebimento };
 }
 
 // ---------------------------------------------------------- Investimentos

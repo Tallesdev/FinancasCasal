@@ -195,10 +195,13 @@ export async function enviarRecibo({
   arquivo,
   data,
   expenseId,
+  incomeId,
 }: {
   arquivo: File;
   data: string;
   expenseId?: string | null;
+  /** Comprovante de recebimento (C26). */
+  incomeId?: string | null;
 }): Promise<Receipt> {
   const pronto = ehArquivoPdf(arquivo) ? prepararPdf(arquivo) : await comprimirImagem(arquivo);
 
@@ -210,6 +213,7 @@ export async function enviarRecibo({
       tamanho: pronto.size,
       data,
       expense_id: expenseId ?? null,
+      income_id: incomeId ?? null,
     }),
   });
   if (!r1.ok) throw await lerErro(r1, "Não deu para preparar o envio.");
@@ -248,11 +252,15 @@ export async function apagarRecibo(id: string) {
   if (!r.ok) throw await lerErro(r, "Não deu para apagar o recibo.");
 }
 
-export async function lerReciboComIA(id: string, categorias: string[]): Promise<ReciboLido> {
+export async function lerReciboComIA(
+  id: string,
+  categorias: string[],
+  leitura: "gasto" | "recebimento" = "gasto"
+): Promise<ReciboLido> {
   const r = await fetch(`/api/recibos/${id}/ler`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ categorias }),
+    body: JSON.stringify({ categorias, leitura }),
   });
   if (!r.ok) throw await lerErro(r, "Não deu para ler o recibo.");
   return ((await r.json()) as { leitura: ReciboLido }).leitura;

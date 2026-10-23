@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
 import { guardar, lerGuardado } from "@/lib/guardado";
 import { buscarRecebidos, buscarRenda, type RendaGuardada } from "@/lib/telas";
 import { SegmentedField } from "@/components/form/Field";
+import { AnexarRecibos, Clipe } from "@/components/AnexarRecibos";
 import {
   Button,
   DeleteButton,
@@ -42,6 +43,8 @@ import {
   type Income,
   type IncomeReceived,
   type PaymentMethod,
+  type Receipt,
+  type ReciboLido,
 } from "@/lib/types";
 
 /** Como o cliente paga. Só na empresa; na família o tipo continua o de sempre. */
@@ -98,7 +101,7 @@ function modoDe(income: Income): Modo {
 
 export default function RendaPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { me, members, userIds, scope, empresa } = useScope();
+  const { me, members, userIds, scope, empresa, recursos } = useScope();
   // Empresa não tem "renda": recebe de cliente (FASE_F.md, F1.5).
   const novo = empresa ? "Novo recebimento" : "Nova renda";
 
@@ -113,6 +116,15 @@ export default function RendaPage() {
   const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  // A leitura do recibo termina depois de um await: lê o formulário de agora.
+  const draftRef = useRef<Draft | null>(null);
+  draftRef.current = draft;
+  /** Comprovantes por recebimento (C26) — pro clipe na lista e pra abrir na edição. */
+  const [recibosPorRecebimento, setRecibosPorRecebimento] = useState<Record<string, Receipt[]>>(
+    inicial?.recibosPorRecebimento ?? {}
+  );
+  /** Os do formulário aberto. Em recebimento novo, sobem soltos e são ligados ao salvar. */
+  const [recibosDoForm, setRecibosDoForm] = useState<Receipt[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [marcando, setMarcando] = useState<string | null>(null);
@@ -136,10 +148,11 @@ export default function RendaPage() {
       setIncomes(guardada.incomes);
       setRecebidos(guardada.recebidos);
       setRecebidosOk(guardada.recebidosOk);
+      setRecibosPorRecebimento(guardada.recibosPorRecebimento ?? {});
       setLoading(false);
     } else setLoading(true);
 
-    const novos = await buscarRenda(supabase, empresa);
+    const novos = await buscarRenda(supabase, empresa, recursos.recibos);
     if (!novos)
       setError(empresa ? "Não deu para carregar os recebimentos." : "Não deu para carregar a renda.");
     else {
@@ -148,9 +161,10 @@ export default function RendaPage() {
       setIncomes(novos.incomes);
       setRecebidos(novos.recebidos);
       setRecebidosOk(novos.recebidosOk);
+      setRecibosPorRecebimento(novos.recibosPorRecebimento ?? {});
     }
     setLoading(false);
-  }, [supabase, empresa, chave]);
+  }, [supabase, empresa, chave, recursos.recibos]);
 
   useEffect(() => {
     load();
@@ -238,7 +252,79 @@ export default function RendaPage() {
       jaRecebido:
         modo === "avista" && recebido.has(`${income.id}|${firstDayOfMonth(income.start_date)}`),
     });
+    setRecibosDoForm(recibosPorRecebimento[income.id] ?? []);
     setFormError(null);
+  }
+
+  function fecharForm() {
+    setDraft(null);
+    setRecibosDoForm([]);
+  }
+
+  /**
+   * A IA leu o comprovante (C26). Igual ao gasto: sugere, não salva, e só
+   * preenche campo VAZIO — o que diverge do que a pessoa digitou vira aviso.
+   */
+  function aplicarLeitura(l: ReciboLido): string {
+    const atual = draftRef.current;
+    if (!atual) return "";
+
+    const patch: Partial<Draft> = {};
+    const preenchidos: string[] = [];
+    const diferentes: string[] = [];
+
+    if (l.description && !atual.source.trim()) {
+      patch.source = l.description;
+      preenchidos.push("o que foi");
+    }
+
+    if (l.amount != null) {
+      const digitado = Number(atual.amount.replace(",", "."));
+      if (!atual.amount) {
+        // Parcelado pede o total; o comprovante é de um pagamento só.
+        patch.amount = String(l.amount);
+        preenchidos.push("valor");
+      } else if (atual.modo !== "parcelado" && Math.abs(digitado - l.amount) > 0.005) {
+        diferentes.push(`valor ${money(l.amount)}`);
+      }
+    }
+
+    if (l.date && l.date !== atual.start_date) {
+      // Em recebimento novo a data é só o padrão (hoje): o comprovante sabe mais.
+      if (!atual.id) {
+        patch.start_date = l.date;
+        preenchidos.push("data");
+      } else {
+        diferentes.push(`data ${formatDate(l.date)}`);
+      }
+    }
+
+    if (l.client) {
+      if (!atual.client.trim()) {
+        // Se o cliente já existe com outra grafia ("joão" x "João"), usa o de sempre.
+        patch.client =
+          clientes.find((c) => c.toLowerCase() === l.client!.toLowerCase()) ?? l.client;
+        preenchidos.push("cliente");
+      } else if (atual.client.trim().toLowerCase() !== l.client.toLowerCase()) {
+        diferentes.push(`cliente ${l.client}`);
+      }
+    }
+
+    if (l.payment_method && !atual.forma) {
+      patch.forma = l.payment_method;
+      preenchidos.push("forma de pagamento");
+    }
+
+    if (Object.keys(patch).length) {
+      setDraft((d) => (d ? { ...d, ...patch } : d));
+    }
+
+    const partes: string[] = [];
+    if (preenchidos.length) partes.push(`Preenchido pelo recibo: ${preenchidos.join(", ")}.`);
+    if (diferentes.length)
+      partes.push(`O recibo diz ${diferentes.join(" e ")} — diferente do que está no formulário.`);
+    if (!partes.length) return "A leitura não trouxe nada novo. Confira os campos à mão.";
+    return `${partes.join(" ")} Confira antes de salvar.`;
   }
 
   async function save() {
@@ -323,8 +409,21 @@ export default function RendaPage() {
       }
     }
 
+    // Liga os comprovantes ao recebimento e acerta a data deles pela do
+    // recebimento — é por essa data que a tela de recibos agrupa.
+    if (recibosDoForm.length) {
+      const { error: ligarError } = await supabase
+        .from("receipts")
+        .update({ income_id: salvo.id, occurred_on: draft.start_date })
+        .in("id", recibosDoForm.map((r) => r.id));
+      if (ligarError) {
+        // O recebimento já está salvo: reabrir o formulário faria salvar duas vezes.
+        setError("O recebimento foi salvo, mas o recibo não foi ligado a ele. Ligue pela tela Recibos.");
+      }
+    }
+
     setSaving(false);
-    setDraft(null);
+    fecharForm();
     load();
   }
 
@@ -561,6 +660,15 @@ export default function RendaPage() {
                           : ENTRY_KIND_LABEL[income.kind]}
                       </Tag>
                       {empresa && income.client && <span>{income.client}</span>}
+                      {empresa && recibosPorRecebimento[income.id]?.length ? (
+                        <span
+                          className="inline-flex items-center text-[var(--color-text-dim)]"
+                          title="Tem recibo"
+                        >
+                          <Clipe className="h-3.5 w-3.5" />
+                          <span className="sr-only">Tem recibo</span>
+                        </span>
+                      ) : null}
                       {empresa && income.payment_method && (
                         <Tag>{PAYMENT_METHOD_LABEL[income.payment_method] ?? income.payment_method}</Tag>
                       )}
@@ -645,7 +753,7 @@ export default function RendaPage() {
       {draft && (
         <Sheet
           title={draft.id ? (empresa ? "Editar recebimento" : "Editar renda") : novo}
-          onClose={() => setDraft(null)}
+          onClose={fecharForm}
         >
           {empresa ? (
             <FormEmpresa
@@ -654,6 +762,17 @@ export default function RendaPage() {
               clientes={clientes}
               podeMarcar={recebidosOk}
               socios={members.length > 1 ? members : []}
+              anexos={
+                <AnexarRecibos
+                  recibos={recibosDoForm}
+                  onChange={setRecibosDoForm}
+                  data={draft.start_date}
+                  expenseId={null}
+                  incomeId={draft.id}
+                  leitura="recebimento"
+                  onLeitura={aplicarLeitura}
+                />
+              }
             />
           ) : (
             <FormFamilia draft={draft} setDraft={setDraft} />
@@ -665,7 +784,7 @@ export default function RendaPage() {
             <Button onClick={save} disabled={saving} className="flex-1">
               {saving ? "Salvando…" : empresa ? "Salvar recebimento" : "Salvar renda"}
             </Button>
-            <Button variant="ghost" onClick={() => setDraft(null)}>
+            <Button variant="ghost" onClick={fecharForm}>
               Cancelar
             </Button>
           </div>
@@ -764,12 +883,15 @@ function FormEmpresa({
   clientes,
   podeMarcar,
   socios,
+  anexos,
 }: {
   draft: Draft;
   setDraft: (d: Draft) => void;
   clientes: string[];
   podeMarcar: boolean;
   socios: { id: string; display_name: string }[];
+  /** Comprovante (C26). Fica fora do formulário pra ele não depender do R2. */
+  anexos?: React.ReactNode;
 }) {
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const amount = Number(draft.amount.replace(",", "."));
@@ -927,6 +1049,8 @@ function FormEmpresa({
           </select>
         </Field>
       )}
+
+      {anexos}
 
       <Field label="Observação" hint="Opcional">
         <input
