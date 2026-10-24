@@ -55,6 +55,8 @@ export default function ExtratoPage() {
   const [contas, setContas] = useState<BankAccount[]>([]);
   const [categorias, setCategorias] = useState<Category[]>([]);
   const [apelidos, setApelidos] = useState<Map<string, Apelido>>(new Map());
+  // Sem isto, um arquivo escolhido antes de os cartões chegarem caía em "Conta" (C31).
+  const [carregado, setCarregado] = useState(false);
 
   const [lendo, setLendo] = useState(false);
   const [lido, setLido] = useState<Lido | null>(null);
@@ -79,6 +81,7 @@ export default function ExtratoPage() {
       setContas((b.data ?? []) as BankAccount[]);
       setCategorias((cat.data ?? []) as Category[]);
       setApelidos(new Map(((ap.data ?? []) as Apelido[]).map((a) => [a.title_norm, a])));
+      setCarregado(true);
     })();
   }, [supabase, me.id, empresa]);
 
@@ -142,8 +145,35 @@ export default function ExtratoPage() {
             data: avulso ? (datasDosGastos.get(o.expense_id) ?? o.month) : o.month.slice(0, 10),
             porMes: !avulso,
             parcela: o.installment_number,
+            parcelasTotal: o.installments_total,
             categoriaId: o.category_id,
           });
+        }
+
+        // Compra parcelada lançada inteira, de uma vez: pode ter sido meses antes.
+        const parceladas = gastos.filter((l) => l.parcela);
+        if (parceladas.length) {
+          const maisParcelas = Math.max(...parceladas.map((l) => l.parcela!.n));
+          const { data: avulsos } = await supabase
+            .from("expenses")
+            .select("id, description, amount, start_date, category_id")
+            .eq("user_id", me.id)
+            .eq("kind", "variable")
+            .gte("start_date", addMonths(firstDayOfMonth(datas[0]), -(maisParcelas + 1)))
+            .lte("start_date", datas[datas.length - 1]);
+          for (const g of avulsos ?? []) {
+            lancados.push({
+              chave: `inteira|${g.id}`,
+              expenseId: g.id as string,
+              descricao: g.description as string,
+              valor: Number(g.amount),
+              data: (g.start_date as string).slice(0, 10),
+              porMes: false,
+              parcela: null,
+              inteira: true,
+              categoriaId: (g.category_id as string | null) ?? null,
+            });
+          }
         }
       }
 
@@ -167,7 +197,9 @@ export default function ExtratoPage() {
 
       // De onde saiu: cartão pra fatura, conta pro extrato. Chuta o Nubank pelo nome.
       const cartao = ehCartao(origem);
-      setDestino(cartao || !contas.length ? (cartoes.length ? "cartao" : "conta") : "conta");
+      // Fatura é cartão, sempre: sem cartão cadastrado, a tela pede pra cadastrar
+      // em vez de lançar calado como Pix.
+      setDestino(cartao ? "cartao" : "conta");
       const nu = (n: string) => /\bnu\b|nubank|roxinho/i.test(normalizar(n));
       setCartaoId((cartoes.find((c) => nu(c.name)) ?? cartoes[0])?.id ?? "");
       setContaId((contas.find((c) => nu(c.name)) ?? contas[0])?.id ?? "");
@@ -290,13 +322,19 @@ export default function ExtratoPage() {
 
       {!lido && (
         <section className="card flex flex-col gap-3 px-4 py-5">
-          <label className="inline-flex min-h-11 w-fit cursor-pointer items-center justify-center rounded-lg bg-[var(--scope)] px-4 text-sm font-semibold text-[var(--color-ink)]">
-            {lendo ? "Lendo…" : "Escolher arquivo (CSV ou OFX)"}
+          <label
+            aria-disabled={!carregado || lendo}
+            className={[
+              "inline-flex min-h-11 w-fit cursor-pointer items-center justify-center rounded-lg bg-[var(--scope)] px-4 text-sm font-semibold text-[var(--color-ink)]",
+              !carregado || lendo ? "pointer-events-none opacity-50" : "",
+            ].join(" ")}
+          >
+            {!carregado ? "Carregando…" : lendo ? "Lendo…" : "Escolher arquivo (CSV ou OFX)"}
             <input
               type="file"
               accept=".csv,.ofx,.qfx,text/csv,application/x-ofx"
               className="sr-only"
-              disabled={lendo}
+              disabled={!carregado || lendo}
               onChange={(event) => {
                 const f = event.target.files?.[0];
                 if (f) escolherArquivo(f);
@@ -519,7 +557,10 @@ function Linha({
           </p>
           {l.parecidoCom && (
             <p className="mt-1 text-sm text-[var(--color-text-dim)]">
-              Já lançado: <strong className="text-[var(--color-text)]">{l.parecidoCom.descricao}</strong> ·{" "}
+              {l.parecidoCom.inteira ? "Lançado inteiro: " : "Já lançado: "}
+              <strong className="text-[var(--color-text)]">{l.parecidoCom.descricao}</strong>
+              {l.parecidoCom.parcela ? ` (parcela ${l.parecidoCom.parcela})` : ""}
+              {Math.abs(l.parecidoCom.valor - l.valor) > 0.009 ? ` · ${money(l.parecidoCom.valor)}` : ""} ·{" "}
               {l.parecidoCom.porMes ? "no mesmo mês" : formatDate(l.parecidoCom.data)}
             </p>
           )}
