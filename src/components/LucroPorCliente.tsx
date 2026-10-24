@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useChaveGuardada, useScope } from "./ScopeProvider";
 import { guardar, lerGuardado } from "@/lib/guardado";
 import { buscarLucroPorCliente, type GastoComCliente, type LucroPorClienteGuardado } from "@/lib/telas";
-import { Button, ErrorNote, Loading } from "./ui";
-import { listarClientes, ultimosClientes } from "@/lib/orcamentos-app";
+import { Button, ErrorNote, Loading, inputClass } from "./ui";
+import { listarClientes, salvarCliente, ultimosClientes } from "@/lib/orcamentos-app";
 import { formatDate, money, monthLabel } from "@/lib/format";
 import { chaveDoCliente, lucroPorCliente, type NomeSolto } from "@/lib/clientes";
 import { mesesDe } from "@/lib/recebimentos";
@@ -24,6 +24,8 @@ export function LucroPorCliente({ ano }: { ano: number }) {
   const [cadastrados, setCadastrados] = useState<string[]>(() => (ultimosClientes() ?? []).map((c) => c.name));
   const [corrigindo, setCorrigindo] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  /** O nome solto que está virando cliente novo, com o nome como vai ficar. */
+  const [novoCliente, setNovoCliente] = useState<{ chave: string; nome: string } | null>(null);
   const ids = useMemo(() => members.map((m) => m.id), [members]);
 
   // O que este quadro tinha da última vez (lib/guardado.ts).
@@ -91,6 +93,31 @@ export function LucroPorCliente({ ano }: { ano: number }) {
     if (e) return setAviso("Não deu para corrigir. Tente de novo.");
     if (doSocio) setAviso(`Corrigi os seus. ${doSocio} ${doSocio === 1 ? "gasto foi lançado" : "gastos foram lançados"} pelo sócio e ele precisa corrigir.`);
     load();
+  }
+
+  /**
+   * O nome solto é um cliente de verdade, só não tinha cadastro (C35):
+   * "Para Eduardo (Belizário)" é o Eduardo, que veio pelo Belizário e paga
+   * ele mesmo. Entra no cadastro (o mesmo do app de orçamentos) com o nome
+   * que a pessoa deixar; se ela mudou o nome, os gastos passam a usar o novo.
+   */
+  async function tornarCliente(solto: NomeSolto, nome: string) {
+    const limpo = nome.trim().replace(/\s+/g, " ");
+    if (!limpo) return;
+    setAviso(null);
+    setCorrigindo(solto.chave);
+    try {
+      if (!cadastrados.some((c) => chaveDoCliente(c) === chaveDoCliente(limpo))) {
+        const cliente = await salvarCliente({ name: limpo });
+        setCadastrados((l) => [...l, cliente.name]);
+      }
+    } catch (e) {
+      setCorrigindo(null);
+      return setAviso(e instanceof Error ? e.message : "Não deu para cadastrar o cliente.");
+    }
+    setCorrigindo(null);
+    setNovoCliente(null);
+    if (chaveDoCliente(limpo) !== solto.chave) await corrigir(solto, limpo);
   }
 
   /** De onde vem cada número do cliente aberto. */
@@ -198,27 +225,77 @@ export function LucroPorCliente({ ano }: { ano: number }) {
                   <span className="min-w-0 truncate">{s.nome}</span>
                   <span className="money shrink-0 text-[var(--color-out)]">{money(s.gastou)}</span>
                 </p>
-                <span className="flex flex-wrap gap-1.5">
-                  {s.parecidos.map((nome) => (
+                {novoCliente?.chave === s.chave ? (
+                  <form
+                    className="flex flex-col gap-1.5"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      tornarCliente(s, novoCliente.nome);
+                    }}
+                  >
+                    <input
+                      className={inputClass}
+                      value={novoCliente.nome}
+                      maxLength={120}
+                      autoFocus
+                      aria-label="Nome do cliente"
+                      onChange={(e) => setNovoCliente({ chave: s.chave, nome: e.target.value })}
+                    />
+                    <span className="text-xs text-[var(--color-text-faint)]">
+                      Vai pro cadastro de clientes com este nome. Pode ajustar (ex.: só &ldquo;Eduardo&rdquo;);
+                      os seus gastos passam a usar o nome novo.
+                    </span>
+                    <span className="flex flex-wrap gap-1.5">
+                      <Button
+                        type="submit"
+                        className="px-2.5 py-1 text-xs"
+                        disabled={corrigindo !== null || !novoCliente.nome.trim()}
+                      >
+                        Cadastrar cliente
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="quiet"
+                        className="px-2.5 py-1 text-xs"
+                        onClick={() => setNovoCliente(null)}
+                      >
+                        Cancelar
+                      </Button>
+                    </span>
+                  </form>
+                ) : (
+                  <span className="flex flex-wrap gap-1.5">
+                    {s.parecidos.map((nome) => (
+                      <Button
+                        key={nome}
+                        variant="ghost"
+                        className="px-2.5 py-1 text-xs"
+                        disabled={corrigindo !== null}
+                        onClick={() => corrigir(s, nome)}
+                      >
+                        É {nome}
+                      </Button>
+                    ))}
                     <Button
-                      key={nome}
-                      variant="ghost"
+                      variant="quiet"
                       className="px-2.5 py-1 text-xs"
                       disabled={corrigindo !== null}
-                      onClick={() => corrigir(s, nome)}
+                      onClick={() => corrigir(s, null)}
                     >
-                      É {nome}
+                      Não é cliente (tirar)
                     </Button>
-                  ))}
-                  <Button
-                    variant="quiet"
-                    className="px-2.5 py-1 text-xs"
-                    disabled={corrigindo !== null}
-                    onClick={() => corrigir(s, null)}
-                  >
-                    Não é cliente (tirar)
-                  </Button>
-                </span>
+                    {recursos.orcamentos && (
+                      <Button
+                        variant="ghost"
+                        className="px-2.5 py-1 text-xs"
+                        disabled={corrigindo !== null}
+                        onClick={() => setNovoCliente({ chave: s.chave, nome: s.nome })}
+                      >
+                        É um cliente novo
+                      </Button>
+                    )}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
