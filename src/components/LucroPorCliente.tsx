@@ -195,25 +195,21 @@ export function LucroPorCliente({ ano }: { ano: number }) {
             {resultado.soltos.map((s) => (
               <li key={s.chave} className="flex flex-col gap-1.5 text-sm">
                 <p className="flex justify-between gap-3">
-                  <span className="min-w-0 truncate">
-                    {s.nome}
-                    {s.pareceCom && (
-                      <span className="text-[var(--color-text-faint)]"> · parece {s.pareceCom}</span>
-                    )}
-                  </span>
+                  <span className="min-w-0 truncate">{s.nome}</span>
                   <span className="money shrink-0 text-[var(--color-out)]">{money(s.gastou)}</span>
                 </p>
                 <span className="flex flex-wrap gap-1.5">
-                  {s.pareceCom && (
+                  {s.parecidos.map((nome) => (
                     <Button
+                      key={nome}
                       variant="ghost"
                       className="px-2.5 py-1 text-xs"
                       disabled={corrigindo !== null}
-                      onClick={() => corrigir(s, s.pareceCom)}
+                      onClick={() => corrigir(s, nome)}
                     >
-                      É {s.pareceCom}
+                      É {nome}
                     </Button>
-                  )}
+                  ))}
                   <Button
                     variant="quiet"
                     className="px-2.5 py-1 text-xs"
