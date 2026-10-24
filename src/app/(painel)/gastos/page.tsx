@@ -291,7 +291,8 @@ export default function GastosPage() {
 
   const clientes = useMemo(() => {
     const porChave = new Map<string, string>();
-    for (const nome of [...clientesCadastrados, ...clientesDeRecebimento]) {
+    // O nome do recebimento vem antes: é o que aparece no relatório.
+    for (const nome of [...clientesDeRecebimento, ...clientesCadastrados]) {
       const limpo = nome.trim().replace(/\s+/g, " ");
       if (limpo && !porChave.has(chaveDoCliente(limpo))) porChave.set(chaveDoCliente(limpo), limpo);
     }

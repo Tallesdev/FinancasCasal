@@ -43,8 +43,8 @@ export type NomeSolto = {
   chave: string;
   nome: string;
   gastou: number;
-  /** O cliente que esse nome parece ser, se der pra adivinhar. */
-  pareceCom: string | null;
+  /** Os clientes que esse nome parece ser (empatados, até 3); vazio se nenhum. */
+  parecidos: string[];
 };
 
 /** Palavras que não ajudam a reconhecer o cliente. */
@@ -57,15 +57,17 @@ const palavras = (chave: string) =>
     .filter((p) => p.length >= 3);
 
 /**
- * O cliente que um nome solto parece ser: um contém o outro ("cidade
+ * Os clientes que um nome solto parece ser: um contém o outro ("cidade
  * jardim" em "condominio cidade jardim") ou as palavras que importam batem
- * ("sup lima alterosa" ~ "supermercado irmaos lima alterosa").
+ * ("sup lima alterosa" ~ "supermercado irmaos lima alterosa"). Empate vem
+ * todo (até 3): "Cidade jardim" pode ser "Condomínio Cidade Jardim" ou
+ * "Condomínio Residencial Cidade Jardim", e quem escolhe é a pessoa.
  */
-export function clienteParecido(nome: string, clientes: { chave: string; nome: string }[]): string | null {
+export function clientesParecidos(nome: string, clientes: { chave: string; nome: string }[]): string[] {
   const c = chaveDoCliente(nome);
-  if (c.length < 3) return null;
-  let melhor: { nome: string; nota: number } | null = null;
-  let empate = false;
+  if (c.length < 3) return [];
+  let melhores: string[] = [];
+  let nota0 = 0;
   for (const k of clientes) {
     let nota = 0;
     if (k.chave.length >= 4 && (k.chave.includes(c) || c.includes(k.chave))) nota = 1;
@@ -76,13 +78,14 @@ export function clienteParecido(nome: string, clientes: { chave: string; nome: s
       const iguais = a.filter((p) => b.some((q) => q === p || (p.length >= 3 && q.startsWith(p)))).length;
       nota = iguais / a.length;
     }
-    if (nota < 0.5) continue;
-    if (!melhor || nota > melhor.nota) {
-      melhor = { nome: k.nome, nota };
-      empate = false;
-    } else if (nota === melhor.nota) empate = true;
+    if (nota < 0.5 || nota < nota0) continue;
+    if (nota > nota0) {
+      melhores = [];
+      nota0 = nota;
+    }
+    melhores.push(k.nome);
   }
-  return melhor && !empate ? melhor.nome : null;
+  return melhores.length <= 3 ? melhores : [];
 }
 
 export function lucroPorCliente(
@@ -169,7 +172,7 @@ export function lucroPorCliente(
     soltos: Array.from(soltos.entries())
       .map(([chave, item]) => {
         const nome = Array.from(item.nomes.entries()).sort((a, b) => b[1] - a[1])[0][0];
-        return { chave, nome, gastou: centavos(item.gastou), pareceCom: clienteParecido(nome, listaConhecidos) };
+        return { chave, nome, gastou: centavos(item.gastou), parecidos: clientesParecidos(nome, listaConhecidos) };
       })
       .sort((a, b) => b.gastou - a.gastou),
   };
