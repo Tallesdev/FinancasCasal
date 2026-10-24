@@ -236,6 +236,13 @@ export type Lancado = {
   data: string;
   porMes: boolean;
   parcela: number | null;
+  /** Parcelado: em quantas vezes (pra conferir com o "Parcela 7/10" do extrato). */
+  parcelasTotal?: number | null;
+  /**
+   * Compra parcelada que a pessoa lançou INTEIRA, de uma vez: o valor é o
+   * total, e cada parcela do extrato é um pedaço dele.
+   */
+  inteira?: boolean;
   categoriaId: string | null;
 };
 
@@ -281,6 +288,13 @@ export function semelhanca(a: string, b: string) {
 /** Folga de datas pra compra avulsa: o banco às vezes lança 1–3 dias depois. */
 export const FOLGA_DIAS = 4;
 
+/** Parcela pode diferir uns centavos do que foi lançado (arredondamento da loja). */
+export const TOLERANCIA_PARCELA = 0.02;
+
+/** Parcela: até R$ 0,10 ou 2%. Resto: valor exato. */
+const toleranciaDe = (l: LinhaExtrato) =>
+  l.parcela ? Math.max(0.1, l.valor * TOLERANCIA_PARCELA) : 0.009;
+
 /**
  * Cruza o extrato com o que já existe. Cada lançamento só "casa" com uma
  * linha: duas compras iguais no extrato e uma lançada à mão = uma parecida
@@ -307,15 +321,30 @@ export function cruzar(
     if (l.situacao !== "novo") return;
     const nomeDaLinha = apelidos.get(chaveDoTitulo(l.limpo))?.description ?? l.limpo;
     for (const lanc of lancados) {
-      if (Math.abs(lanc.valor - l.valor) > 0.009) continue;
       let distancia: number;
-      if (lanc.porMes) {
+      if (lanc.inteira) {
+        // Lançou a compra inteira: parcela × vezes ≈ total, comprada antes desta parcela.
+        if (!l.parcela) continue;
+        const total = l.valor * l.parcela.total;
+        if (Math.abs(lanc.valor - total) > Math.max(1, total * TOLERANCIA_PARCELA)) continue;
+        const antes = meses(lanc.data, mesDe(l.data));
+        if (lanc.data > l.data || antes > l.parcela.n + 1) continue;
+        distancia = 1;
+      } else if (lanc.porMes) {
+        // Parcela: a loja divide o total e joga os centavos numa delas
+        // (121,50 lançado, 121,49 na fatura). Fixo e avulso: valor exato.
+        if (Math.abs(lanc.valor - l.valor) > toleranciaDe(l)) continue;
         const dm = meses(lanc.data, mesDe(l.data));
         // Parcela/fixo: o mesmo mês (ou o vizinho, pela virada da fatura).
         if (dm > 1) continue;
-        if (l.parcela && lanc.parcela && l.parcela.n !== lanc.parcela) continue;
-        distancia = dm * 10;
+        if (l.parcela && lanc.parcela) {
+          if (lanc.parcelasTotal && lanc.parcelasTotal !== l.parcela.total) continue;
+          // A data de início que a pessoa usou pode deslocar a contagem em uma.
+          if (Math.abs(l.parcela.n - lanc.parcela) > 1) continue;
+        }
+        distancia = dm * 10 + (l.parcela && lanc.parcela && l.parcela.n !== lanc.parcela ? 3 : 0);
       } else {
+        if (Math.abs(lanc.valor - l.valor) > toleranciaDe(l)) continue;
         distancia = dias(lanc.data, l.data);
         if (distancia > FOLGA_DIAS) continue;
       }
