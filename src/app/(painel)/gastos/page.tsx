@@ -8,6 +8,8 @@ import { guardar, lerGuardado } from "@/lib/guardado";
 import { buscarGastos, type GastosGuardados } from "@/lib/telas";
 import { GravarGasto, type GastoPorAudio } from "@/components/GravarGasto";
 import { AnexarRecibos, Clipe } from "@/components/AnexarRecibos";
+import { chaveDoCliente } from "@/lib/clientes";
+import { listarClientes, ultimosClientes } from "@/lib/orcamentos-app";
 import { SegmentedField, SelectField } from "@/components/form/Field";
 import {
   Button,
@@ -252,18 +254,49 @@ export default function GastosPage() {
     filterMethod || filterKind || filterCategory || filterCard || filterAccount
   );
 
-  /** Clientes já usados nos gastos, pra sugerir no formulário. */
-  const clientes = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          Object.values(expenses)
-            .map((e) => e.client?.trim())
-            .filter((c): c is string => Boolean(c))
-        )
-      ).sort((a, b) => a.localeCompare(b)),
-    [expenses]
+  /**
+   * Clientes de verdade, pro campo Cliente (C33): quem tem recebimento na
+   * empresa e quem está no cadastro (app de orçamentos). Nome digitado em
+   * gasto antigo não entra — era assim que "Hot batata" virava cliente.
+   */
+  const [clientesDeRecebimento, setClientesDeRecebimento] = useState<string[]>([]);
+  const [clientesCadastrados, setClientesCadastrados] = useState<string[]>(
+    () => ultimosClientes()?.map((c) => c.name) ?? []
   );
+  useEffect(() => {
+    if (!empresa) return;
+    let vivo = true;
+    supabase
+      .from("incomes")
+      .select("client, user_id")
+      .not("client", "is", null)
+      .then(({ data }) => {
+        if (!vivo || !data) return;
+        // De todos os sócios, mesmo vendo só "eu": o cliente é da empresa.
+        const ids = members.map((m) => m.id);
+        setClientesDeRecebimento(
+          (data as { client: string; user_id: string }[])
+            .filter((i) => ids.includes(i.user_id))
+            .map((i) => i.client)
+        );
+      });
+    if (recursos.orcamentos)
+      listarClientes()
+        .then((lista) => vivo && setClientesCadastrados(lista.map((c) => c.name)))
+        .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [supabase, empresa, members, recursos.orcamentos]);
+
+  const clientes = useMemo(() => {
+    const porChave = new Map<string, string>();
+    for (const nome of [...clientesCadastrados, ...clientesDeRecebimento]) {
+      const limpo = nome.trim().replace(/\s+/g, " ");
+      if (limpo && !porChave.has(chaveDoCliente(limpo))) porChave.set(chaveDoCliente(limpo), limpo);
+    }
+    return Array.from(porChave.values()).sort((a, b) => a.localeCompare(b));
+  }, [clientesCadastrados, clientesDeRecebimento]);
 
   function openEdit(occurrence: ExpenseOccurrence) {
     const expense = expenses[occurrence.expense_id];
@@ -799,6 +832,8 @@ export default function GastosPage() {
   );
 }
 
+const OUTRO_CLIENTE = "__outro__";
+
 function ExpenseForm({
   draft,
   setDraft,
@@ -818,7 +853,7 @@ function ExpenseForm({
   categories: Category[];
   cards: Card[];
   accounts: BankAccount[];
-  /** Só na empresa: aparece o campo Cliente, com estes como sugestão. */
+  /** Só na empresa: aparece o campo Cliente, com estes clientes pra escolher. */
   clientes?: string[];
   /** Só na empresa com sócios: aparece "Quem pagou". */
   socios?: { id: string; display_name: string }[];
@@ -830,6 +865,12 @@ function ExpenseForm({
   anexos?: React.ReactNode;
 }) {
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
+
+  // Cliente: escolhe da lista; "Outro cliente…" abre o campo de texto.
+  const [outroCliente, setOutroCliente] = useState(false);
+  const clienteEscolhido = draft.client.trim()
+    ? clientes?.find((c) => chaveDoCliente(c) === chaveDoCliente(draft.client))
+    : undefined;
 
   const amount = Number(draft.amount.replace(",", "."));
   const installments = Number(draft.installments_total);
@@ -1046,20 +1087,37 @@ function ExpenseForm({
       )}
 
       {clientes && (
-        <Field label="Cliente" hint="Opcional. De qual cliente ou serviço é este gasto.">
-          <input
+        <Field
+          label="Cliente"
+          hint="Só se o gasto foi para o serviço de um cliente. Almoço, combustível do dia a dia e afins: deixe em Nenhum."
+        >
+          <select
             className={inputClass}
-            value={draft.client}
-            list="clientes-gasto"
-            maxLength={80}
-            placeholder="Nome do cliente"
-            onChange={(event) => set({ client: event.target.value })}
-          />
-          <datalist id="clientes-gasto">
+            value={clienteEscolhido ?? (draft.client || outroCliente ? OUTRO_CLIENTE : "")}
+            onChange={(event) => {
+              const v = event.target.value;
+              setOutroCliente(v === OUTRO_CLIENTE);
+              set({ client: v === OUTRO_CLIENTE ? "" : v });
+            }}
+          >
+            <option value="">Nenhum (gasto geral)</option>
             {clientes.map((c) => (
-              <option key={c} value={c} />
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
-          </datalist>
+            <option value={OUTRO_CLIENTE}>Outro cliente…</option>
+          </select>
+          {!clienteEscolhido && (draft.client || outroCliente) && (
+            <input
+              className={`${inputClass} mt-2`}
+              value={draft.client}
+              maxLength={80}
+              placeholder="Nome do cliente (como no recebimento)"
+              autoFocus={outroCliente && !draft.client}
+              onChange={(event) => set({ client: event.target.value })}
+            />
+          )}
         </Field>
       )}
 

@@ -5,9 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useChaveGuardada, useScope } from "./ScopeProvider";
 import { guardar, lerGuardado } from "@/lib/guardado";
 import { buscarLucroPorCliente, type GastoComCliente, type LucroPorClienteGuardado } from "@/lib/telas";
-import { ErrorNote, Loading } from "./ui";
+import { Button, ErrorNote, Loading } from "./ui";
+import { listarClientes, ultimosClientes } from "@/lib/orcamentos-app";
 import { formatDate, money, monthLabel } from "@/lib/format";
-import { chaveDoCliente, lucroPorCliente } from "@/lib/clientes";
+import { chaveDoCliente, lucroPorCliente, type NomeSolto } from "@/lib/clientes";
 import { mesesDe } from "@/lib/recebimentos";
 import type { Income } from "@/lib/types";
 
@@ -18,7 +19,11 @@ import type { Income } from "@/lib/types";
  */
 export function LucroPorCliente({ ano }: { ano: number }) {
   const supabase = useMemo(() => createClient(), []);
-  const { members } = useScope();
+  const { members, me, recursos } = useScope();
+  // Clientes do cadastro (app de orçamentos): também contam como cliente.
+  const [cadastrados, setCadastrados] = useState<string[]>(() => (ultimosClientes() ?? []).map((c) => c.name));
+  const [corrigindo, setCorrigindo] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const ids = useMemo(() => members.map((m) => m.id), [members]);
 
   // O que este quadro tinha da última vez (lib/guardado.ts).
@@ -55,7 +60,38 @@ export function LucroPorCliente({ ano }: { ano: number }) {
     load();
   }, [load]);
 
-  const resultado = useMemo(() => lucroPorCliente(ano, incomes, gastos), [ano, incomes, gastos]);
+  useEffect(() => {
+    if (!recursos.orcamentos) return;
+    listarClientes()
+      .then((l) => setCadastrados(l.map((c) => c.name)))
+      .catch(() => {});
+  }, [recursos.orcamentos]);
+
+  const resultado = useMemo(
+    () => lucroPorCliente(ano, incomes, gastos, cadastrados),
+    [ano, incomes, gastos, cadastrados]
+  );
+
+  /**
+   * Corrige na origem o nome solto (C33): troca pelo cliente certo ou tira o
+   * cliente. Só os gastos de quem está logado — a RLS não deixa mexer nos do
+   * sócio, então eles ficam pra ele corrigir.
+   */
+  async function corrigir(solto: NomeSolto, novo: string | null) {
+    const doNome = gastos.filter((g) => g.client && chaveDoCliente(g.client) === solto.chave);
+    const meus = [...new Set(doNome.filter((g) => g.user_id === me.id).map((g) => g.expense_id))];
+    const doSocio = new Set(doNome.filter((g) => g.user_id && g.user_id !== me.id).map((g) => g.expense_id)).size;
+    setAviso(null);
+    if (!meus.length) {
+      return setAviso(`Os gastos com "${solto.nome}" foram lançados pelo sócio: ele precisa corrigir no celular dele.`);
+    }
+    setCorrigindo(solto.chave);
+    const { error: e } = await supabase.from("expenses").update({ client: novo }).in("id", meus);
+    setCorrigindo(null);
+    if (e) return setAviso("Não deu para corrigir. Tente de novo.");
+    if (doSocio) setAviso(`Corrigi os seus. ${doSocio} ${doSocio === 1 ? "gasto foi lançado" : "gastos foram lançados"} pelo sócio e ele precisa corrigir.`);
+    load();
+  }
 
   /** De onde vem cada número do cliente aberto. */
   const detalhe = useMemo(() => {
@@ -146,6 +182,52 @@ export function LucroPorCliente({ ano }: { ano: number }) {
             );
           })}
         </ul>
+      )}
+
+      {!loading && resultado.soltos.length > 0 && (
+        <div className="mt-4 flex flex-col gap-2 rounded-lg border border-[var(--color-line)] px-3.5 py-3">
+          <p className="text-sm font-semibold">Nomes nos gastos que não são clientes</p>
+          <p className="-mt-1 text-xs text-[var(--color-text-faint)]">
+            Estão no campo Cliente de algum gasto, mas não têm recebimento nem cadastro. Não entram na lista
+            acima; contam como gasto sem cliente.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {resultado.soltos.map((s) => (
+              <li key={s.chave} className="flex flex-col gap-1.5 text-sm">
+                <p className="flex justify-between gap-3">
+                  <span className="min-w-0 truncate">
+                    {s.nome}
+                    {s.pareceCom && (
+                      <span className="text-[var(--color-text-faint)]"> · parece {s.pareceCom}</span>
+                    )}
+                  </span>
+                  <span className="money shrink-0 text-[var(--color-out)]">{money(s.gastou)}</span>
+                </p>
+                <span className="flex flex-wrap gap-1.5">
+                  {s.pareceCom && (
+                    <Button
+                      variant="ghost"
+                      className="px-2.5 py-1 text-xs"
+                      disabled={corrigindo !== null}
+                      onClick={() => corrigir(s, s.pareceCom)}
+                    >
+                      É {s.pareceCom}
+                    </Button>
+                  )}
+                  <Button
+                    variant="quiet"
+                    className="px-2.5 py-1 text-xs"
+                    disabled={corrigindo !== null}
+                    onClick={() => corrigir(s, null)}
+                  >
+                    Não é cliente (tirar)
+                  </Button>
+                </span>
+              </li>
+            ))}
+          </ul>
+          {aviso && <p className="text-xs text-[var(--color-text-dim)]">{aviso}</p>}
+        </div>
       )}
 
       {!loading && (resultado.semCliente.faturou > 0 || resultado.semCliente.gastou > 0) && (

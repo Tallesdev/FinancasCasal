@@ -332,6 +332,8 @@ export async function buscarLucro(
 
 export type GastoComCliente = {
   expense_id: string;
+  /** Quem lançou: só ele corrige o cliente do gasto (C33). */
+  user_id?: string;
   client: string | null;
   amount: number;
   description: string;
@@ -352,18 +354,19 @@ export async function buscarLucroPorCliente(
     supabase.rpc("expense_occurrences", { p_from: `${ano}-01-01`, p_to: `${ano}-12-31` }),
   ]);
   if (incomesResult.error || expensesResult.error || ocorrenciasResult.error) return null;
-  const clientePorGasto = new Map(
+  const gastosDaEmpresa = new Map(
     ((expensesResult.data ?? []) as { id: string; user_id: string; client: string | null }[])
       .filter((e) => ids.includes(e.user_id))
-      .map((e) => [e.id, e.client ?? null])
+      .map((e) => [e.id, e])
   );
   return {
     incomes: ((incomesResult.data ?? []) as Income[]).filter((i) => ids.includes(i.user_id)),
     gastos: ((ocorrenciasResult.data ?? []) as ExpenseOccurrence[])
-      .filter((o) => clientePorGasto.has(o.expense_id))
+      .filter((o) => gastosDaEmpresa.has(o.expense_id))
       .map((o) => ({
         expense_id: o.expense_id,
-        client: clientePorGasto.get(o.expense_id) ?? null,
+        user_id: gastosDaEmpresa.get(o.expense_id)!.user_id,
+        client: gastosDaEmpresa.get(o.expense_id)!.client ?? null,
         amount: Number(o.amount),
         description: o.description,
         month: o.month,
