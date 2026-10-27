@@ -9,6 +9,7 @@ import { buscarGastos, type GastosGuardados } from "@/lib/telas";
 import { GravarGasto, type GastoPorAudio } from "@/components/GravarGasto";
 import { AnexarRecibos, Clipe } from "@/components/AnexarRecibos";
 import { chaveDoCliente } from "@/lib/clientes";
+import { faturaDe, mesesDepois } from "@/lib/fatura";
 import { listarClientes, ultimosClientes } from "@/lib/orcamentos-app";
 import { SegmentedField, SelectField } from "@/components/form/Field";
 import {
@@ -891,6 +892,22 @@ function ExpenseForm({
         )}`
       : null;
 
+  // No cartão com fechamento, diz também em que faturas as parcelas caem
+  // (C36): o mês acima é o do calendário; a fatura é a que o banco cobra.
+  const cartao =
+    draft.payment_method === "card" ? cards.find((c) => c.id === draft.card_id) : undefined;
+  const faturas =
+    preview && cartao?.closing_day
+      ? {
+          primeira: faturaDe(draft.start_date, cartao.closing_day, cartao.due_day),
+          ultima: faturaDe(
+            mesesDepois(draft.start_date, installments - 1),
+            cartao.closing_day,
+            cartao.due_day
+          ),
+        }
+      : null;
+
   const dateLabel =
     draft.kind === "variable"
       ? "Data do gasto"
@@ -1049,6 +1066,14 @@ function ExpenseForm({
       {preview && (
         <p className="rounded-lg border border-[var(--scope)]/30 bg-[var(--scope)]/10 px-3.5 py-2.5 text-sm">
           {preview}
+          {faturas && cartao && (
+            <span className="mt-1 block text-xs text-[var(--color-text-dim)]">
+              No {cartao.name} (fecha dia {cartao.closing_day}):{" "}
+              {faturas.primeira.vence && faturas.ultima.vence
+                ? `1ª parcela na fatura que vence ${formatDate(faturas.primeira.vence)}, última na que vence ${formatDate(faturas.ultima.vence)}.`
+                : `1ª parcela na fatura que fecha ${formatDate(faturas.primeira.fecha)}, última na que fecha ${formatDate(faturas.ultima.fecha)}.`}
+            </span>
+          )}
         </p>
       )}
 
