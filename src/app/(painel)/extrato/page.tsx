@@ -22,9 +22,11 @@ import {
   ORIGEM_LABEL,
   chaveDoTitulo,
   cruzar,
+  deLinhasDoPdf,
   ehCartao,
   lerExtrato,
   type Lancado,
+  type LinhaDoPdf,
   type LinhaCruzada,
   type OrigemExtrato,
 } from "@/lib/extrato";
@@ -47,6 +49,8 @@ type Lido = {
  * lançar: manda a fatura ou o extrato e o app separa o que é novo do que
  * já está lançado, mesmo com nome diferente (o valor e a data mandam).
  */
+const ehPdf = (f: File) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+
 export default function ExtratoPage() {
   const supabase = useMemo(() => createClient(), []);
   const { me, empresa } = useScope();
@@ -59,6 +63,7 @@ export default function ExtratoPage() {
   const [carregado, setCarregado] = useState(false);
 
   const [lendo, setLendo] = useState(false);
+  const [lendoPdf, setLendoPdf] = useState(false);
   const [lido, setLido] = useState<Lido | null>(null);
   const [escolhas, setEscolhas] = useState<Record<string, Escolha>>({});
   const [destino, setDestino] = useState<"cartao" | "conta">("cartao");
@@ -97,6 +102,25 @@ export default function ExtratoPage() {
     );
   }
 
+  /** PDF vai pro servidor, que tira o texto e acha as linhas com a IA (C37). */
+  async function lerPdf(arquivo: File) {
+    setLendoPdf(true);
+    try {
+      const form = new FormData();
+      form.append("arquivo", arquivo);
+      const r = await fetch("/api/extrato/pdf", { method: "POST", body: form });
+      const corpo = (await r.json().catch(() => ({}))) as {
+        error?: string;
+        cartao?: boolean;
+        linhas?: LinhaDoPdf[];
+      };
+      if (!r.ok || !corpo.linhas) throw new ErroExtrato(corpo.error ?? "Não deu para ler esse PDF.");
+      return deLinhasDoPdf(corpo.cartao !== false, corpo.linhas);
+    } finally {
+      setLendoPdf(false);
+    }
+  }
+
   async function escolherArquivo(arquivo: File) {
     setError(null);
     setResultado(null);
@@ -104,7 +128,9 @@ export default function ExtratoPage() {
     if (arquivo.size > 5 * 1024 * 1024) return setError("Arquivo grande demais (máximo 5 MB).");
     setLendo(true);
     try {
-      const { origem, linhas } = lerExtrato(decodificar(await arquivo.arrayBuffer()));
+      const { origem, linhas } = ehPdf(arquivo)
+        ? await lerPdf(arquivo)
+        : lerExtrato(decodificar(await arquivo.arrayBuffer()));
       if (!linhas.length) throw new ErroExtrato("Não achei nenhum lançamento nesse arquivo.");
       const gastos = linhas.filter((l) => l.tipo === "gasto");
       const datas = gastos.map((l) => l.data).sort();
@@ -329,10 +355,10 @@ export default function ExtratoPage() {
               !carregado || lendo ? "pointer-events-none opacity-50" : "",
             ].join(" ")}
           >
-            {!carregado ? "Carregando…" : lendo ? "Lendo…" : "Escolher arquivo (CSV ou OFX)"}
+            {!carregado ? "Carregando…" : lendo ? "Lendo…" : "Escolher arquivo (CSV, OFX ou PDF)"}
             <input
               type="file"
-              accept=".csv,.ofx,.qfx,text/csv,application/x-ofx"
+              accept=".csv,.ofx,.qfx,.pdf,text/csv,application/x-ofx,application/pdf"
               className="sr-only"
               disabled={!carregado || lendo}
               onChange={(event) => {
@@ -352,6 +378,11 @@ export default function ExtratoPage() {
               &ldquo;Money&rdquo; ou &ldquo;Quicken&rdquo;) do extrato ou da fatura.
             </li>
             <li>
+              <strong className="text-[var(--color-text)]">Fatura em PDF:</strong> também vale, de qualquer
+              banco. O app lê o PDF com IA (pode levar uns segundos) e você confere tudo antes de importar. PDF
+              com senha ou escaneado (só imagem) não dá: baixe sem senha, ou mande o CSV/OFX.
+            </li>
+            <li>
               O que entrou na conta, os estornos e o pagamento da fatura ficam de fora: só os gastos entram.
             </li>
           </ul>
@@ -359,7 +390,9 @@ export default function ExtratoPage() {
       )}
 
       {error && <ErrorNote>{error}</ErrorNote>}
-      {lendo && <Loading label="Conferindo o que já está lançado…" />}
+      {lendo && (
+        <Loading label={lendoPdf ? "Lendo o PDF… (uns segundos)" : "Conferindo o que já está lançado…"} />
+      )}
 
       {lido && (
         <>
