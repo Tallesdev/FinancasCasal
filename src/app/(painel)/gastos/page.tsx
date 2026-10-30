@@ -8,7 +8,9 @@ import { guardar, lerGuardado } from "@/lib/guardado";
 import { buscarGastos, type GastosGuardados } from "@/lib/telas";
 import { GravarGasto, type GastoPorAudio } from "@/components/GravarGasto";
 import { AnexarRecibos, Clipe } from "@/components/AnexarRecibos";
+import { AdiantarParcelas } from "@/components/AdiantarParcelas";
 import { chaveDoCliente } from "@/lib/clientes";
+import { faturaDe, mesesDepois } from "@/lib/fatura";
 import { listarClientes, ultimosClientes } from "@/lib/orcamentos-app";
 import { SegmentedField, SelectField } from "@/components/form/Field";
 import {
@@ -111,6 +113,8 @@ export default function GastosPage() {
   const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  /** Parcelado com o pop-up de adiantar parcelas aberto (C38). */
+  const [adiantando, setAdiantando] = useState<Expense | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   /** Recibos (só os meus) por gasto — pro clipe na lista e pra abrir na edição. */
@@ -725,7 +729,7 @@ export default function GastosPage() {
 
             return (
               <li
-                key={`${occurrence.expense_id}-${occurrence.month}`}
+                key={`${occurrence.expense_id}-${occurrence.month}-${occurrence.installment_number ?? ""}`}
                 className="card flex items-start justify-between gap-3 px-4 py-3"
               >
                 <div className="flex min-w-0 items-start gap-2.5">
@@ -750,7 +754,7 @@ export default function GastosPage() {
                       {occurrence.kind !== "variable" && (
                         <Tag>
                           {occurrence.kind === "fixed_installment"
-                            ? `parcela ${occurrence.installment_number} de ${occurrence.installments_total}`
+                            ? `parcela ${occurrence.installment_number} de ${occurrence.installments_total}${occurrence.advanced ? " · adiantada" : ""}`
                             : EXPENSE_KIND_LABEL.fixed_recurring}
                         </Tag>
                       )}
@@ -780,6 +784,15 @@ export default function GastosPage() {
                   {/* Só mexe no que é seu. */}
                   {mine && (
                     <span className="flex items-center gap-1">
+                      {occurrence.kind === "fixed_installment" && expense && (
+                        <Button
+                          variant="quiet"
+                          className="px-2 py-0.5 text-xs"
+                          onClick={() => setAdiantando(expense)}
+                        >
+                          Adiantar
+                        </Button>
+                      )}
                       <Button
                         variant="quiet"
                         className="px-2 py-0.5 text-xs"
@@ -797,6 +810,14 @@ export default function GastosPage() {
             );
           })}
         </ul>
+      )}
+
+      {adiantando && (
+        <AdiantarParcelas
+          gasto={adiantando}
+          onClose={() => setAdiantando(null)}
+          onMudou={load}
+        />
       )}
 
       {draft && (
@@ -889,6 +910,22 @@ function ExpenseForm({
         )} — ${money(amount)} no total, termina em ${monthLabel(
           addMonths(firstDayOfMonth(draft.start_date), installments - 1)
         )}`
+      : null;
+
+  // No cartão com fechamento, diz também em que faturas as parcelas caem
+  // (C36): o mês acima é o do calendário; a fatura é a que o banco cobra.
+  const cartao =
+    draft.payment_method === "card" ? cards.find((c) => c.id === draft.card_id) : undefined;
+  const faturas =
+    preview && cartao?.closing_day
+      ? {
+          primeira: faturaDe(draft.start_date, cartao.closing_day, cartao.due_day),
+          ultima: faturaDe(
+            mesesDepois(draft.start_date, installments - 1),
+            cartao.closing_day,
+            cartao.due_day
+          ),
+        }
       : null;
 
   const dateLabel =
@@ -1049,6 +1086,14 @@ function ExpenseForm({
       {preview && (
         <p className="rounded-lg border border-[var(--scope)]/30 bg-[var(--scope)]/10 px-3.5 py-2.5 text-sm">
           {preview}
+          {faturas && cartao && (
+            <span className="mt-1 block text-xs text-[var(--color-text-dim)]">
+              No {cartao.name} (fecha dia {cartao.closing_day}):{" "}
+              {faturas.primeira.vence && faturas.ultima.vence
+                ? `1ª parcela na fatura que vence ${formatDate(faturas.primeira.vence)}, última na que vence ${formatDate(faturas.ultima.vence)}.`
+                : `1ª parcela na fatura que fecha ${formatDate(faturas.primeira.fecha)}, última na que fecha ${formatDate(faturas.ultima.fecha)}.`}
+            </span>
+          )}
         </p>
       )}
 

@@ -141,6 +141,17 @@ export type Expense = {
   paid_by?: string | null;
 };
 
+/** Migração 025: parcela de um parcelado paga antes da hora (C38). */
+export type InstallmentAdvance = {
+  id: string;
+  expense_id: string;
+  user_id: string;
+  installment_number: number;
+  paid_on: string;
+  amount: number;
+  created_at: string;
+};
+
 export type Investment = {
   id: string;
   user_id: string;
@@ -204,6 +215,8 @@ export type ExpenseOccurrence = {
   description: string;
   installment_number: number | null;
   installments_total: number | null;
+  /** Migração 025: parcela paga antes da hora (cai no dia em que foi paga). */
+  advanced?: boolean;
 };
 
 /** Retorno de public.income_occurrences() */
@@ -257,6 +270,8 @@ export type CycleExpenseRow = {
   category_id: string | null;
   installment_number: number | null;
   installments_total: number | null;
+  /** Migração 025: parcela paga antes da hora (cai no dia em que foi paga). */
+  advanced?: boolean;
 };
 
 /** Retorno de public.cycle_summary() */
@@ -296,6 +311,8 @@ export type ExpenseInWindowRow = {
   category_id: string | null;
   installment_number: number | null;
   installments_total: number | null;
+  /** Migração 025: parcela paga antes da hora (cai no dia em que foi paga). */
+  advanced?: boolean;
 };
 
 /** Retorno de public.investments_in_window() */

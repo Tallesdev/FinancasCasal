@@ -91,11 +91,11 @@ export default function AcertoPage() {
       ocorrencias
         .filter((o) => gastoPorId.has(o.expense_id))
         .map((o) => ({
-          chave: `${o.expense_id}|${o.month}`,
+          chave: `${o.expense_id}|${o.month}|${o.installment_number ?? ""}`,
           quem: gastoPorId.get(o.expense_id)!.paid_by!,
           descricao:
             o.installment_number && o.installments_total
-              ? `${o.description} (${o.installment_number}/${o.installments_total})`
+              ? `${o.description} (${o.installment_number}/${o.installments_total}${o.advanced ? ", adiantada" : ""})`
               : o.description,
           mes: o.month,
           valor: Number(o.amount),
