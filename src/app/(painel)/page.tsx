@@ -299,13 +299,14 @@ export default function DashboardPage() {
         investment: janela.investment,
         leftover: janela.leftover,
         gastos: janela.expenses.map((linha) => ({
-          chave: `${linha.expense_id}-${linha.occurred_on}`,
+          chave: `${linha.expense_id}-${linha.occurred_on}-${linha.installment_number ?? ""}`,
           descricao: linha.description,
           valor: Number(linha.amount),
           categoria: linha.category_id,
           kind: linha.kind,
           parcela: linha.installment_number,
           parcelas: linha.installments_total,
+          adiantada: Boolean(linha.advanced),
         })),
       };
     }
@@ -317,13 +318,14 @@ export default function DashboardPage() {
       investment: doMes.investment,
       leftover: doMes.income - doMes.expense - doMes.investment,
       gastos: noEscopo.map((o) => ({
-        chave: `${o.expense_id}-${o.month}`,
+        chave: `${o.expense_id}-${o.month}-${o.installment_number ?? ""}`,
         descricao: o.description,
         valor: Number(o.amount),
         categoria: o.category_id,
         kind: o.kind,
         parcela: o.installment_number,
         parcelas: o.installments_total,
+        adiantada: Boolean(o.advanced),
       })),
     };
   }, [periodo, janela, occurrences, userIds, doMes]);
@@ -689,7 +691,7 @@ export default function DashboardPage() {
                         </span>
                         <Tag>
                           {gasto.kind === "fixed_installment"
-                            ? `parcela ${gasto.parcela} de ${gasto.parcelas}`
+                            ? `parcela ${gasto.parcela} de ${gasto.parcelas}${gasto.adiantada ? " · adiantada" : ""}`
                             : EXPENSE_KIND_LABEL.fixed_recurring}
                         </Tag>
                       </span>

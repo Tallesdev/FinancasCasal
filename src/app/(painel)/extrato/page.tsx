@@ -164,7 +164,7 @@ export default function ExtratoPage() {
         for (const o of minhas) {
           const avulso = o.kind === "variable";
           lancados.push({
-            chave: `${o.expense_id}|${o.month}`,
+            chave: `${o.expense_id}|${o.month}|${o.installment_number ?? ""}`,
             expenseId: o.expense_id,
             descricao: o.description,
             valor: Number(o.amount),
