@@ -426,7 +426,7 @@ export default function CicloPage() {
                         const category = categoryById[row.category_id ?? ""];
                         return (
                           <li
-                            key={`${row.expense_id}-${row.occurred_on}`}
+                            key={`${row.expense_id}-${row.occurred_on}-${row.installment_number ?? ""}`}
                             className="card flex items-start justify-between gap-3 px-4 py-3"
                           >
                             <div className="flex min-w-0 items-start gap-2.5">
@@ -443,7 +443,7 @@ export default function CicloPage() {
                                   {row.kind !== "variable" && (
                                     <Tag>
                                       {row.kind === "fixed_installment"
-                                        ? `parcela ${row.installment_number} de ${row.installments_total}`
+                                        ? `parcela ${row.installment_number} de ${row.installments_total}${row.advanced ? " · adiantada" : ""}`
                                         : EXPENSE_KIND_LABEL.fixed_recurring}
                                     </Tag>
                                   )}

@@ -178,7 +178,7 @@ export default function PrivacidadePage() {
           <strong className="text-[var(--color-text)]">Os provedores que fazem o app funcionar</strong>,
           que tratam dados em nosso nome e só para isso: Supabase (banco de
           dados e autenticação), Vercel (hospedagem), Groq (transcrição de
-          áudio e leitura de recibos, quando você pede) e Cloudflare
+          áudio e leitura de recibos e de extratos em PDF, quando você pede) e Cloudflare
           (armazenamento das fotos de recibos).
           Alguns deles processam dados{" "}
           <strong className="text-[var(--color-text)]">fora do Brasil</strong>,

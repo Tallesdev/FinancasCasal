@@ -516,3 +516,96 @@ export function sanitizarRecibo(
     payment_method,
   };
 }
+
+export type ExtratoPdfLido = {
+  /** Fatura de cartão (true) ou extrato de conta (false). */
+  cartao: boolean;
+  /** Valor positivo saiu (compra, Pix enviado); negativo entrou (pagamento, estorno). */
+  linhas: { data: string; titulo: string; valor: number }[];
+};
+
+/** Fatura grande tem umas 150 compras; mais que isso é sinal de leitura errada. */
+const MAXIMO_LINHAS_PDF = 400;
+
+/**
+ * Texto de fatura/extrato em PDF → lançamentos (C37). Cada banco monta o
+ * PDF de um jeito, então quem acha as linhas é a IA; o app só confere o
+ * formato. Resposta em listas curtas ([data, nome, valor]) pra caber nos
+ * limites de token da Groq numa fatura cheia.
+ */
+export async function lerExtratoPdf(texto: string): Promise<ExtratoPdfLido> {
+  const sistema = [
+    "Você lê o texto de uma fatura de cartão de crédito ou de um extrato de conta de um banco brasileiro.",
+    "Responda SOMENTE um JSON: {\"cartao\": true|false, \"l\": [[\"AAAA-MM-DD\", \"descrição\", valor], ...]}.",
+    "cartao: true se for fatura de cartão de crédito; false se for extrato de conta corrente.",
+    "l: TODOS os lançamentos, na ordem do documento, um por compra/movimentação.",
+    "  descrição: copie exatamente como está no documento, inclusive \"Parcela 2/4\" ou \"2/4\" quando houver (escreva como \"Parcela 2/4\").",
+    "  valor: número em reais com ponto decimal. POSITIVO para compra, débito, Pix/transferência enviada, tarifa, IOF, juros.",
+    "         NEGATIVO para pagamento da fatura recebido, estorno, crédito, Pix/transferência recebida, salário, depósito.",
+    "  data: a data do lançamento. Quando vier sem ano (\"13 OUT\", \"13/10\"), use o ano da fatura (veja vencimento/fechamento);",
+    "        se a fatura vence em janeiro ou fevereiro e a compra é de novembro ou dezembro, a compra é do ano anterior.",
+    "Ignore totais, subtotais, saldo, limite, resumo da fatura, parcelamento oferecido, juros futuros, tabelas de taxas e propaganda.",
+    "Não invente lançamento. Se não tiver nenhum, l é [].",
+  ].join("\n");
+
+  const bruto = await comFallback("extrato PDF", comPreferido(MODELOS_TEXTO, "GROQ_MODELO_TEXTO"), async (modelo) => {
+    const r = await fetch(`${GROQ}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${chave()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modelo,
+        temperature: 0,
+        max_completion_tokens: 12000,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: sistema },
+          { role: "user", content: texto },
+        ],
+      }),
+    });
+
+    if (!r.ok) {
+      const corpo = (await r.text()).slice(0, 300);
+      if (modeloInexistente(r.status, corpo))
+        throw new Error(`MODELO_INEXISTENTE: ${modelo} → ${corpo}`);
+      throw new Error(`extrato PDF ${r.status}: ${corpo}`);
+    }
+
+    const json = (await r.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return json.choices?.[0]?.message?.content ?? "{}";
+  });
+
+  let parsed: { cartao?: unknown; l?: unknown } = {};
+  try {
+    parsed = jsonDaResposta(bruto) as typeof parsed;
+  } catch {
+    parsed = {};
+  }
+
+  // Sanitiza: só entra linha com data de verdade, nome e valor.
+  const linhas: ExtratoPdfLido["linhas"] = [];
+  for (const item of Array.isArray(parsed.l) ? parsed.l.slice(0, MAXIMO_LINHAS_PDF) : []) {
+    if (!Array.isArray(item)) continue;
+    const [data, titulo, valor] = item;
+    const v = typeof valor === "string" ? Number(valor.replace(",", ".")) : valor;
+    if (
+      typeof data !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(data) ||
+      Number.isNaN(Date.parse(data)) ||
+      typeof titulo !== "string" ||
+      !titulo.trim() ||
+      typeof v !== "number" ||
+      !Number.isFinite(v) ||
+      v === 0 ||
+      Math.abs(v) > 1_000_000
+    )
+      continue;
+    linhas.push({ data, titulo: titulo.trim().slice(0, 200), valor: Math.round(v * 100) / 100 });
+  }
+  return { cartao: parsed.cartao !== false, linhas };
+}

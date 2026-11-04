@@ -195,8 +195,8 @@ export function LucroPorCliente({ ano }: { ano: number }) {
                         <span className="money shrink-0 text-[var(--color-in)]">{money(e.valor)}</span>
                       </p>
                     ))}
-                    {detalhe.saidas.map((g) => (
-                      <p key={`${g.expense_id}|${g.month}`} className="flex justify-between gap-3">
+                    {detalhe.saidas.map((g, i) => (
+                      <p key={`${g.expense_id}|${g.month}|${i}`} className="flex justify-between gap-3">
                         <span className="min-w-0 truncate text-[var(--color-text-dim)]">
                           {g.description} · {monthLabel(g.month, true)}
                         </span>

@@ -6,6 +6,8 @@
  *   • CSV da fatura do cartão Nubank   (date,title,amount)
  *   • CSV do extrato da conta Nubank   (Data,Valor,Identificador,Descrição)
  *   • OFX de qualquer banco (conta ou cartão)
+ *   • PDF de qualquer banco (C37): o servidor tira o texto e a IA devolve
+ *     as linhas; daqui pra frente é igual aos outros (deLinhasDoPdf)
  *
  * E cruza com o que a pessoa já lançou à mão. O nome quase nunca bate (o
  * "esquinão" vira "DISTRIBUIDORA XYZ LTDA" no extrato), então o que manda é
@@ -14,17 +16,26 @@
 
 import { detectarSeparador, lerCsv, lerValor, normalizar } from "./planilha";
 
-export type OrigemExtrato = "nubank-cartao" | "nubank-conta" | "ofx-cartao" | "ofx-conta";
+export type OrigemExtrato =
+  | "nubank-cartao"
+  | "nubank-conta"
+  | "ofx-cartao"
+  | "ofx-conta"
+  | "pdf-cartao"
+  | "pdf-conta";
 
 export const ORIGEM_LABEL: Record<OrigemExtrato, string> = {
   "nubank-cartao": "Fatura do cartão Nubank (CSV)",
   "nubank-conta": "Extrato da conta Nubank (CSV)",
   "ofx-cartao": "Fatura de cartão (OFX)",
   "ofx-conta": "Extrato de conta (OFX)",
+  "pdf-cartao": "Fatura de cartão (PDF)",
+  "pdf-conta": "Extrato de conta (PDF)",
 };
 
 /** Cartão ou conta: decide se o gasto entra como cartão ou como Pix/débito. */
-export const ehCartao = (o: OrigemExtrato) => o === "nubank-cartao" || o === "ofx-cartao";
+export const ehCartao = (o: OrigemExtrato) =>
+  o === "nubank-cartao" || o === "ofx-cartao" || o === "pdf-cartao";
 
 export type TipoLinha =
   /** Saiu dinheiro: é o que vira gasto. */
@@ -135,6 +146,32 @@ function lerOfx(t: string): ExtratoLido {
   return { origem: cartao ? "ofx-cartao" : "ofx-conta", linhas: comRefs(brutas, "ofx") };
 }
 
+/** Uma linha que a leitura do PDF devolveu: valor positivo saiu, negativo entrou. */
+export type LinhaDoPdf = { data: string; titulo: string; valor: number };
+
+/**
+ * As linhas do PDF (C37) viram o mesmo extrato dos outros formatos. A IA
+ * pode escrever o nome um pouco diferente a cada leitura, então a marca da
+ * linha é só data + valor (+ ordem): mandar o mesmo PDF de novo não repete.
+ */
+export function deLinhasDoPdf(cartao: boolean, linhas: LinhaDoPdf[]): ExtratoLido {
+  const brutas = linhas.map((l) => ({
+    data: dataIso(l.data),
+    titulo: l.titulo.trim(),
+    valor: Number.isFinite(l.valor) ? Math.abs(l.valor) : null,
+    tipo:
+      l.valor < 0
+        ? ("entrada" as const)
+        : !cartao && /pagamento de fatura|pgto fatura|pag fatura/i.test(l.titulo)
+          ? ("fatura" as const)
+          : ("gasto" as const),
+  }));
+  return {
+    origem: cartao ? "pdf-cartao" : "pdf-conta",
+    linhas: comRefs(brutas, "pdf", false),
+  };
+}
+
 type Bruta = {
   data: string | null;
   titulo: string;
@@ -149,13 +186,15 @@ type Bruta = {
  * apareceu no arquivo — duas "Conveniencia 5,00" no mesmo dia são duas
  * compras, não uma repetida.
  */
-function comRefs(brutas: Bruta[], prefixo: string): LinhaExtrato[] {
+function comRefs(brutas: Bruta[], prefixo: string, comTitulo = true): LinhaExtrato[] {
   const vistas = new Map<string, number>();
   const linhas: LinhaExtrato[] = [];
   for (const b of brutas) {
     if (!b.data || b.valor === null || b.valor === 0 || !b.titulo) continue;
     const parcela = lerParcela(b.titulo);
-    const base = `${b.data}|${normalizar(b.titulo)}|${b.valor.toFixed(2)}`;
+    const base = comTitulo
+      ? `${b.data}|${normalizar(b.titulo)}|${b.valor.toFixed(2)}`
+      : `${b.data}|${b.valor.toFixed(2)}`;
     const n = (vistas.get(base) ?? 0) + 1;
     vistas.set(base, n);
     linhas.push({
