@@ -93,3 +93,43 @@ export function resumoDoAno(
     reservaDoAno: centavos(meses.reduce((t, m) => t + m.reserva, 0)),
   };
 }
+
+export type SocioNoMes = {
+  user_id: string;
+  pct: number;
+  /** Quanto coube a ele neste mês (zero se o mês fechou com prejuízo). */
+  coube: number;
+  /** Retiradas com data neste mês. */
+  retirouNoMes: number;
+  /**
+   * O que ainda tem pra retirar no fim deste mês: tudo que coube de
+   * janeiro até aqui, menos tudo que retirou até aqui. Negativo = tirou a
+   * mais. Conta o ano todo porque a retirada de um mês costuma sair no
+   * começo do seguinte (C39).
+   */
+  saldo: number;
+};
+
+export function resumoDoMes(
+  meses: MesDividido[],
+  mes: string,
+  partes: Parte[],
+  retiradas: { user_id: string; amount: number; taken_on: string }[]
+): { dividido: MesDividido | null; socios: SocioNoMes[] } {
+  const chave = mes.slice(0, 7);
+  const dividido = meses.find((m) => m.mes.slice(0, 7) === chave) ?? null;
+  const ateAqui = meses.filter((m) => m.mes.slice(0, 7) <= chave);
+  const socios = partes.map((p) => {
+    const dele = retiradas.filter((r) => r.user_id === p.user_id);
+    const soma = (lista: typeof dele) => centavos(lista.reduce((t, r) => t + Number(r.amount), 0));
+    const direito = centavos(ateAqui.reduce((t, m) => t + (m.partes[p.user_id] ?? 0), 0));
+    return {
+      user_id: p.user_id,
+      pct: p.pct,
+      coube: dividido?.partes[p.user_id] ?? 0,
+      retirouNoMes: soma(dele.filter((r) => r.taken_on.slice(0, 7) === chave)),
+      saldo: centavos(direito - soma(dele.filter((r) => r.taken_on.slice(0, 7) <= chave))),
+    };
+  });
+  return { dividido, socios };
+}

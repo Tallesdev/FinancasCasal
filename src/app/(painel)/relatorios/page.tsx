@@ -9,6 +9,7 @@ import { buscarRelatorio, type RelatorioGuardado } from "@/lib/telas";
 import { MonthlyBars } from "@/components/MonthlyBarsLazy";
 import { RankBar } from "@/components/RankBar";
 import { LucroPorCliente } from "@/components/LucroPorCliente";
+import { LucroDoAno } from "@/components/LucroDoAno";
 import { Dot, ErrorNote, Loading, PageTitle } from "@/components/ui";
 import { money, monthName, percent } from "@/lib/format";
 import type { CategoryRankingRow, MonthlySummaryRow } from "@/lib/types";
@@ -217,6 +218,9 @@ export default function RelatoriosPage() {
           </section>
 
           {/* Empresa: quanto cada cliente deu de lucro (FASE_F.md, F5.1). */}
+          {/* Empresa: o lucro e a divisão do ano, pra ter noção (C39). */}
+          {empresa && <LucroDoAno ano={year} />}
+
           {empresa && <LucroPorCliente ano={year} />}
 
           <section className="card px-4 py-5">

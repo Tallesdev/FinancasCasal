@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useChaveGuardada, useScope } from "@/components/ScopeProvider";
-import { guardar, lerGuardado } from "@/lib/guardado";
-import { buscarLucro, type LucroGuardado } from "@/lib/telas";
+import { useScope } from "@/components/ScopeProvider";
+import { useLucro } from "@/components/useLucro";
 import {
   Button,
   DeleteButton,
@@ -14,13 +13,13 @@ import {
   ErrorNote,
   Field,
   Loading,
+  MonthNav,
   PageTitle,
   Sheet,
   inputClass,
 } from "@/components/ui";
-import { formatDate, money, monthName, toISODate } from "@/lib/format";
-import { dividirMes, partesValidas, resumoDoAno } from "@/lib/divisao";
-import type { MonthlySummaryRow, ProfitShare, Withdrawal } from "@/lib/types";
+import { firstDayOfMonth, formatDate, money, monthLabel, monthName, toISODate } from "@/lib/format";
+import { resumoDoMes } from "@/lib/divisao";
 
 const firstName = (full: string) => full.split(" ")[0];
 
@@ -34,6 +33,8 @@ type Rascunho = {
 
 /**
  * Lucro e divisão (FASE_F.md, F3.3 a F3.5). Só empresa.
+ * Mês a mês (C39): é o que os sócios usam pra dividir. O ano inteiro, pra
+ * ter noção, fica em Relatórios (LucroDoAno).
  * Sempre a empresa inteira: o seletor Talles/Joaquim/Empresa não muda o
  * lucro — ele é de todos, e a parte de cada um sai daqui.
  */
@@ -41,19 +42,10 @@ export default function LucroPage() {
   const supabase = useMemo(() => createClient(), []);
   const { me, members, empresa } = useScope();
 
-  const [ano, setAno] = useState(() => new Date().getFullYear());
-  // O que esta tela tinha da última vez (lib/guardado.ts): aparece na hora,
-  // e o load() confere o novo por trás.
-  const chave = useChaveGuardada("lucro", ano);
-  const [inicial] = useState(() => lerGuardado<LucroGuardado>(chave));
-  const [summary, setSummary] = useState<MonthlySummaryRow[]>(inicial?.summary ?? []);
-  const [salvas, setSalvas] = useState<ProfitShare[]>(inicial?.salvas ?? []);
-  const [reservaPct, setReservaPct] = useState(inicial?.reservaPct ?? 0);
-  const [retiradas, setRetiradas] = useState<Withdrawal[]>(inicial?.retiradas ?? []);
-  /** Falso enquanto a migração 015 não roda. */
-  const [pronto, setPronto] = useState(inicial?.pronto ?? true);
-  const [loading, setLoading] = useState(!inicial);
-  const [error, setError] = useState<string | null>(null);
+  const [mes, setMes] = useState(() => firstDayOfMonth(toISODate(new Date())));
+  const ano = Number(mes.slice(0, 4));
+  const { loading, error, load, pronto, partes, divisaoDefinida, reservaPct, retiradas, meses } =
+    useLucro(ano);
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -61,63 +53,18 @@ export default function LucroPage() {
   const ids = useMemo(() => members.map((m) => m.id), [members]);
   const porId = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
 
-  const load = useCallback(async () => {
-    if (!empresa) return;
-    const aplicar = (dados: LucroGuardado) => {
-      setSummary(dados.summary);
-      setPronto(dados.pronto);
-      setSalvas(dados.salvas);
-      setReservaPct(dados.reservaPct);
-      setRetiradas(dados.retiradas);
-      setLoading(false);
-    };
-    const guardado = lerGuardado<LucroGuardado>(chave);
-    if (guardado) aplicar(guardado);
-    else setLoading(true);
-
-    const novos = await buscarLucro(supabase, ano);
-    if (!novos) {
-      setError("Não deu para carregar o lucro do ano.");
-      setLoading(false);
-      return;
-    }
-    setError(null);
-    guardar(chave, novos);
-    aplicar(novos);
-  }, [supabase, empresa, chave, ano]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const partes = useMemo(() => partesValidas(salvas, ids), [salvas, ids]);
-  const divisaoDefinida = salvas.length > 0 && partes.every((p) => salvas.some((s) => s.user_id === p.user_id));
-
-  /** Meses do ano até o mês atual (ano passado: os 12). */
-  const meses = useMemo(() => {
-    const hoje = toISODate(new Date());
-    const ultimo = ano < Number(hoje.slice(0, 4)) ? 12 : ano > Number(hoje.slice(0, 4)) ? 0 : Number(hoje.slice(5, 7));
-    const lista = [];
-    for (let i = 1; i <= ultimo; i++) {
-      const mes = `${ano}-${String(i).padStart(2, "0")}-01`;
-      let faturou = 0;
-      let gastou = 0;
-      // Empresa inteira: soma todos os sócios, independente do seletor.
-      for (const row of summary) {
-        if (row.month.slice(0, 7) !== mes.slice(0, 7) || !ids.includes(row.user_id)) continue;
-        faturou += Number(row.income);
-        gastou += Number(row.expense) + Number(row.investment);
-      }
-      lista.push(dividirMes(mes, faturou, gastou, reservaPct, partes));
-    }
-    return lista;
-  }, [ano, summary, ids, reservaPct, partes]);
-
-  const resumo = useMemo(() => resumoDoAno(meses, partes, retiradas), [meses, partes, retiradas]);
-  const mesesComMovimento = meses.filter((m) => m.faturou || m.gastou);
+  const { dividido, socios } = useMemo(
+    () => resumoDoMes(meses, mes, partes, retiradas),
+    [meses, mes, partes, retiradas]
+  );
+  const retiradasDoMes = retiradas.filter((r) => r.taken_on.slice(0, 7) === mes.slice(0, 7));
+  const futuro = mes.slice(0, 7) > toISODate(new Date()).slice(0, 7);
 
   function novaRetirada() {
-    setRascunho({ id: null, user_id: me.id, amount: "", taken_on: toISODate(new Date()), notes: "" });
+    const hoje = toISODate(new Date());
+    // Mês antigo aberto: a retirada nasce no mês que a pessoa está vendo.
+    const data = hoje.slice(0, 7) === mes.slice(0, 7) ? hoje : mes;
+    setRascunho({ id: null, user_id: me.id, amount: "", taken_on: data, notes: "" });
     setFormError(null);
   }
 
@@ -163,28 +110,8 @@ export default function LucroPage() {
     <div className="flex flex-col gap-6">
       <PageTitle
         title="Lucro e divisão"
-        description="O lucro de cada mês e quanto coube a cada sócio."
-        action={
-          <div className="inline-flex items-center gap-1 rounded-full border border-[var(--color-line)] bg-[var(--color-surface-2)] p-1">
-            <button
-              type="button"
-              aria-label="Ano anterior"
-              onClick={() => setAno(ano - 1)}
-              className="rounded-full px-3 py-1.5 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
-            >
-              &lsaquo;
-            </button>
-            <span className="min-w-[4rem] text-center text-sm font-medium">{ano}</span>
-            <button
-              type="button"
-              aria-label="Próximo ano"
-              onClick={() => setAno(ano + 1)}
-              className="rounded-full px-3 py-1.5 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
-            >
-              &rsaquo;
-            </button>
-          </div>
-        }
+        description="O lucro do mês e quanto coube a cada sócio. O ano inteiro está em Relatórios."
+        action={<MonthNav month={mes} onChange={setMes} />}
       />
 
       {error && <ErrorNote>{error}</ErrorNote>}
@@ -223,11 +150,53 @@ export default function LucroPage() {
 
       {loading ? (
         <Loading />
+      ) : futuro ? (
+        <p className="text-sm text-[var(--color-text-dim)]">
+          {monthLabel(mes)} ainda não chegou: o lucro aparece quando o mês começar.
+        </p>
       ) : (
         <>
-          {/* Cada sócio: quanto coube no ano, quanto já tirou, quanto falta. */}
+          {/* O mês: faturou, gastou, lucro e reserva. */}
+          <div className="card flex flex-col gap-3 px-4 py-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm text-[var(--color-text-faint)]">Lucro de {monthName(mes).toLowerCase()}</p>
+              <p
+                className="money text-xl font-semibold"
+                style={{ color: (dividido?.lucro ?? 0) < 0 ? "var(--color-out)" : "var(--color-in)" }}
+              >
+                {(dividido?.lucro ?? 0) < 0 ? `− ${money(-(dividido?.lucro ?? 0))}` : money(dividido?.lucro ?? 0)}
+              </p>
+            </div>
+            <dl className="grid grid-cols-3 gap-2 text-xs text-[var(--color-text-faint)]">
+              <div>
+                <dt>Faturou</dt>
+                <dd className="money mt-0.5 text-sm font-semibold text-[var(--color-text)]">
+                  {money(dividido?.faturou ?? 0)}
+                </dd>
+              </div>
+              <div>
+                <dt>Gastou</dt>
+                <dd className="money mt-0.5 text-sm font-semibold text-[var(--color-text)]">
+                  {money(dividido?.gastou ?? 0)}
+                </dd>
+              </div>
+              <div>
+                <dt>Reserva ({Math.round(reservaPct * 100) / 100}%)</dt>
+                <dd className="money mt-0.5 text-sm font-semibold text-[var(--color-text)]">
+                  {money(dividido?.reserva ?? 0)}
+                </dd>
+              </div>
+            </dl>
+            {(dividido?.lucro ?? 0) < 0 && (
+              <p className="text-xs font-medium text-[var(--color-out)]">
+                Fechou com prejuízo: não divide e não desconta do mês seguinte.
+              </p>
+            )}
+          </div>
+
+          {/* Cada sócio: quanto coube no mês, quanto tirou no mês e o saldo até aqui. */}
           <div className="grid gap-3 sm:grid-cols-2">
-            {resumo.socios.map((s) => {
+            {socios.map((s) => {
               const pessoa = porId.get(s.user_id);
               return (
                 <div key={s.user_id} className="card flex flex-col gap-3 px-4 py-4">
@@ -240,24 +209,24 @@ export default function LucroPage() {
                   </p>
                   <dl className="grid grid-cols-3 gap-2 text-xs text-[var(--color-text-faint)]">
                     <div>
-                      <dt>Coube no ano</dt>
+                      <dt>Coube no mês</dt>
                       <dd className="money mt-0.5 text-sm font-semibold text-[var(--color-text)]">
-                        {money(s.direito)}
+                        {money(s.coube)}
                       </dd>
                     </div>
                     <div>
-                      <dt>Retirou</dt>
+                      <dt>Retirou no mês</dt>
                       <dd className="money mt-0.5 text-sm font-semibold text-[var(--color-text)]">
-                        {money(s.retirado)}
+                        {money(s.retirouNoMes)}
                       </dd>
                     </div>
                     <div>
-                      <dt>{s.falta < 0 ? "Tirou a mais" : "Falta retirar"}</dt>
+                      <dt>{s.saldo < 0 ? "Tirou a mais" : "Falta retirar"}</dt>
                       <dd
                         className="money mt-0.5 text-sm font-semibold"
-                        style={{ color: s.falta < 0 ? "var(--color-out)" : "var(--color-in)" }}
+                        style={{ color: s.saldo < 0 ? "var(--color-out)" : "var(--color-in)" }}
                       >
-                        {money(Math.abs(s.falta))}
+                        {money(Math.abs(s.saldo))}
                       </dd>
                     </div>
                   </dl>
@@ -265,99 +234,30 @@ export default function LucroPage() {
               );
             })}
           </div>
+          <p className="-mt-3 text-xs text-[var(--color-text-faint)]">
+            &ldquo;Falta retirar&rdquo; soma o que coube de janeiro até {monthName(mes).toLowerCase()} e
+            desconta o que já foi retirado até o fim do mês — a retirada de um mês costuma sair no
+            começo do seguinte.
+          </p>
 
-          <div className="card grid grid-cols-3 gap-2 px-4 py-4 text-xs text-[var(--color-text-faint)]">
-            <div>
-              <p>Lucro do ano</p>
-              <p className="money mt-0.5 text-base font-semibold text-[var(--color-in)]">
-                {money(resumo.lucroDoAno)}
-              </p>
-            </div>
-            <div>
-              <p>Reserva ({Math.round(reservaPct * 100) / 100}%)</p>
-              <p className="money mt-0.5 text-base font-semibold text-[var(--color-text)]">
-                {money(resumo.reservaDoAno)}
-              </p>
-            </div>
-            <div>
-              <p>Prejuízo do ano</p>
-              <p
-                className="money mt-0.5 text-base font-semibold"
-                style={{ color: resumo.prejuizoDoAno > 0 ? "var(--color-out)" : "var(--color-text)" }}
-              >
-                {money(resumo.prejuizoDoAno)}
-              </p>
-            </div>
-          </div>
-
-          {/* Mês a mês, do mais recente pro mais antigo. */}
-          <section className="flex flex-col gap-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">
-              Mês a mês
-            </h2>
-            {mesesComMovimento.length === 0 ? (
-              <p className="text-sm text-[var(--color-text-dim)]">Nenhum lançamento em {ano}.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {[...mesesComMovimento].reverse().map((m) => (
-                  <li key={m.mes} className="card flex flex-col gap-2 px-4 py-3">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="font-medium">{monthName(m.mes)}</p>
-                      <p
-                        className="money font-semibold"
-                        style={{ color: m.lucro < 0 ? "var(--color-out)" : "var(--color-in)" }}
-                      >
-                        {m.lucro < 0 ? `− ${money(-m.lucro)}` : money(m.lucro)}
-                      </p>
-                    </div>
-                    <p className="text-xs text-[var(--color-text-faint)]">
-                      Faturou <span className="money">{money(m.faturou)}</span> · gastou{" "}
-                      <span className="money">{money(m.gastou)}</span>
-                    </p>
-                    {m.lucro < 0 ? (
-                      <p className="text-xs font-medium text-[var(--color-out)]">
-                        Fechou com prejuízo: não divide e não desconta do mês seguinte.
-                      </p>
-                    ) : m.lucro > 0 ? (
-                      <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--color-text-dim)]">
-                        {m.reserva > 0 && (
-                          <span>
-                            Reserva <span className="money">{money(m.reserva)}</span>
-                          </span>
-                        )}
-                        {partes.map((p) => (
-                          <span key={p.user_id} className="inline-flex items-center gap-1">
-                            <Dot color={porId.get(p.user_id)?.color ?? null} />
-                            {firstName(porId.get(p.user_id)?.display_name ?? "Sócio")}{" "}
-                            <span className="money">{money(m.partes[p.user_id] ?? 0)}</span>
-                          </span>
-                        ))}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {/* Retiradas (F3.5). */}
+          {/* Retiradas do mês (F3.5). */}
           {pronto && (
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">
-                  Retiradas em {ano}
+                  Retiradas em {monthName(mes).toLowerCase()}
                 </h2>
                 <Button variant="ghost" className="px-3 py-1 text-xs" onClick={novaRetirada}>
                   Nova retirada
                 </Button>
               </div>
-              {retiradas.length === 0 ? (
+              {retiradasDoMes.length === 0 ? (
                 <p className="text-sm text-[var(--color-text-dim)]">
-                  Ninguém registrou retirada em {ano}.
+                  Ninguém registrou retirada em {monthName(mes).toLowerCase()}.
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {retiradas.map((r) => {
+                  {retiradasDoMes.map((r) => {
                     const pessoa = porId.get(r.user_id);
                     return (
                       <li key={r.id} className="card flex items-center justify-between gap-3 px-4 py-3">
